@@ -17,8 +17,8 @@ class _DebugPanelState extends State<DebugPanel> {
 
   @override
   Widget build(BuildContext context) {
-    if (!kDebugMode) return const SizedBox.shrink();
-
+    // NOTE: kDebugMode gate removed on purpose so this panel renders in
+    // every build, including release. It will be visible to end users.
     return Positioned(
       left: _position.dx,
       top: _position.dy,
