@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import '../../../core/constants/app_themes.dart';
 import '../../../models/song.dart';
-import '../../../providers/theme_provider.dart';
 
 class AlbumArt extends StatelessWidget {
   final Song song;
