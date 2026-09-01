@@ -51,7 +51,7 @@ class _HomeScreenState extends State<HomeScreen> {
         singersProvider.loadSingers();
       }
       if (songsProvider.allSongs.isNotEmpty) {
-        likesProvider.loadLikedSongs(
+        likesProvider.loadLikesData(
           songsProvider.allSongs.map((s) => s.id).toList(),
         );
       }
