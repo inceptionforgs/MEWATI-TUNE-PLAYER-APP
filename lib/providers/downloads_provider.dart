@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/song.dart';
+import '../services/debug_log_service.dart';
 import '../services/downloads_service.dart';
 
 class DownloadsProvider with ChangeNotifier {
@@ -8,10 +9,12 @@ class DownloadsProvider with ChangeNotifier {
 
   final Set<String> _downloadedSongIds = {};
   final Map<String, double> _downloadProgress = {};
+  String? _lastError;
   static const String _prefsKey = 'downloaded_song_ids';
 
   Set<String> get downloadedSongIds => _downloadedSongIds;
   Map<String, double> get downloadProgress => _downloadProgress;
+  String? get lastError => _lastError;
 
   bool isDownloaded(String songId) => _downloadedSongIds.contains(songId);
   bool isDownloading(String songId) => _downloadProgress.containsKey(songId);
@@ -46,6 +49,7 @@ class DownloadsProvider with ChangeNotifier {
           return await _downloadsService.isSongDownloaded(song.id);
         } catch (e) {
           debugPrint('Download check failed for ${song.id}: $e');
+          DebugLogService().error('Download check failed for ${song.id}: $e');
           return false;
         }
       }),
@@ -72,6 +76,7 @@ class DownloadsProvider with ChangeNotifier {
           }
         } catch (e) {
           debugPrint('Cache verification failed for ${song.id}: $e');
+          DebugLogService().error('Cache verification failed for ${song.id}: $e');
         }
       }
     }
@@ -82,6 +87,7 @@ class DownloadsProvider with ChangeNotifier {
     if (isDownloaded(song.id) || isDownloading(song.id)) return;
 
     _downloadProgress[song.id] = 0.0;
+    _lastError = null;
     notifyListeners();
 
     try {
@@ -99,8 +105,10 @@ class DownloadsProvider with ChangeNotifier {
       notifyListeners();
     } catch (e) {
       _downloadProgress.remove(song.id);
+      _lastError = e.toString();
       notifyListeners();
       debugPrint("Download Error: $e");
+      DebugLogService().error('Download Error for "${song.title}": $e');
     }
   }
 
