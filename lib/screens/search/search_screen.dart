@@ -6,6 +6,7 @@ import '../../models/song.dart';
 import '../../models/singer.dart';
 import '../../providers/songs_provider.dart';
 import '../../providers/singers_provider.dart';
+import '../../providers/likes_provider.dart';
 import '../../providers/theme_provider.dart';
 import '../singers/singer_profile_screen.dart';
 import 'widgets/search_result_row.dart';
@@ -81,6 +82,9 @@ class _SearchScreenState extends State<SearchScreen> {
         _isSearching = true;
         _isLoading = false;
       });
+
+      final likesProvider = Provider.of<LikesProvider>(context, listen: false);
+      likesProvider.loadLikesData(_songResults.map((s) => s.id).toList());
     } catch (e) {
       if (!mounted) return;
       setState(() {
