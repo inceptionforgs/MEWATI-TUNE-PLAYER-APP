@@ -27,11 +27,13 @@ class _DownloadsScreenState extends State<DownloadsScreen> {
       final songsProvider = Provider.of<SongsProvider>(context, listen: false);
       final downloadsProvider =
           Provider.of<DownloadsProvider>(context, listen: false);
+      final likesProvider = Provider.of<LikesProvider>(context, listen: false);
 
       if (songsProvider.allSongs.isEmpty) {
         await songsProvider.loadSongs();
       }
       await downloadsProvider.checkExistingDownloads(songsProvider.allSongs);
+      likesProvider.loadLikesData(songsProvider.allSongs.map((s) => s.id).toList());
     });
   }
 
