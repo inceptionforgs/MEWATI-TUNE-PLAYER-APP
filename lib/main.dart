@@ -3,7 +3,6 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:just_audio_background/just_audio_background.dart';
 import 'package:sentry_flutter/sentry_flutter.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
-import 'package:background_downloader/background_downloader.dart';
 import 'app.dart';
 import 'providers/auth_provider.dart';
 import 'providers/downloads_provider.dart';
@@ -18,9 +17,6 @@ Future<void> main() async {
     try {
       await dotenv.load(fileName: ".env");
     } catch (_) {}
-
-    // Initialize background_downloader — REQUIRED for download functionality
-    await FileDownloader().initialize();
 
     await JustAudioBackground.init(
       androidNotificationChannelId: 'com.mewatitune.player.channel.audio',
