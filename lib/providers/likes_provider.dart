@@ -18,19 +18,17 @@ class LikesProvider extends ChangeNotifier {
   bool isLikedSync(String songId) => _likedSongIds.contains(songId);
   int getLikeCountSync(String songId) => _likeCounts[songId] ?? 0;
 
-  Future<void> loadLikedSongs(List<String> songIds) async {
+  Future<void> loadLikesData(List<String> songIds) async {
+    if (songIds.isEmpty) return;
     _isLoading = true;
     _errorMessage = null;
     notifyListeners();
 
     try {
-      _likedSongIds.clear();
-      for (final id in songIds) {
-        final liked = await _likeService.isLiked(id);
-        if (liked) {
-          _likedSongIds.add(id);
-        }
-      }
+      await Future.wait([
+        _loadLikedSongs(songIds),
+        _loadLikeCounts(songIds),
+      ]);
     } catch (e) {
       _errorMessage = e.toString();
     } finally {
@@ -39,17 +37,27 @@ class LikesProvider extends ChangeNotifier {
     }
   }
 
-  Future<void> loadLikeCounts(List<String> songIds) async {
-    try {
-      for (final id in songIds) {
-        final count = await _likeService.getLikeCount(id);
-        _likeCounts[id] = count;
+  Future<void> _loadLikedSongs(List<String> songIds) async {
+    for (final id in songIds) {
+      final liked = await _likeService.isLiked(id);
+      if (liked) {
+        _likedSongIds.add(id);
       }
-      notifyListeners();
-    } catch (e) {
-      _errorMessage = e.toString();
-      notifyListeners();
     }
+  }
+
+  Future<void> _loadLikeCounts(List<String> songIds) async {
+    for (final id in songIds) {
+      final count = await _likeService.getLikeCount(id);
+      _likeCounts[id] = count;
+    }
+  }
+
+  Future<void> loadLikedSongs(List<String> songIds) => loadLikesData(songIds);
+
+  Future<void> loadLikeCounts(List<String> songIds) async {
+    await _loadLikeCounts(songIds);
+    notifyListeners();
   }
 
   Future<void> toggleLike(String songId) async {
