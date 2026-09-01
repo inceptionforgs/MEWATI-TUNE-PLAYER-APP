@@ -6,6 +6,7 @@ import 'package:just_audio/just_audio.dart';
 import 'package:just_audio_background/just_audio_background.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/song.dart';
+import 'debug_log_service.dart';
 import 'downloads_service.dart';
 import 'equalizer_service.dart';
 import 'songs_service.dart';
@@ -53,6 +54,15 @@ class PlayerService {
         _currentIndex = index;
       }
     });
+
+    // Surface any low-level playback errors (bad URL, 403/404 from storage,
+    // codec issues, network drops mid-stream) into the on-screen debug panel.
+    _player.playbackEventStream.listen(
+      (event) {},
+      onError: (Object e, StackTrace st) {
+        DebugLogService().error('Playback stream error: $e');
+      },
+    );
   }
 
   Future<void> setPlaylist({required List<Song> songs, required int startIndex}) async {
@@ -84,6 +94,7 @@ class PlayerService {
         if (isDownloaded && await File(localPath).exists()) {
           audioSources.add(AudioSource.uri(Uri.file(localPath), tag: mediaItem));
         } else {
+          DebugLogService().info('Loading audio URL for "${song.title}": ${song.audioUrl}');
           audioSources.add(LockCachingAudioSource(Uri.parse(song.audioUrl), tag: mediaItem));
         }
       }
@@ -94,9 +105,11 @@ class PlayerService {
       // Use unawaited to avoid hanging, but catch errors
       unawaited(_player.play().catchError((e) {
         debugPrint('PlayerService.play error: $e');
+        DebugLogService().error('PlayerService.play error: $e');
       }));
       _trackPlayCount(_playlist[_currentIndex]);
     } catch (e) {
+      DebugLogService().error('PlayerService.setPlaylist error: $e');
       throw Exception('Failed to play playlist: ${e.toString()}');
     }
   }
@@ -113,6 +126,7 @@ class PlayerService {
       await EqualizerService().applyPreset(savedPreset);
     } catch (e) {
       debugPrint("Equalizer init (player) Error: $e");
+      DebugLogService().error('Equalizer init (player) Error: $e');
     }
   }
 
@@ -126,6 +140,7 @@ class PlayerService {
     } else {
       unawaited(_player.play().catchError((e) {
         debugPrint('PlayerService.togglePlayPause play error: $e');
+        DebugLogService().error('PlayerService.togglePlayPause play error: $e');
       }));
     }
   }
@@ -155,6 +170,7 @@ class PlayerService {
     await _player.seek(Duration.zero, index: _currentIndex);
     unawaited(_player.play().catchError((e) {
       debugPrint('PlayerService.next play error: $e');
+      DebugLogService().error('PlayerService.next play error: $e');
     }));
     _trackPlayCount(_playlist[_currentIndex]);
   }
@@ -184,6 +200,7 @@ class PlayerService {
     await _player.seek(Duration.zero, index: _currentIndex);
     unawaited(_player.play().catchError((e) {
       debugPrint('PlayerService.previous play error: $e');
+      DebugLogService().error('PlayerService.previous play error: $e');
     }));
     _trackPlayCount(_playlist[_currentIndex]);
   }
