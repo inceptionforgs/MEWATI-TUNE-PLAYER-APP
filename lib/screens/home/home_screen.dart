@@ -60,7 +60,10 @@ class _HomeScreenState extends State<HomeScreen> {
 
   void _openSearch() {
     Navigator.of(context).push(
-      MaterialPageRoute(builder: (_) => const SearchScreen()),
+      MaterialPageRoute(
+        builder: (_) => const SearchScreen(),
+        fullscreenDialog: true,
+      ),
     );
   }
 
