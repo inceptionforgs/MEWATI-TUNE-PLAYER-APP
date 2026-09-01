@@ -14,6 +14,7 @@ import 'widgets/brand_row.dart';
 import 'widgets/home_tabs.dart';
 import '../../providers/songs_provider.dart';
 import '../../providers/singers_provider.dart';
+import '../../providers/likes_provider.dart';
 import '../../providers/theme_provider.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -38,14 +39,21 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   void initState() {
     super.initState();
-    Future.microtask(() {
+    Future.microtask(() async {
       final songsProvider = Provider.of<SongsProvider>(context, listen: false);
-      if (songsProvider.allSongs.isEmpty) {
-        songsProvider.loadSongs();
-      }
       final singersProvider = Provider.of<SingersProvider>(context, listen: false);
+      final likesProvider = Provider.of<LikesProvider>(context, listen: false);
+
+      if (songsProvider.allSongs.isEmpty) {
+        await songsProvider.loadSongs();
+      }
       if (singersProvider.allSingers.isEmpty) {
         singersProvider.loadSingers();
+      }
+      if (songsProvider.allSongs.isNotEmpty) {
+        likesProvider.loadLikedSongs(
+          songsProvider.allSongs.map((s) => s.id).toList(),
+        );
       }
     });
   }
