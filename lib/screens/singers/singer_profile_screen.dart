@@ -47,6 +47,9 @@ class _SingerProfileScreenState extends State<SingerProfileScreen> {
           .fetchSongsBySinger(widget.singer.id);
       if (!mounted) return;
       setState(() => _songs = songs);
+
+      final likesProvider = Provider.of<LikesProvider>(context, listen: false);
+      likesProvider.loadLikesData(_songs.map((s) => s.id).toList());
     } catch (e) {
       if (!mounted) return;
       setState(() {
