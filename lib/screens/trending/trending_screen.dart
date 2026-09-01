@@ -67,6 +67,9 @@ class _TrendingScreenState extends State<TrendingScreen> {
         _page = 0;
         _hasMore = page.length >= _pageSize;
       });
+
+      final likesProvider = Provider.of<LikesProvider>(context, listen: false);
+      likesProvider.loadLikesData(_trendingSongs.map((s) => s.id).toList());
     } catch (e) {
       setState(() {
         _errorMessage = e.toString();
@@ -100,6 +103,9 @@ class _TrendingScreenState extends State<TrendingScreen> {
           _hasMore = nextPage.length >= _pageSize;
         }
       });
+
+      final likesProvider = Provider.of<LikesProvider>(context, listen: false);
+      likesProvider.loadLikesData(_trendingSongs.map((s) => s.id).toList());
     } catch (e) {
       setState(() => _loadMoreError = e.toString());
     } finally {
