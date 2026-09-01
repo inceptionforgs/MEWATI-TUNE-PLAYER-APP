@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:just_audio_background/just_audio_background.dart';
 import 'package:sentry_flutter/sentry_flutter.dart';
+import 'package:connectivity_plus/connectivity_plus.dart';
 import 'app.dart';
 import 'providers/auth_provider.dart';
 import 'providers/downloads_provider.dart';
@@ -33,9 +34,11 @@ Future<void> main() async {
     await downloadsProvider.initialize();
 
     DebugLogService().info('App started');
-    DebugLogService().info('Auth status: ${authProvider.isLoggedIn ? "logged in" : "not logged in"}');
+    DebugLogService().info(
+        'Auth status: ${authProvider.isLoggedIn ? "logged in" : "not logged in"}');
 
-    final sentryDsn = dotenv.isInitialized ? (dotenv.env['SENTRY_DSN'] ?? '') : '';
+    final sentryDsn =
+        dotenv.isInitialized ? (dotenv.env['SENTRY_DSN'] ?? '') : '';
     if (sentryDsn.isNotEmpty) {
       await SentryFlutter.init(
         (options) {
@@ -44,6 +47,8 @@ Future<void> main() async {
         },
       );
     }
+
+    Connectivity().onConnectivityChanged.listen((_) {});
 
     runApp(
       MewatiTunePlayerApp(
