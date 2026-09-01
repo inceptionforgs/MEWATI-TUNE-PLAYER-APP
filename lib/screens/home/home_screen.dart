@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import '../../core/constants/app_theme.dart';
 import '../../core/widgets/ad_banner_widget.dart';
 import '../../core/widgets/connectivity_banner.dart';
 import '../../core/widgets/mini_player_bar.dart';
@@ -15,6 +14,7 @@ import 'widgets/brand_row.dart';
 import 'widgets/home_tabs.dart';
 import '../../providers/songs_provider.dart';
 import '../../providers/singers_provider.dart';
+import '../../providers/theme_provider.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({Key? key}) : super(key: key);
