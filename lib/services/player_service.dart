@@ -1,6 +1,7 @@
-import 'dart:math';
-import 'dart:io';
 import 'dart:async';
+import 'dart:io';
+import 'dart:math';
+import 'package:flutter/foundation.dart';
 import 'package:just_audio/just_audio.dart';
 import 'package:just_audio_background/just_audio_background.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -89,7 +90,11 @@ class PlayerService {
       final playlistSource = ConcatenatingAudioSource(children: audioSources);
       await _player.setAudioSource(playlistSource, initialIndex: adjustedStartIndex);
       _initEqualizer();
-      _player.play();
+
+      // Use unawaited to avoid hanging, but catch errors
+      unawaited(_player.play().catchError((e) {
+        debugPrint('PlayerService.play error: $e');
+      }));
       _trackPlayCount(_playlist[_currentIndex]);
     } catch (e) {
       throw Exception('Failed to play playlist: ${e.toString()}');
@@ -107,7 +112,7 @@ class PlayerService {
       final savedPreset = prefs.getString('eq_preset') ?? 'mewati-bass';
       await EqualizerService().applyPreset(savedPreset);
     } catch (e) {
-      print("Equalizer init (player) Error: $e");
+      debugPrint("Equalizer init (player) Error: $e");
     }
   }
 
@@ -119,7 +124,9 @@ class PlayerService {
     if (_player.playing) {
       await _player.pause();
     } else {
-      _player.play();
+      unawaited(_player.play().catchError((e) {
+        debugPrint('PlayerService.togglePlayPause play error: $e');
+      }));
     }
   }
 
@@ -146,7 +153,9 @@ class PlayerService {
       }
     }
     await _player.seek(Duration.zero, index: _currentIndex);
-    _player.play();
+    unawaited(_player.play().catchError((e) {
+      debugPrint('PlayerService.next play error: $e');
+    }));
     _trackPlayCount(_playlist[_currentIndex]);
   }
 
@@ -173,7 +182,9 @@ class PlayerService {
       }
     }
     await _player.seek(Duration.zero, index: _currentIndex);
-    _player.play();
+    unawaited(_player.play().catchError((e) {
+      debugPrint('PlayerService.previous play error: $e');
+    }));
     _trackPlayCount(_playlist[_currentIndex]);
   }
 
