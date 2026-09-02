@@ -1,4 +1,5 @@
 import 'dart:io' show Platform;
+import 'package:flutter/foundation.dart';
 import 'package:just_audio/just_audio.dart';
 
 enum SoundMode {
@@ -14,8 +15,33 @@ class EqualizerService {
   factory EqualizerService() => _instance;
   EqualizerService._internal();
 
-  final AndroidEqualizer equalizer = AndroidEqualizer();
-  final AndroidLoudnessEnhancer loudnessEnhancer = AndroidLoudnessEnhancer();
+  // Construction guarded by Platform.isAndroid — these are now created
+  // lazily and only on Android, so equalizer init failure can never
+  // crash playback on other platforms.
+  AndroidEqualizer? _equalizer;
+  AndroidLoudnessEnhancer? _loudnessEnhancer;
+
+  AndroidEqualizer? get equalizer {
+    if (!Platform.isAndroid) return null;
+    return _equalizer ??= AndroidEqualizer();
+  }
+
+  AndroidLoudnessEnhancer? get loudnessEnhancer {
+    if (!Platform.isAndroid) return null;
+    return _loudnessEnhancer ??= AndroidLoudnessEnhancer();
+  }
+
+  /// All Android audio effects for this service, ready to pass into
+  /// AudioPipeline(androidAudioEffects: ...). Empty on non-Android.
+  List<AndroidAudioEffect> get androidAudioEffects {
+    if (!Platform.isAndroid) return const [];
+    final eq = equalizer;
+    final loud = loudnessEnhancer;
+    return [
+      if (eq != null) eq,
+      if (loud != null) loud,
+    ];
+  }
 
   bool _isInitialized = false;
 
@@ -25,23 +51,29 @@ class EqualizerService {
   Future<void> init() async {
     if (_isInitialized) return;
     if (!Platform.isAndroid) {
-      print('EqualizerService: skipped, unsupported platform (${Platform.operatingSystem})');
+      if (kDebugMode) {
+        debugPrint('EqualizerService: skipped, unsupported platform (${Platform.operatingSystem})');
+      }
       return;
     }
+    final eq = equalizer;
+    final loud = loudnessEnhancer;
+    if (eq == null || loud == null) return;
     try {
-      await equalizer.setEnabled(true);
-      await loudnessEnhancer.setEnabled(true);
+      await eq.setEnabled(true);
+      await loud.setEnabled(true);
       _isInitialized = true;
     } catch (e) {
-      print('EqualizerService init error: $e');
+      if (kDebugMode) {
+        debugPrint('EqualizerService init error: $e');
+      }
     }
   }
 
   Future<void> applyPreset(String preset) async {
-    // Ensure initialized even if called before first playback.
     if (!_isInitialized) {
       await init();
-      if (!_isInitialized) return; // platform unsupported or init failed
+      if (!_isInitialized) return;
     }
 
     SoundMode mode;
@@ -72,8 +104,11 @@ class EqualizerService {
       await init();
       if (!_isInitialized) return;
     }
+    final eq = equalizer;
+    final loud = loudnessEnhancer;
+    if (eq == null || loud == null) return;
     try {
-      final params = await equalizer.parameters;
+      final params = await eq.parameters;
       for (final band in params.bands) {
         final rawGain = _gainForBand(mode, band.centerFrequency.toDouble());
         final clamped = rawGain.clamp(params.minDecibels, params.maxDecibels);
@@ -81,9 +116,11 @@ class EqualizerService {
       }
       final requested = (mode == SoundMode.mewatiBass) ? _mewatiBassLoudnessGainDb : 0.0;
       final safeLoudness = requested.clamp(0.0, _maxLoudnessGainDb);
-      await loudnessEnhancer.setTargetGain(safeLoudness);
+      await loud.setTargetGain(safeLoudness);
     } catch (e) {
-      print('EqualizerService applyPreset error: $e');
+      if (kDebugMode) {
+        debugPrint('EqualizerService applyPreset error: $e');
+      }
     }
   }
 
