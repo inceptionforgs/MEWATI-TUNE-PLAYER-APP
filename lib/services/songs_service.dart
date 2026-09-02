@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/song.dart';
 import 'supabase_service.dart';
@@ -12,7 +13,6 @@ class SongsService {
       try {
         songs.add(Song.fromJson(item as Map<String, dynamic>));
       } catch (e) {
-        // Log and skip bad rows to prevent one bad record from failing the page.
         debugPrint('SongsService: skipping invalid song row: $e');
       }
     }
