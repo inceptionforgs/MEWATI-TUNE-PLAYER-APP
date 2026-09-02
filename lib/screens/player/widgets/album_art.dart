@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import '../../../core/constants/app_themes.dart';
 import '../../../models/song.dart';
+import '../../../services/app_cache_manager.dart';
 
 class AlbumArt extends StatelessWidget {
   final Song song;
@@ -39,6 +40,7 @@ class AlbumArt extends StatelessWidget {
               child: CachedNetworkImage(
                 imageUrl: song.coverImageUrl!,
                 fit: BoxFit.cover,
+                cacheManager: AppCacheManager.instance, // <-- added
                 placeholder: (context, url) =>
                     Icon(Icons.music_note, color: t.textPrimary, size: 64),
                 errorWidget: (context, url, error) =>
