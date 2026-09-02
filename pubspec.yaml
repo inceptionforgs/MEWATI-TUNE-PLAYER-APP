@@ -28,6 +28,9 @@ dependencies:
   sentry_flutter: ^9.27.0
   connectivity_plus: ^5.0.2
 
+  # For Android 13+ notification permission
+  permission_handler: ^11.3.1
+
 dev_dependencies:
   flutter_test:
     sdk: flutter
