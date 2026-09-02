@@ -10,8 +10,6 @@ class DownloadsProvider with ChangeNotifier {
   final Map<String, double> _downloadProgress = {};
   static const String _prefsKey = 'downloaded_song_ids';
 
-  // Separate notifier for progress updates to avoid notifying all listeners
-  // on every progress tick (P1#14).
   final ValueNotifier<Map<String, double>> progressNotifier =
       ValueNotifier<Map<String, double>>({});
 
@@ -48,7 +46,10 @@ class DownloadsProvider with ChangeNotifier {
     final results = await Future.wait(
       toCheck.map((song) async {
         try {
-          return await _downloadsService.isSongDownloaded(song.id);
+          return await _downloadsService.isSongDownloaded(
+            song.id,
+            audioUrl: song.audioUrl,
+          );
         } catch (e) {
           debugPrint('Download check failed for ${song.id}: $e');
           return false;
@@ -71,7 +72,10 @@ class DownloadsProvider with ChangeNotifier {
     for (final song in allSongs) {
       if (_downloadedSongIds.contains(song.id)) {
         try {
-          bool exists = await _downloadsService.isSongDownloaded(song.id);
+          bool exists = await _downloadsService.isSongDownloaded(
+            song.id,
+            audioUrl: song.audioUrl,
+          );
           if (!exists) {
             _downloadedSongIds.remove(song.id);
           }
@@ -88,14 +92,13 @@ class DownloadsProvider with ChangeNotifier {
 
     _downloadProgress[song.id] = 0.0;
     progressNotifier.value = Map.unmodifiable(_downloadProgress);
-    notifyListeners(); // notify for starting state (downloading icon)
+    notifyListeners();
 
     try {
       await _downloadsService.downloadSong(
         song,
         onProgress: (progress, total) {
           _downloadProgress[song.id] = progress;
-          // Update only progress notifier, not main listeners
           progressNotifier.value = Map.unmodifiable(_downloadProgress);
         },
       );
@@ -104,11 +107,11 @@ class DownloadsProvider with ChangeNotifier {
       progressNotifier.value = Map.unmodifiable(_downloadProgress);
       _downloadedSongIds.add(song.id);
       await _saveCache();
-      notifyListeners(); // now download complete, update download status
+      notifyListeners();
     } catch (e) {
       _downloadProgress.remove(song.id);
       progressNotifier.value = Map.unmodifiable(_downloadProgress);
-      notifyListeners(); // revert downloading state
+      notifyListeners();
       debugPrint("Download Error: $e");
     }
   }
@@ -121,8 +124,8 @@ class DownloadsProvider with ChangeNotifier {
     notifyListeners();
   }
 
-  Future<void> removeDownload(String songId) async {
-    await _downloadsService.deleteSong(songId);
+  Future<void> removeDownload(String songId, {String? audioUrl}) async {
+    await _downloadsService.deleteSong(songId, audioUrl: audioUrl);
     _downloadedSongIds.remove(songId);
     await _saveCache();
     notifyListeners();
