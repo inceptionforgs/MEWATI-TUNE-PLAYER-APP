@@ -13,35 +13,26 @@ class DownloadsService {
 
   final Map<String, DownloadTask> _tasks = {};
   final Map<String, Function(double progress, int total)?> _progressCallbacks = {};
+
   StreamSubscription<TaskUpdate>? _progressSubscription;
 
   Future<String> _getDownloadDirectory() async {
+    // Returns absolute path to the app's documents directory.
     final directory = await getApplicationDocumentsDirectory();
-    final path = '${directory.path}/MewatiOfflineSongs';
-    final dir = Directory(path);
-    if (!await dir.exists()) {
-      await dir.create(recursive: true);
-    }
-    return path;
+    return directory.path;
   }
 
-  /// Get local path for a song. Extension is optional; default is 'mp3'.
-  Future<String> getLocalSongPath(String songId, {String? extension}) async {
+  Future<String> getLocalSongPath(String songId) async {
     final dirPath = await _getDownloadDirectory();
-    final ext = extension ?? 'mp3';
-    return '$dirPath/song_$songId.$ext';
+    // Files are stored under MewatiOfflineSongs/ subdirectory inside documents.
+    return '$dirPath/MewatiOfflineSongs/song_$songId.m4a';
   }
 
   Future<bool> isSongDownloaded(String songId) async {
-    // Try with .mp3 first, fallback to .m4a for backward compatibility
-    for (final ext in ['mp3', 'm4a']) {
-      final filePath = await getLocalSongPath(songId, extension: ext);
-      final file = File(filePath);
-      if (await file.exists() && await file.length() > 0) {
-        return true;
-      }
-    }
-    return false;
+    final filePath = await getLocalSongPath(songId);
+    final file = File(filePath);
+    if (!await file.exists()) return false;
+    return await file.length() > 0;
   }
 
   void _init() {
@@ -59,21 +50,19 @@ class DownloadsService {
     Song song, {
     Function(double progress, int total)? onProgress,
   }) async {
-    // Check if already downloaded (any extension)
     if (await isSongDownloaded(song.id)) return;
 
-    final dirPath = await _getDownloadDirectory();
     final taskId = 'song_${song.id}';
-    
-    // 🔥 Dynamic extension from URL
-    final extension = song.audioUrl.split('.').last.split('?').first; // 'mp3'
-    final filename = 'song_${song.id}.$extension';
-
+    final filename = 'song_${song.id}.m4a';
+    // Use relative directory and baseDirectory as expected by the plugin.
+    // This avoids absolute path confusion and ensures the file lands in
+    // <documents>/MewatiOfflineSongs/.
     final task = DownloadTask(
       taskId: taskId,
       url: song.audioUrl,
       filename: filename,
-      directory: dirPath,
+      directory: 'MewatiOfflineSongs',
+      baseDirectory: BaseDirectory.applicationDocuments,
       updates: Updates.statusAndProgress,
       allowPause: true,
     );
@@ -93,23 +82,15 @@ class DownloadsService {
         throw Exception('Download did not complete: ${result.status}');
       }
 
-      // 🔥 IMPORTANT: Use the actual file path from result
-      final localPath = result.filePath;
-      if (localPath == null) {
-        throw Exception('Download result has no file path.');
-      }
-
+      final localPath = await getLocalSongPath(song.id);
       final file = File(localPath);
       if (!await file.exists()) {
-        throw Exception('Downloaded file not found on disk at $localPath');
+        throw Exception('Downloaded file not found on disk.');
       }
       if (await file.length() <= 0) {
         await file.delete();
         throw Exception('Downloaded file is empty.');
       }
-
-      // Optional: You can store the extension mapping if needed later
-      // e.g., SharedPreferences to remember extension per song
     } catch (e) {
       _progressCallbacks.remove(taskId);
       _tasks.remove(taskId);
@@ -132,13 +113,10 @@ class DownloadsService {
   }
 
   Future<void> deleteSong(String songId) async {
-    // Try both extensions while deleting
-    for (final ext in ['mp3', 'm4a']) {
-      final filePath = await getLocalSongPath(songId, extension: ext);
-      final file = File(filePath);
-      if (await file.exists()) {
-        await file.delete();
-      }
+    final filePath = await getLocalSongPath(songId);
+    final file = File(filePath);
+    if (await file.exists()) {
+      await file.delete();
     }
   }
 
