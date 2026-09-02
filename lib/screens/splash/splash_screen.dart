@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../core/constants/app_strings.dart';
 import '../../providers/auth_provider.dart';
+import '../../providers/theme_provider.dart';
 import '../../services/local_cache_service.dart';
 
 class SplashScreen extends StatefulWidget {
@@ -39,11 +40,13 @@ class _SplashScreenState extends State<SplashScreen> {
     if (!mounted) return;
 
     if (hasCachedSongs || hasCachedSingers) {
+      // Don't block navigation on auth; start loading user in background.
       authProvider.loadCurrentUser();
       Navigator.of(context).pushReplacementNamed('/home');
       return;
     }
 
+    // No cache and not logged in: likely first launch / offline.
     if (!mounted) return;
     setState(() {
       _showRetry = true;
@@ -60,58 +63,85 @@ class _SplashScreenState extends State<SplashScreen> {
     await _startSplashAndNavigate();
   }
 
+  void _continueOffline() {
+    Navigator.of(context).pushReplacementNamed('/home');
+  }
+
   @override
   Widget build(BuildContext context) {
+    final t = context.watch<ThemeProvider>().theme;
+
     return Scaffold(
-      backgroundColor: const Color(0xFF121212),
+      backgroundColor: t.background,
       body: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Container(
-              width: 120,
-              height: 120,
-              decoration: BoxDecoration(
-                color: const Color(0xFF1E1E1E),
-                borderRadius: BorderRadius.circular(24),
+        child: Padding(
+          padding: const EdgeInsets.all(24.0),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Container(
+                width: 120,
+                height: 120,
+                decoration: BoxDecoration(
+                  color: t.surface,
+                  borderRadius: BorderRadius.circular(24),
+                ),
+                child: Icon(
+                  Icons.music_note,
+                  size: 64,
+                  color: t.accent,
+                ),
               ),
-              child: const Icon(
-                Icons.music_note,
-                size: 64,
-                color: Color(0xFFE67E22),
+              const SizedBox(height: 24),
+              Text(
+                AppStrings.appName,
+                style: TextStyle(
+                  fontSize: 28,
+                  fontWeight: FontWeight.bold,
+                  color: t.textPrimary,
+                ),
               ),
-            ),
-            const SizedBox(height: 24),
-            const Text(
-              AppStrings.appName,
-              style: TextStyle(
-                fontSize: 28,
-                fontWeight: FontWeight.bold,
-                color: Color(0xFFF5F5F5),
+              const SizedBox(height: 8),
+              Text(
+                AppStrings.appTagline,
+                style: TextStyle(
+                  fontSize: 16,
+                  color: t.textSecondary,
+                ),
               ),
-            ),
-            const SizedBox(height: 8),
-            const Text(
-              AppStrings.appTagline,
-              style: TextStyle(
-                fontSize: 16,
-                color: Color(0xFFB3B3B3),
-              ),
-            ),
-            if (_showRetry) ...[
-              const SizedBox(height: 32),
-              const Text(
-                'Could not connect. Please check your internet.',
-                textAlign: TextAlign.center,
-                style: TextStyle(color: Color(0xFFE53935), fontSize: 14),
-              ),
-              const SizedBox(height: 16),
-              ElevatedButton(
-                onPressed: _retry,
-                child: const Text('Retry'),
-              ),
+              if (_showRetry) ...[
+                const SizedBox(height: 32),
+                Text(
+                  'Could not connect. Please check your internet.',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    color: Colors.redAccent,
+                    fontSize: 14,
+                  ),
+                ),
+                const SizedBox(height: 16),
+                ElevatedButton(
+                  onPressed: _retry,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: t.accent,
+                    foregroundColor: t.textPrimary,
+                  ),
+                  child: const Text('Retry'),
+                ),
+                const SizedBox(height: 8),
+                TextButton(
+                  onPressed: _continueOffline,
+                  child: Text(
+                    'Continue Offline',
+                    style: TextStyle(
+                      color: t.textPrimary,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+              ],
             ],
-          ],
+          ),
         ),
       ),
     );
