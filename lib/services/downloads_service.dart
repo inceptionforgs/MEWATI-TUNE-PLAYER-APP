@@ -13,7 +13,6 @@ class DownloadsService {
 
   final Map<String, DownloadTask> _tasks = {};
   final Map<String, Function(double progress, int total)?> _progressCallbacks = {};
-
   StreamSubscription<TaskUpdate>? _progressSubscription;
 
   Future<String> _getDownloadDirectory() async {
@@ -26,16 +25,23 @@ class DownloadsService {
     return path;
   }
 
-  Future<String> getLocalSongPath(String songId) async {
+  /// Get local path for a song. Extension is optional; default is 'mp3'.
+  Future<String> getLocalSongPath(String songId, {String? extension}) async {
     final dirPath = await _getDownloadDirectory();
-    return '$dirPath/song_$songId.m4a';
+    final ext = extension ?? 'mp3';
+    return '$dirPath/song_$songId.$ext';
   }
 
   Future<bool> isSongDownloaded(String songId) async {
-    final filePath = await getLocalSongPath(songId);
-    final file = File(filePath);
-    if (!await file.exists()) return false;
-    return await file.length() > 0;
+    // Try with .mp3 first, fallback to .m4a for backward compatibility
+    for (final ext in ['mp3', 'm4a']) {
+      final filePath = await getLocalSongPath(songId, extension: ext);
+      final file = File(filePath);
+      if (await file.exists() && await file.length() > 0) {
+        return true;
+      }
+    }
+    return false;
   }
 
   void _init() {
@@ -53,11 +59,15 @@ class DownloadsService {
     Song song, {
     Function(double progress, int total)? onProgress,
   }) async {
+    // Check if already downloaded (any extension)
     if (await isSongDownloaded(song.id)) return;
 
     final dirPath = await _getDownloadDirectory();
     final taskId = 'song_${song.id}';
-    final filename = 'song_${song.id}.m4a';
+    
+    // 🔥 Dynamic extension from URL
+    final extension = song.audioUrl.split('.').last.split('?').first; // 'mp3'
+    final filename = 'song_${song.id}.$extension';
 
     final task = DownloadTask(
       taskId: taskId,
@@ -83,15 +93,23 @@ class DownloadsService {
         throw Exception('Download did not complete: ${result.status}');
       }
 
-      final localPath = await getLocalSongPath(song.id);
+      // 🔥 IMPORTANT: Use the actual file path from result
+      final localPath = result.filePath;
+      if (localPath == null) {
+        throw Exception('Download result has no file path.');
+      }
+
       final file = File(localPath);
       if (!await file.exists()) {
-        throw Exception('Downloaded file not found on disk.');
+        throw Exception('Downloaded file not found on disk at $localPath');
       }
       if (await file.length() <= 0) {
         await file.delete();
         throw Exception('Downloaded file is empty.');
       }
+
+      // Optional: You can store the extension mapping if needed later
+      // e.g., SharedPreferences to remember extension per song
     } catch (e) {
       _progressCallbacks.remove(taskId);
       _tasks.remove(taskId);
@@ -114,10 +132,13 @@ class DownloadsService {
   }
 
   Future<void> deleteSong(String songId) async {
-    final filePath = await getLocalSongPath(songId);
-    final file = File(filePath);
-    if (await file.exists()) {
-      await file.delete();
+    // Try both extensions while deleting
+    for (final ext in ['mp3', 'm4a']) {
+      final filePath = await getLocalSongPath(songId, extension: ext);
+      final file = File(filePath);
+      if (await file.exists()) {
+        await file.delete();
+      }
     }
   }
 
