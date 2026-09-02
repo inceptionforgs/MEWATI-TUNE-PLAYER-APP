@@ -32,18 +32,24 @@ class MewatiTunePlayerApp extends StatefulWidget {
 class _MewatiTunePlayerAppState extends State<MewatiTunePlayerApp> {
   final GlobalKey<NavigatorState> _navigatorKey = GlobalKey<NavigatorState>();
   final ValueNotifier<String?> _currentRouteName = ValueNotifier<String?>(null);
-  final RouteObserver<PageRoute> _routeObserver = RouteObserver<PageRoute>();
+  late final RouteObserver<PageRoute> _routeObserver;
+
+  @override
+  void initState() {
+    super.initState();
+    _routeObserver = RouteObserver<PageRoute>();
+    _routeObserver.subscribe(this, (Route<dynamic>? route) {
+      if (route is PageRoute) {
+        _currentRouteName.value = route.settings.name;
+      }
+    });
+  }
 
   @override
   void dispose() {
+    _routeObserver.unsubscribe(this);
     _currentRouteName.dispose();
     super.dispose();
-  }
-
-  void _onRouteChanged(Route? route) {
-    if (route is PageRoute) {
-      _currentRouteName.value = route.settings.name;
-    }
   }
 
   @override
@@ -75,14 +81,6 @@ class _MewatiTunePlayerAppState extends State<MewatiTunePlayerApp> {
             navigatorObservers: [_routeObserver],
             initialRoute: '/',
             builder: (context, child) {
-              // Update current route name after first frame
-              WidgetsBinding.instance.addPostFrameCallback((_) {
-                final currentRoute = _navigatorKey.currentState?.currentRoute;
-                if (currentRoute != null) {
-                  _onRouteChanged(currentRoute);
-                }
-              });
-
               return ValueListenableBuilder<String?>(
                 valueListenable: _currentRouteName,
                 builder: (context, routeName, _) {
@@ -94,7 +92,6 @@ class _MewatiTunePlayerAppState extends State<MewatiTunePlayerApp> {
 
                   return Stack(
                     children: [
-                      // Main content with bottom padding when mini player visible
                       Positioned.fill(
                         child: Padding(
                           padding: EdgeInsets.only(
@@ -105,7 +102,6 @@ class _MewatiTunePlayerAppState extends State<MewatiTunePlayerApp> {
                           child: child ?? const SizedBox.shrink(),
                         ),
                       ),
-                      // Mini player overlay at bottom
                       if (showMiniPlayer)
                         Positioned(
                           left: 0,
@@ -113,12 +109,8 @@ class _MewatiTunePlayerAppState extends State<MewatiTunePlayerApp> {
                           bottom: 0,
                           child: const MiniPlayerBar(),
                         ),
-                      // Debug panel on top (draggable, only debug mode)
-                      const Positioned(
-                        left: 20,
-                        top: 80,
-                        child: DebugPanel(),
-                      ),
+                      // DebugPanel directly in Stack (it manages its own Positioned)
+                      const DebugPanel(),
                     ],
                   );
                 },
