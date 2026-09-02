@@ -1,0 +1,541 @@
+==================================================
+FEATURE REQUEST — ADD BEFORE P0 (owner priority)
+==================================================
+
+F1  Add "Report Issue / Suggest Song" feature.
+    Goal: lightweight in-app feedback channel for a community-targeted 
+    (Mewat region) app — no cost, builds user trust, surfaces missing 
+    songs/bugs directly from real users.
+
+    Scope:
+    - Simple form: message text (required) + optional category 
+      (Bug / Suggest a Song / Other) + optional song reference 
+      (song_id, nullable — auto-filled if opened from a song's context 
+      menu, else null).
+    - Accessible from: AppDrawer (a new row, e.g. "Feedback / Suggest a Song") 
+      AND optionally from song_row.dart long-press menu ("Report this song").
+    - Submit → insert into a new Supabase table `feedback`:
+        id uuid default gen_random_uuid() primary key
+        user_id uuid references auth.users(id)
+        category text  -- 'bug' | 'song_suggestion' | 'other'
+        message text not null
+        song_id uuid references songs(id)  -- nullable
+        created_at timestamptz default now()
+    - RLS: 
+        INSERT: auth.uid() = user_id (anonymous auth users can submit too)
+        SELECT/UPDATE/DELETE: denied for anon + authenticated (admin/service 
+        role only reads from Supabase dashboard — no in-app feedback list needed for v1)
+    - UI: simple bottom sheet or new screen — TextField + optional category 
+      chips + Submit button. On success: SnackBar "Thanks! We'll look into it."
+    - Do NOT add push notifications, admin reply UI, or ticket status tracking 
+      in v1 — just collect + store. Keep it minimal.
+
+    Priority: after P0 (must-compile) is done, before P1 security work — 
+    since this is a new feature not a fix, do it as its own small patch 
+    once the app is stable, so it doesn't get lost in the security/bug pass.
+
+==================================================
+You are fixing a Flutter Android app: Mewati Tune Player (mewati_tune_player).
+
+Stack: Flutter 3.35, Provider, Supabase, just_audio + just_audio_background, background_downloader, SharedPreferences, Cloudflare R2.
+
+The owner does not write code. Apply every item. Grep before editing. Do NOT re-implement items in DO-NOT-TOUCH. Do not change UI/design language or remove features (5 tabs, search, now-playing, mini-player, likes, favorites, downloads, themes, EQ, sleep timer).
+
+After each priority band: `flutter analyze` must pass. Existing functionality must not regress.
+
+PRIORITY ORDER:
+0  compile / crash
+0.5 feature: report issue / suggest song (F1 above)
+1  secrets, signing, RLS, counter security, R2
+2  bootstrap / auth
+3  audio, mini-player, downloads, search
+4  data
+5  errors / performance / UX
+6  cleanup
+7  tests
+
+==================================================
+P0 — WILL NOT COMPILE OR WILL CRASH (do first)
+==================================================
+
+P0-1  lib/screens/search/search_screen.dart ~line 237
+      Calls SearchResultRow(song: song, t: t). Widget requires allResults + index.
+      COMPILE ERROR.
+      Fix:
+      ..._songResults.asMap().entries.map((e) => SearchResultRow(
+        song: e.value,
+        t: t,
+        allResults: _songResults,
+        index: e.key,
+      )),
+
+P0-2  lib/services/sleep_timer_service.dart:57
+      Calls _playerService.pause(). PlayerService has no pause().
+      CRASH when sleep timer ends.
+      Add to PlayerService:
+      Future<void> pause() async { await _player.pause(); }
+
+P0-3  lib/app.dart ~lines 35–45
+      RouteObserver.subscribe(this, (Route? route) { ... }) is not a Flutter API.
+      COMPILE ERROR. Mini-player route logic is dead.
+      lib/routes/app_router.dart MaterialPageRoute drops `settings` so
+      route.settings.name is always null.
+      Fix:
+      - Delete that subscribe/unsubscribe.
+      - Write a NavigatorObserver that sets the existing ValueNotifier<String?>
+        on didPush / didPop / didReplace / didRemove from route.settings.name.
+      - Pass settings: settings on EVERY MaterialPageRoute.
+
+P0-4  Launch crash: Supabase client used before initialize().
+      lib/main.dart: unawaited(_initializeApp()) then runApp() with AuthProvider().
+      These construct `final _supabase = SupabaseService().client` in field initializers:
+        lib/services/auth_service.dart
+        lib/services/songs_service.dart
+        lib/services/favorites_service.dart
+        lib/services/like_service.dart
+        lib/services/singers_service.dart
+      Throws "Supabase client not initialized".
+      Fix:
+      - Change every one to a getter:
+        SupabaseClient get _supabase => SupabaseService().client;
+      - AWAIT JustAudioBackground.init, SupabaseService.initialize,
+        LocalCacheService.init, auth, downloads BEFORE runApp.
+      - Splash: Ready / Error+Retry. Do not open Home half-initialized.
+      - Do not fire-and-forget init.
+
+P0-5  android/app/build.gradle minifyEnabled true / shrinkResources true.
+      proguard-rules.pro is NOT in the repo. Release R8 will strip
+      just_audio, audio_service, supabase, background_downloader.
+      Add keep rules for those, OR set minifyEnabled false and
+      shrinkResources false until a device-verified release build.
+
+P0-6  android/app/src/main/AndroidManifest.xml
+      Remove deprecated package="com.mewatitune.player" from <manifest>
+      (AGP 8 uses namespace in build.gradle — already com.mewatitune.player).
+      Do NOT retarget MainActivity unless a device log shows a real mismatch.
+      Remove READ_EXTERNAL_STORAGE and WRITE_EXTERNAL_STORAGE (files go to
+      app documents). Keep INTERNET, WAKE_LOCK, FOREGROUND_SERVICE,
+      FOREGROUND_SERVICE_MEDIA_PLAYBACK, POST_NOTIFICATIONS.
+
+==================================================
+P1 — SECURITY (before any public APK)
+==================================================
+
+P1-1  ROTATE the leaked Supabase anon key. It is in
+      lib/config/supabase_config.dart:4–6 and already public.
+      Remove _devUrl and _devAnonKey entirely.
+      flutter_dotenv does nothing — .env is not in pubspec.yaml assets.
+      Inject SUPABASE_URL and SUPABASE_ANON_KEY via --dart-define.
+      If missing, throw a clear exception (no hardcoded fallback).
+      Sentry DSN same way. tracesSampleRate 0.05–0.1, not 1.0.
+
+P1-2  .gitignore currently only has ".env". Expand:
+      .env
+      .env.*
+      .dart_tool/
+      .pub/
+      build/
+      android/.gradle/
+      android/local.properties
+      android/key.properties
+      *.jks
+      *.keystore
+      .idea/
+      .vscode/
+      *.iml
+      .DS_Store
+
+P1-3  android/app/build.gradle: if key.properties is missing, FAIL the
+      release build. Never fall back to the debug keystore.
+
+P1-4  lib/core/widgets/debug_panel.dart + lib/app.dart
+      kDebugMode was intentionally removed. End users see debug logs.
+      Fix: if (kDebugMode) const DebugPanel()
+
+P1-5  Repo only has sql/setup_likes.sql. Code expects songs, singers,
+      profiles, favorites, likes, view singers_with_song_count,
+      RPC increment_play_count.
+      ADD sql/setup_all.sql, re-runnable (DROP POLICY IF EXISTS).
+      ENABLE ROW LEVEL SECURITY on every table.
+
+      songs / singers:
+        SELECT: true (public catalog)
+        INSERT/UPDATE/DELETE: denied for anon + authenticated
+        (service role only)
+
+      favorites:
+        SELECT / INSERT / DELETE: auth.uid() = user_id
+
+      profiles:
+        SELECT / INSERT: auth.uid() = id
+        UPDATE: own row, but NEVER allow the client to change
+        subscription_status (exclude column or separate admin path)
+
+      likes:
+        DROP POLICY "Users can view all likes" (USING true)
+        SELECT / INSERT / DELETE: auth.uid() = user_id
+        Public numbers live on songs.like_count only
+
+      like_count INTEGER NOT NULL DEFAULT 0
+      CHECK (like_count >= 0)
+
+      GRANT SELECT on singers_with_song_count.
+
+      Indexes:
+        likes(song_id)
+        songs(singer_id)
+        songs(play_count DESC) if used for trending
+        favorites(user_id)
+
+      feedback table (from F1 above):
+        Add RLS as specified in F1 when P1 SQL migration is written.
+
+P1-6  like_service.dart insert then separate increment_like_count RPC =
+      desync + abuse. increment/decrement_like_count have no auth and
+      are not SECURITY DEFINER. Upsert alone does NOT fix counts.
+      Replace with ONE function:
+
+      toggle_like(uuid) RETURNS int
+        SECURITY DEFINER
+        requires auth.uid()
+        insert or delete likes AND update like_count in the same transaction
+
+      REVOKE ALL ON FUNCTION toggle_like FROM PUBLIC;
+      GRANT EXECUTE ON FUNCTION toggle_like TO authenticated;
+
+      LikeService must call only this RPC. Remove client-side increment/decrement.
+
+P1-7  increment_play_count: SECURITY DEFINER + server throttle
+      (one increment per user per song per ~30s).
+      Do NOT increment on tap or in next()/previous().
+      Count from currentIndexStream after ~20–30s of actual playing
+      (playing, not ProcessingState.error), once per song per session.
+      Log RPC failures via DebugLogService (currently empty catch).
+
+P1-8  R2: no access keys in the app (keep it that way).
+      Allowlist audio URL host to the project CDN.
+      Reject non-allowlisted URLs for play AND download.
+      If catalog must be private: bucket private + 15-min signed URLs
+      from an Edge Function / Worker.
+      If intentionally public: document scrape/hotlink risk; add
+      Cloudflare hotlink protection + rate limit.
+
+==================================================
+P2 — BOOTSTRAP / AUTH
+==================================================
+
+P2-1  lib/providers/auth_provider.dart
+      isLoggedIn => _profile != null is wrong.
+      auth_service.dart swallows profile insert errors (lines 36–38).
+      Fix: isLoggedIn => getCurrentUser() != null.
+      Retry profile create. Listen onAuthStateChange.
+      When session becomes ready later, reload FavoritesProvider + likes.
+
+P2-2  lib/screens/splash/splash_screen.dart
+      Waits 2 seconds, then if cache exists navigates WITHOUT awaiting
+      loadCurrentUser(). Favorites load empty in initState and stay empty.
+      DELETE the 2-second delay (do not make it a constant).
+      Await init + auth. Timeout or real error → Retry + Continue Offline.
+      Do not open Home half-initialized.
+
+P2-3  Do NOT request notification permission in _initializeApp.
+      Request on first play / first background-audio need.
+
+P2-4  lib/core/widgets/app_drawer.dart uses context.read<AuthProvider>().
+      Drawer stuck on "Guest". Use context.watch<AuthProvider>().
+
+==================================================
+P3 — AUDIO / MINI-PLAYER / DOWNLOADS / SEARCH
+==================================================
+
+P3-1  lib/app.dart builder uses context.read<PlayerProvider>() inside a
+      ValueListenableBuilder on route name only. Mini-player never appears
+      when playback starts.
+      Also select/watch hasSong. Hide only on splash + now-playing.
+
+P3-2  lib/core/constants/app_dimensions.dart miniPlayerHeight = 64.
+      MiniPlayerBar is ~160–180px (title + slider + buttons).
+      Last list rows are covered / untappable.
+      Set padding to the real height (~172) and add list padding.bottom.
+
+P3-3  lib/core/widgets/song_row.dart: if isNow, like/fav/download are
+      replaced by a NOW badge. User cannot like the current song from lists.
+      lib/screens/player/widgets/now_playing_actions.dart has no like button.
+      Show NOW badge AND the action icons. Add like + count on now-playing.
+
+P3-4  Grep playSong(. It still builds a 1-song queue.
+      All screens must call setPlaylist(songs: currentList, startIndex: index).
+      Remove playSong or stop calling it.
+      (Most screens already call setPlaylist — grep leftovers only.
+       Do NOT revert working setPlaylist calls back to playSong.)
+
+P3-5  next()/previous() must NOT read _currentIndex immediately after
+      seekToNext / seekToPrevious (index still stale).
+      Update current song + play-count from currentIndexStream when the
+      song id actually changes.
+
+P3-6  Playback errors: debugPrint only. PlayerProvider._errorMessage is
+      unused. No ProcessingState.error handling. isLoading unused in UI.
+      Show "Unable to play this song / check internet / Retry".
+      Buffering spinner when processingState is loading/buffering.
+      Gate play until JustAudioBackground.init has finished.
+
+P3-7  player_service.dart uses prefs downloaded IDs without File.exists.
+      Missing/corrupt file → whole setPlaylist fails.
+      existsSync + length > 0; else drop stale id and stream remote if online.
+      Filter currently skips empty-host URLs BEFORE the download check —
+      keep a downloaded song even if the remote URL is bad.
+
+P3-8  Do not load thousands of AudioSource children into one
+      ConcatenatingAudioSource (OOM). Cap a queue window
+      (current ± N, or page the concatenating source).
+      Do not setPlaylist(allSongs) for a huge library.
+
+P3-9  lib/screens/downloads/downloads_screen.dart filters
+      songsProvider.allSongs (paginated subset). A download from
+      Trending/Search that is not in the first N songs never appears.
+      Persist full Song JSON per downloaded id (files or prefs keyed by id).
+      Build the Downloads tab from that store, not allSongs.
+
+P3-10 Many screens call removeDownload(songId) without audioUrl.
+      getLocalSongPath defaults to .m4a → mp3 files not deleted.
+      Always pass audioUrl: song.audioUrl. Store the real saved path.
+      Extension-from-URL already exists — keep it; do not force .m4a.
+
+P3-11 Verify (do not blindly rewrite) download paths:
+      directory: 'MewatiOfflineSongs'
+      baseDirectory: BaseDirectory.applicationDocuments
+      vs getLocalSongPath using getApplicationDocumentsDirectory()
+         + '/MewatiOfflineSongs/song_$id.$ext'
+      After a real download: file exists AND isDownloaded is true.
+      Test: kill mid-download, disconnect, restart, partial file,
+      cancel, corrupt, offline play.
+
+P3-12 lib/providers/downloads_provider.dart removeDownload
+      If File.delete fails, do NOT drop the id from cache.
+      try/catch; only then _saveCache; SnackBar on fail.
+
+P3-13 search_screen.dart calls singersProvider.searchSingers() which
+      REPLACES _filteredSingers on the Singers tab and never clearSearch().
+      Call SingersService.searchSingers (side-effect free).
+      Remote search is already used — do not switch back to filtering allSingers.
+      Do not add a second generation token (already have _searchGeneration).
+
+P3-14 AndroidEqualizer in AudioPlayer constructor:
+      guard Platform.isAndroid. EQ init failure must not crash playback.
+
+P3-15 sleep_timer_sheet.dart formats remaining with inMinutes.remainder(60)
+      → 1 hour remaining shows 00:xx.
+      Use DurationExtensions.asCompact (exists in
+      lib/core/extensions/duration_extensions.dart, unused) in:
+      sleep_timer_sheet, mini_player_bar _fmt, seek_bar.
+      On timer complete, SleepTimerProvider sets totalDuration = Duration.zero
+      so no row highlights. Set it to null so "Off" highlights.
+      fadeOut: steps = max(1, duration.inMilliseconds ~/ 100).
+      Do NOT add a new selectedDuration field — totalDuration already
+      drives the active row. Only fix format + null-on-complete.
+
+P3-16 lib/models/song.dart + songs_service _mapSongs
+      audioUrl can be ''. Do NOT throw in the constructor (one bad row
+      kills the whole list). Skip the row in _mapSongs if audioUrl is
+      empty/invalid. PlayerService already skips empty host — keep both.
+
+==================================================
+P4 — DATA
+==================================================
+
+P4-1  lib/services/favorites_service.dart
+      .select() without singers(name) → "Unknown Artist".
+      Use .select('*, singers(name)')
+
+P4-2  song.dart is_premium as bool? — DB may send 0/1, row skipped/crashes.
+      singer.dart song_count as int? — may be bigint/num.
+      Empty id becomes ''. Skip empty ids.
+      Reuse Song.parseInt helpers; robust bool parse.
+
+P4-3  favorites insert: unique constraint on double-add.
+      Upsert / onConflict ignore.
+
+P4-4  LIKE/ILIKE: keep _escapeLikePattern. Test queries: %  _  \  '  "  100%
+      Confirm PostgREST honors the backslash escape.
+
+==================================================
+P5 — PERFORMANCE / ERRORS / UX
+==================================================
+
+P5-1  lib/providers/player_provider.dart positionStream → notifyListeners
+      every ~200ms. Whole tree rebuilds, battery drain.
+      Put position (and duration) on a ValueNotifier.
+      SeekBar / mini slider listen to that only.
+      Lists already select id/playing — keep that.
+
+P5-2  lib/providers/likes_provider.dart ~2 HTTP calls per song.
+      songs_screen never calls loadLikesData → hearts empty on Songs tab.
+      trending load-more re-sends the entire id list.
+      Batch:
+        SELECT song_id FROM likes
+        WHERE user_id = auth.uid() AND song_id IN (...)
+      Use songs.like_count from the song payload; stop per-id count fetches.
+      Call loadLikesData from Songs + Favorites init.
+      Trending load-more: pass only new page ids.
+
+P5-3  downloads_provider onProgress updates progressNotifier but does NOT
+      notifyListeners(). SongRow does not listen to the notifier
+      → 0% then suddenly done.
+      Throttle notifyListeners OR wrap the row progress in
+      ValueListenableBuilder. Rebuild only that row.
+
+P5-4  home_screen IndexedStack mounts all 5 tabs immediately = 5 fetches.
+      Downloads also calls loadSongs. Lazy-load on first visit (KeepAlive).
+
+P5-5  local_cache_service dumps the catalog into SharedPreferences
+      (~1–2MB; iOS crash when bigger). Write JSON files under app documents
+      (Hive optional, not required). SP for flags/ids only.
+
+P5-6  songs_provider loadMoreSongs calls cacheSongs() and rewrites the
+      entire blob every extra page. Cache on first successful load only,
+      or append to JSON files. Same for singers loadMore.
+
+P5-7  CachedNetworkImage: memCacheWidth/Height
+      ~128 for rows, ~160 for avatars, ~512 for album art.
+      Includes lib/screens/player/widgets/album_art.dart.
+
+P5-8  ListView.builder on favorites, downloads, singer profile, search.
+      Replace ListView(children: ...map).
+
+P5-9  No silent catch (_). No raw Exception in UI.
+      Path: Service → typed error → Provider → ErrorHandler.getMessage
+      → SnackBar / empty / retry.
+      Download failures: SnackBar (not debugPrint).
+      Like/favorite rollback: toast everywhere, not only Favorites screen.
+      Search network error is NOT "No matches" — separate error + retry.
+
+P5-10 Delete lib/main.dart:
+      Connectivity().onConnectivityChanged.listen((_) {});
+      ConnectivityBanner = "no network interface", NOT "API/audio works".
+      Handle DNS/timeouts as playback/API errors separately.
+
+P5-11 home_tabs: five labels fontSize 14 w800 overflow on 360px width.
+      FittedBox or 12px.
+      Like hit target 32dp → 48dp.
+      Semantics labels on play / like / download / shuffle.
+
+P5-12 print() → debugPrint behind kDebugMode
+      (equalizer_service, downloads_service).
+
+==================================================
+P6 — CLEANUP
+==================================================
+
+P6-1  PremiumGate is a pass-through. song.isPremium is never rendered.
+      Drawer shows VIP. Either real server-side entitlement or do not
+      show VIP / remove the gate. Client-only premium is not security.
+
+P6-2  Use AppThemeData, not dynamic t, on SongRow.
+      SongRow isNow overlay: t.surface, not Colors.black.
+      Remaining hardcoded colors: connectivity_banner, debug_panel,
+      AND lib/screens/player/widgets/album_art.dart (~line 23 —
+      Color(0xFF2A170D), Color(0xFF120C08) gradient, independent of theme).
+      Semantic green/red for success/error is OK.
+      Empty/error/download strings → AppStrings
+      (drawer "Version: 1.0.0 (Walkman Ed.)" included).
+
+P6-3  Use RouteNames everywhere. Add /search if you pushNamed; do not
+      invent a second navigation system.
+      Remove unused fetchAllSongs if nothing calls it (do not invoke it).
+      flutter analyze clean unused imports:
+      brand_row app_themes, player_service dart:io if unused,
+      favorites_service favorite.dart, now_playing_screen app_theme,
+      search_screen app_strings if unused after wiring.
+
+P6-4  Lifecycle: StreamSubscriptions (player_provider, downloads_service,
+      connectivity_banner, PlayerService currentIndex), Debouncer,
+      TextEditingController, FileDownloader.updates, AudioPlayer, fade Timer.
+      PlayerService.dispose is never called. Define singleton lifetime.
+      On AppLifecycleState.detached: cancel fade timer + downloader
+      subscription. Do NOT dispose the singleton AudioPlayer on route pop.
+
+P6-5  CI (.github/workflows/build.yml): flutter analyze && flutter test
+      before apk.
+      Shared state → Provider. Ephemeral screen UI → setState.
+      Trending already has mounted guards — do not regress.
+
+==================================================
+P7 — TESTS (thin is fine, must exist)
+==================================================
+
+T1  Playback: setPlaylist keeps list length > 1; invalid URL does not
+    increment play count; next/prev/shuffle.
+T2  Auth: anonymous success/fail, session restore, supabase down.
+T3  Likes: like, unlike, double tap, concurrent, network fail + rollback.
+    Client cannot call raw increment_like_count if still exposed.
+T4  Downloads: start, cancel, missing file, corrupt, offline play.
+T5  Security (SQL or integration):
+    User A cannot read/delete User B favorites.
+    User A cannot update User B profile.
+    Client cannot insert/update/delete songs.
+    Client cannot arbitrarily bump like_count / play_count.
+T6  Widget: SongRow still shows actions when isNow;
+    SearchResultRow compiles with allResults + index;
+    Song.fromJson casts; Debouncer (test already exists).
+    Do not pump full MewatiTunePlayerApp without mocking Supabase.
+
+==================================================
+DO NOT TOUCH — already correct in CURRENT source
+==================================================
+
+If a previous audit (ui-related-fix.md, Meta, DeepSeek) contradicts this
+section, THIS section wins.
+
+- player_service.dart already remaps startIndex via indexWhere on song id
+  after filtering invalid URLs. Do not rewrite that.
+- search_screen.dart already has _searchGeneration. Remaining search bugs
+  are P0-1 (compile args) and P3-13 (Singers tab mutation) only.
+- downloads_service.dart already uses relative directory +
+  BaseDirectory.applicationDocuments AND extension-from-URL.
+  Do not revert to an absolute directory path.
+  Only change if a real device download lands in a different folder
+  than getLocalSongPath.
+- Songs / Trending / Favorites / Downloads / Search / Singer profile
+  already call setPlaylist with the visible list.
+  Do NOT replace those with playSong.
+- SleepTimerProvider.totalDuration already drives which sheet row is
+  active. Do not add selectedDuration. Only P3-15 (format + null).
+- TrendingScreen already has if (!mounted) return after awaits.
+  Do not add duplicate mounted checks that change behavior.
+- mini_player_bar.dart and app_drawer.dart already use ThemeProvider
+  tokens for most colors. Remaining color work is SongRow overlay +
+  connectivity_banner + debug_panel + album_art.dart.
+
+==================================================
+VERIFY ON DEVICE AFTER P3
+==================================================
+
+- Play from Songs, Trending, Favorites, Downloads, Search, Singer profile.
+- Next / previous / shuffle work (queue length > 1).
+- Mini-player visible on Home AND on Singer profile.
+- Can like the currently playing song from the list AND now-playing.
+- A download from Search appears in the Downloads tab.
+- Sleep timer 1 hour remaining is not 00:00.
+- Airplane mode plays a previously downloaded track.
+- Kill app mid-download, reopen: file and isDownloaded agree.
+- Release/profile build: no debug bug icon. Not signed with debug key.
+- Supabase: user A cannot read user B favorites (dashboard or SQL test).
+- Feedback form (F1): submitting a report/suggestion succeeds and is
+  visible in Supabase dashboard under the feedback table.
+
+==================================================
+HOW TO WORK
+==================================================
+
+1. P0 until flutter analyze is clean and the app launches past splash.
+2. F1 (feedback feature) once P0 is stable.
+3. P1 SQL + Dart like/play RPCs + rotate keys + gitignore + signing.
+4. P2 splash/auth.
+5. P3 mini-player, NOW badge, downloads metadata, search side-effect,
+   playback errors.
+6. P4 then P5 then P6 then P7.
+
+Do not claim RLS/R2 is "probably fine". Ship sql/setup_all.sql.
+Document Cloudflare: public vs signed URLs.
+Do not gold-plate. Do not add features beyond F1. Smallest correct patch.
