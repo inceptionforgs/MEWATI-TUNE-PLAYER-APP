@@ -33,6 +33,8 @@ android {
     signingConfigs {
         release {
             // Load keystore properties from local file (not committed to VCS).
+            // A release build must NEVER silently fall back to the debug
+            // keystore — if key.properties is missing, fail loudly instead.
             def keystorePropertiesFile = rootProject.file("key.properties")
             if (keystorePropertiesFile.exists()) {
                 def keystoreProperties = new Properties()
@@ -47,12 +49,27 @@ android {
 
     buildTypes {
         release {
-            // Use release signing if keystore properties exist, else fallback to debug (development only).
-            signingConfig signingConfigs.release.storeFile != null ? signingConfigs.release : signingConfigs.debug
+            signingConfig signingConfigs.release
             minifyEnabled true
             shrinkResources true
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
         }
+    }
+}
+
+// Fail the build (instead of silently signing with the debug keystore) if a
+// release/bundleRelease task is requested without android/key.properties present.
+gradle.taskGraph.whenReady { taskGraph ->
+    def requestingRelease = taskGraph.allTasks.any { task ->
+        task.name.toLowerCase().contains("release")
+    }
+    if (requestingRelease && !rootProject.file("key.properties").exists()) {
+        throw new GradleException(
+            "Missing android/key.properties. Release builds must be signed with the " +
+            "real release keystore — refusing to fall back to the debug keystore. " +
+            "Create key.properties with storeFile/storePassword/keyAlias/keyPassword " +
+            "before building a release APK/AAB."
+        )
     }
 }
 
