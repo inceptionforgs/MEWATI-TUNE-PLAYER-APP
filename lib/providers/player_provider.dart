@@ -9,23 +9,36 @@ class PlayerProvider extends ChangeNotifier {
 
   Song? _currentSong;
   bool _isPlaying = false;
-  Duration _position = Duration.zero;
-  Duration? _duration;
   bool _isLoading = false;
+  bool _isBuffering = false;
   String? _errorMessage;
+
+  // position/duration used to live on this ChangeNotifier and fire
+  // notifyListeners() on every position tick (~200ms), rebuilding the
+  // *entire* widget tree that watches PlayerProvider. They now live on
+  // separate ValueNotifiers so only the SeekBar / mini-player slider
+  // (via ValueListenableBuilder) rebuild on position/duration changes.
+  final ValueNotifier<Duration> positionNotifier = ValueNotifier(Duration.zero);
+  final ValueNotifier<Duration?> durationNotifier = ValueNotifier(null);
 
   StreamSubscription<PlayerState>? _playerStateSubscription;
   StreamSubscription<Duration>? _positionSubscription;
   StreamSubscription<Duration?>? _durationSubscription;
   StreamSubscription<int?>? _currentIndexSubscription;
+  StreamSubscription<ProcessingState>? _processingStateSubscription;
+  StreamSubscription<PlaybackEvent>? _playbackEventErrorSubscription;
 
   Song? get currentSong => _currentSong;
   bool get isPlaying => _isPlaying;
-  Duration get position => _position;
-  Duration? get duration => _duration;
   bool get isLoading => _isLoading;
+  bool get isBuffering => _isBuffering;
   String? get errorMessage => _errorMessage;
   bool get hasSong => _currentSong != null;
+
+  // Kept for any existing call sites that read a snapshot value directly
+  // (prefer positionNotifier/durationNotifier for UI that rebuilds on tick).
+  Duration get position => positionNotifier.value;
+  Duration? get duration => durationNotifier.value;
 
   bool get shuffleMode => _playerService.shuffleMode;
   LoopMode get loopMode => _playerService.loopMode;
@@ -40,22 +53,29 @@ class PlayerProvider extends ChangeNotifier {
   void _init() {
     _playerStateSubscription = _playerService.playerStateStream.listen((PlayerState state) {
       _isPlaying = state.playing;
+      _isBuffering = state.processingState == ProcessingState.loading ||
+          state.processingState == ProcessingState.buffering;
       if (state.processingState == ProcessingState.completed) {
         _isPlaying = false;
       }
       notifyListeners();
     });
 
+    // position/duration no longer call notifyListeners() on this
+    // ChangeNotifier — they update the dedicated ValueNotifiers instead.
     _positionSubscription = _playerService.positionStream.listen((Duration pos) {
-      _position = pos;
-      notifyListeners();
+      positionNotifier.value = pos;
     });
 
     _durationSubscription = _playerService.durationStream.listen((Duration? dur) {
-      _duration = dur;
-      notifyListeners();
+      durationNotifier.value = dur;
     });
 
+    // Single source of truth for "current song changed": only updates
+    // _currentSong once the index stream reports an index that actually
+    // maps to a different song id. Replaces the old next()/previous()
+    // logic that read _currentIndex immediately after seekToNext /
+    // seekToPrevious, which was still stale at that point.
     _currentIndexSubscription = _playerService.currentIndexStream.listen((int? index) {
       if (index == null) return;
       final playlist = _playerService.playlist;
@@ -67,24 +87,19 @@ class PlayerProvider extends ChangeNotifier {
         }
       }
     });
-  }
 
-  Future<void> playSong(Song song) async {
-    _isLoading = true;
-    _errorMessage = null;
-    notifyListeners();
-
-    try {
-      await _playerService.playSong(song);
-      // After playback starts, get the actual current song from the service
-      // (in case the service filtered or adjusted the playlist).
-      _currentSong = _playerService.currentSong;
-    } catch (e) {
-      _errorMessage = 'Playback failed: ${e.toString()}';
-    } finally {
-      _isLoading = false;
-      notifyListeners();
-    }
+    // Surface real playback errors instead of only debugPrint-ing them.
+    // just_audio delivers playback failures as errors on the playback
+    // event stream.
+    _playbackEventErrorSubscription = _playerService.player.playbackEventStream.listen(
+      (_) {},
+      onError: (Object e, StackTrace st) {
+        _errorMessage = 'Unable to play this song. Check your internet connection and retry.';
+        _isLoading = false;
+        _isBuffering = false;
+        notifyListeners();
+      },
+    );
   }
 
   Future<void> setPlaylist({required List<Song> songs, required int startIndex}) async {
@@ -93,12 +108,14 @@ class PlayerProvider extends ChangeNotifier {
     notifyListeners();
 
     try {
+      // Gate playback until JustAudioBackground has actually finished
+      // initializing (main.dart now awaits this before runApp — File 5 —
+      // but we still guard defensively here).
+      await _playerService.ensureReady();
       await _playerService.setPlaylist(songs: songs, startIndex: startIndex);
-      // Use the service's actual current song, not the original list reference,
-      // because the service may filter out unplayable songs and adjust the index.
       _currentSong = _playerService.currentSong;
     } catch (e) {
-      _errorMessage = 'Playback failed: ${e.toString()}';
+      _errorMessage = 'Unable to play this song. Check your internet connection and retry.';
     } finally {
       _isLoading = false;
       notifyListeners();
@@ -110,7 +127,7 @@ class PlayerProvider extends ChangeNotifier {
     try {
       await _playerService.togglePlayPause();
     } catch (e) {
-      _errorMessage = e.toString();
+      _errorMessage = 'Unable to play this song. Check your internet connection and retry.';
       notifyListeners();
     }
   }
@@ -129,13 +146,10 @@ class PlayerProvider extends ChangeNotifier {
     _errorMessage = null;
     try {
       await _playerService.next();
-      final song = _playerService.currentSong;
-      if (song != null) {
-        _currentSong = song;
-      }
-      notifyListeners();
+      // Current-song update now happens exclusively via
+      // _currentIndexSubscription above.
     } catch (e) {
-      _errorMessage = e.toString();
+      _errorMessage = 'Unable to play this song. Check your internet connection and retry.';
       notifyListeners();
     }
   }
@@ -144,13 +158,10 @@ class PlayerProvider extends ChangeNotifier {
     _errorMessage = null;
     try {
       await _playerService.previous();
-      final song = _playerService.currentSong;
-      if (song != null) {
-        _currentSong = song;
-      }
-      notifyListeners();
+      // Current-song update now happens exclusively via
+      // _currentIndexSubscription above.
     } catch (e) {
-      _errorMessage = e.toString();
+      _errorMessage = 'Unable to play this song. Check your internet connection and retry.';
       notifyListeners();
     }
   }
@@ -182,6 +193,10 @@ class PlayerProvider extends ChangeNotifier {
     _positionSubscription?.cancel();
     _durationSubscription?.cancel();
     _currentIndexSubscription?.cancel();
+    _processingStateSubscription?.cancel();
+    _playbackEventErrorSubscription?.cancel();
+    positionNotifier.dispose();
+    durationNotifier.dispose();
     super.dispose();
   }
 }
