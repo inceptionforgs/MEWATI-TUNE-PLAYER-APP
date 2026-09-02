@@ -16,7 +16,10 @@ class AppDimensions {
   static const double iconSizeL = 32.0;
 
   static const double tabHeight = 53.0;
-  static const double miniPlayerHeight = 64.0;
+  // Fix: MiniPlayerBar (title + slider + buttons) actually renders at
+  // ~172px, not 64px — the old value caused the last rows of every list
+  // to be covered/untappable behind the mini-player.
+  static const double miniPlayerHeight = 172.0;
 
   static const double albumArtSize = 230.0;
   static const double avatarSize = 54.0;
