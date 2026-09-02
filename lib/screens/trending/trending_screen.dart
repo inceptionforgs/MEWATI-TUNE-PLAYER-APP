@@ -62,6 +62,7 @@ class _TrendingScreenState extends State<TrendingScreen> {
         offset: 0,
         limit: _pageSize,
       );
+      if (!mounted) return;
       setState(() {
         _trendingSongs = page;
         _page = 0;
@@ -71,14 +72,17 @@ class _TrendingScreenState extends State<TrendingScreen> {
       final likesProvider = Provider.of<LikesProvider>(context, listen: false);
       likesProvider.loadLikesData(_trendingSongs.map((s) => s.id).toList());
     } catch (e) {
+      if (!mounted) return;
       setState(() {
         _errorMessage = e.toString();
         _trendingSongs = [];
       });
     } finally {
-      setState(() {
-        _isLoading = false;
-      });
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
     }
   }
 
@@ -94,6 +98,7 @@ class _TrendingScreenState extends State<TrendingScreen> {
         offset: (_page + 1) * _pageSize,
         limit: _pageSize,
       );
+      if (!mounted) return;
       setState(() {
         if (nextPage.isEmpty) {
           _hasMore = false;
@@ -107,14 +112,20 @@ class _TrendingScreenState extends State<TrendingScreen> {
       final likesProvider = Provider.of<LikesProvider>(context, listen: false);
       likesProvider.loadLikesData(_trendingSongs.map((s) => s.id).toList());
     } catch (e) {
+      if (!mounted) return;
       setState(() => _loadMoreError = e.toString());
     } finally {
-      setState(() => _isLoadingMore = false);
+      if (mounted) {
+        setState(() => _isLoadingMore = false);
+      }
     }
   }
 
-  void _playSong(Song song) {
-    Provider.of<PlayerProvider>(context, listen: false).playSong(song);
+  void _playSong(List<Song> songs, int index) {
+    Provider.of<PlayerProvider>(context, listen: false).setPlaylist(
+      songs: songs,
+      startIndex: index,
+    );
   }
 
   void _toggleFavorite(Song song) {
@@ -205,7 +216,7 @@ class _TrendingScreenState extends State<TrendingScreen> {
         final isDownloading = downloadsProvider.isDownloading(song.id);
         final progress = downloadsProvider.getProgress(song.id);
         final isLiked = likesProvider.isLikedSync(song.id);
-        final likeCount = likesProvider.getLikeCountSync(song.id) > 0
+        final likeCount = likesProvider.likeCounts.containsKey(song.id)
             ? likesProvider.getLikeCountSync(song.id)
             : song.likeCount;
 
@@ -222,7 +233,7 @@ class _TrendingScreenState extends State<TrendingScreen> {
               '${song.singerName ?? "Unknown Artist"} · Plays: ${song.playCount}',
           isLiked: isLiked,
           likeCount: likeCount,
-          onTap: () => _playSong(song),
+          onTap: () => _playSong(_trendingSongs, index),
           onToggleFavorite: () => _toggleFavorite(song),
           onDownload: () => _downloadSong(song),
           onCancelDownload: () => _cancelDownload(song.id),
