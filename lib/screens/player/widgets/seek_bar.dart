@@ -37,9 +37,9 @@ class _SeekBarState extends State<SeekBar> {
             trackHeight: 4,
             thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 7.5),
             overlayShape: SliderComponentShape.noOverlay,
-            activeTrackColor: Colors.white,
-            inactiveTrackColor: Colors.white.withOpacity(0.28),
-            thumbColor: Colors.white,
+            activeTrackColor: t.textPrimary,
+            inactiveTrackColor: t.textPrimary.withOpacity(0.28),
+            thumbColor: t.textPrimary,
           ),
           child: Slider(
             value: pct,
