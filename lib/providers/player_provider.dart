@@ -76,7 +76,9 @@ class PlayerProvider extends ChangeNotifier {
 
     try {
       await _playerService.playSong(song);
-      _currentSong = song;
+      // After playback starts, get the actual current song from the service
+      // (in case the service filtered or adjusted the playlist).
+      _currentSong = _playerService.currentSong;
     } catch (e) {
       _errorMessage = 'Playback failed: ${e.toString()}';
     } finally {
@@ -92,9 +94,9 @@ class PlayerProvider extends ChangeNotifier {
 
     try {
       await _playerService.setPlaylist(songs: songs, startIndex: startIndex);
-      if (songs.isNotEmpty && startIndex < songs.length) {
-        _currentSong = songs[startIndex];
-      }
+      // Use the service's actual current song, not the original list reference,
+      // because the service may filter out unplayable songs and adjust the index.
+      _currentSong = _playerService.currentSong;
     } catch (e) {
       _errorMessage = 'Playback failed: ${e.toString()}';
     } finally {
