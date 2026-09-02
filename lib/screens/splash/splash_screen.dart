@@ -3,7 +3,6 @@ import 'package:provider/provider.dart';
 import '../../core/constants/app_strings.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/theme_provider.dart';
-import '../../services/local_cache_service.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({Key? key}) : super(key: key);
@@ -14,41 +13,51 @@ class SplashScreen extends StatefulWidget {
 
 class _SplashScreenState extends State<SplashScreen> {
   bool _showRetry = false;
+  String _errorText = 'Could not connect. Please check your internet.';
 
   @override
   void initState() {
     super.initState();
+    // No hardcoded delay — we navigate the moment init + auth restoration
+    // actually finish, not after an arbitrary 2 seconds.
     _startSplashAndNavigate();
   }
 
   Future<void> _startSplashAndNavigate() async {
-    await Future.delayed(const Duration(seconds: 2));
-    if (!mounted) return;
-
     final authProvider = Provider.of<AuthProvider>(context, listen: false);
 
-    if (authProvider.isLoggedIn) {
+    try {
+      // Fully await auth restoration before deciding anything — this is
+      // what was missing before: Home used to open (via the cached-catalog
+      // shortcut) while loadCurrentUser() was still running in the
+      // background, so favorites/likes loaded empty on first paint.
+      await authProvider.loadCurrentUser().timeout(
+        const Duration(seconds: 15),
+        onTimeout: () {
+          throw Exception('Startup timed out. Check your internet connection.');
+        },
+      );
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _errorText = 'Could not connect. Please check your internet.';
+        _showRetry = true;
+      });
+      return;
+    }
+
+    if (!mounted) return;
+
+    if (authProvider.isLoggedIn && authProvider.errorMessage == null) {
       Navigator.of(context).pushReplacementNamed('/home');
       return;
     }
 
-    final cachedSongs = await LocalCacheService().getCachedSongs();
-    final cachedSingers = await LocalCacheService().getCachedSingers();
-    final hasCachedSongs = cachedSongs?.isNotEmpty ?? false;
-    final hasCachedSingers = cachedSingers?.isNotEmpty ?? false;
-
-    if (!mounted) return;
-
-    if (hasCachedSongs || hasCachedSingers) {
-      // Don't block navigation on auth; start loading user in background.
-      authProvider.loadCurrentUser();
-      Navigator.of(context).pushReplacementNamed('/home');
-      return;
-    }
-
-    // No cache and not logged in: likely first launch / offline.
-    if (!mounted) return;
+    // Auth finished but didn't succeed (e.g. anonymous sign-in failed) —
+    // never open Home half-initialized. Offer Retry / Continue Offline.
     setState(() {
+      _errorText = authProvider.errorMessage ??
+          'Could not connect. Please check your internet.';
       _showRetry = true;
     });
   }
@@ -57,9 +66,6 @@ class _SplashScreenState extends State<SplashScreen> {
     setState(() {
       _showRetry = false;
     });
-    final authProvider = Provider.of<AuthProvider>(context, listen: false);
-    await authProvider.loadCurrentUser();
-    if (!mounted) return;
     await _startSplashAndNavigate();
   }
 
@@ -109,12 +115,23 @@ class _SplashScreenState extends State<SplashScreen> {
                   color: t.textSecondary,
                 ),
               ),
+              if (!_showRetry) ...[
+                const SizedBox(height: 32),
+                SizedBox(
+                  width: 28,
+                  height: 28,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2.5,
+                    color: t.accent,
+                  ),
+                ),
+              ],
               if (_showRetry) ...[
                 const SizedBox(height: 32),
                 Text(
-                  'Could not connect. Please check your internet.',
+                  _errorText,
                   textAlign: TextAlign.center,
-                  style: TextStyle(
+                  style: const TextStyle(
                     color: Colors.redAccent,
                     fontSize: 14,
                   ),
