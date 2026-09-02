@@ -23,7 +23,7 @@ class AppDrawer extends StatelessWidget {
     }
 
     return Drawer(
-      backgroundColor: const Color(0xFF151515),
+      backgroundColor: t.background,
       child: SafeArea(
         child: ListView(
           padding: const EdgeInsets.all(18),
@@ -48,8 +48,8 @@ class AppDrawer extends StatelessWidget {
                   children: [
                     Text(
                       displayName,
-                      style: const TextStyle(
-                        color: Colors.white,
+                      style: TextStyle(
+                        color: t.textPrimary,
                         fontSize: 15,
                         fontWeight: FontWeight.w600,
                       ),
@@ -57,7 +57,7 @@ class AppDrawer extends StatelessWidget {
                     Text(
                       isPremium ? 'VIP Member' : 'Free',
                       style: TextStyle(
-                        color: isPremium ? t.accent : Colors.white54,
+                        color: isPremium ? t.accent : t.textSecondary,
                         fontSize: 11,
                         fontWeight: FontWeight.w700,
                       ),
@@ -66,11 +66,11 @@ class AppDrawer extends StatelessWidget {
                 ),
               ],
             ),
-            const Divider(height: 30, color: Colors.white12),
+            Divider(height: 30, color: t.textPrimary.withOpacity(0.12)),
             Text(
               'THEME SELECT',
               style: TextStyle(
-                color: Colors.white.withOpacity(0.6),
+                color: t.textSecondary,
                 fontSize: 11,
                 fontWeight: FontWeight.w800,
                 letterSpacing: 1,
@@ -89,11 +89,11 @@ class AppDrawer extends StatelessWidget {
                         horizontal: 12, vertical: 10),
                     decoration: BoxDecoration(
                       color: isActive
-                          ? Colors.white.withOpacity(0.08)
-                          : const Color(0xFF262626),
+                          ? t.surface.withOpacity(0.08)
+                          : t.surface,
                       borderRadius: BorderRadius.circular(10),
                       border: Border.all(
-                        color: isActive ? t.accent : Colors.white12,
+                        color: isActive ? t.accent : t.textPrimary.withOpacity(0.12),
                       ),
                     ),
                     child: Row(
@@ -104,7 +104,7 @@ class AppDrawer extends StatelessWidget {
                           decoration: BoxDecoration(
                             shape: BoxShape.circle,
                             color: themeData.accent,
-                            border: Border.all(color: Colors.white30),
+                            border: Border.all(color: t.textPrimary.withOpacity(0.3)),
                           ),
                         ),
                         const SizedBox(width: 8),
@@ -112,7 +112,7 @@ class AppDrawer extends StatelessWidget {
                           child: Text(
                             themeData.label,
                             style: TextStyle(
-                              color: isActive ? t.accent : Colors.white70,
+                              color: isActive ? t.accent : t.textPrimary,
                               fontWeight: FontWeight.w700,
                               fontSize: 12,
                             ),
@@ -131,7 +131,7 @@ class AppDrawer extends StatelessWidget {
             Text(
               'EQUALIZER PRESETS',
               style: TextStyle(
-                color: Colors.white.withOpacity(0.6),
+                color: t.textSecondary,
                 fontSize: 11,
                 fontWeight: FontWeight.w800,
                 letterSpacing: 1,
@@ -159,11 +159,11 @@ class AppDrawer extends StatelessWidget {
                         horizontal: 12, vertical: 10),
                     decoration: BoxDecoration(
                       color: isActive
-                          ? Colors.white.withOpacity(0.08)
-                          : const Color(0xFF262626),
+                          ? t.surface.withOpacity(0.08)
+                          : t.surface,
                       borderRadius: BorderRadius.circular(10),
                       border: Border.all(
-                        color: isActive ? t.accent : Colors.white12,
+                        color: isActive ? t.accent : t.textPrimary.withOpacity(0.12),
                       ),
                     ),
                     child: Row(
@@ -172,7 +172,7 @@ class AppDrawer extends StatelessWidget {
                           child: Text(
                             label,
                             style: TextStyle(
-                              color: isActive ? t.accent : Colors.white70,
+                              color: isActive ? t.accent : t.textPrimary,
                               fontWeight: FontWeight.w700,
                               fontSize: 12,
                             ),
@@ -191,7 +191,7 @@ class AppDrawer extends StatelessWidget {
             Text(
               'ABOUT APP',
               style: TextStyle(
-                color: Colors.white.withOpacity(0.6),
+                color: t.textSecondary,
                 fontSize: 11,
                 fontWeight: FontWeight.w800,
                 letterSpacing: 1,
@@ -201,30 +201,30 @@ class AppDrawer extends StatelessWidget {
             Container(
               padding: const EdgeInsets.all(14),
               decoration: BoxDecoration(
-                color: const Color(0xFF262626),
+                color: t.surface,
                 borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: Colors.white12),
+                border: Border.all(color: t.textPrimary.withOpacity(0.12)),
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text(
+                  Text(
                     'Mewati Tune Player',
                     style: TextStyle(
-                      color: Colors.white,
+                      color: t.textPrimary,
                       fontWeight: FontWeight.w800,
                       fontSize: 13,
                     ),
                   ),
                   const SizedBox(height: 4),
-                  const Text(
+                  Text(
                     'Version: 1.0.0 (Walkman Ed.)',
-                    style: TextStyle(color: Colors.white70, fontSize: 12),
+                    style: TextStyle(color: t.textSecondary, fontSize: 12),
                   ),
                   const SizedBox(height: 4),
-                  const Text(
+                  Text(
                     'Designed for premium audio experience with offline mode support.',
-                    style: TextStyle(color: Colors.white70, fontSize: 12),
+                    style: TextStyle(color: t.textSecondary, fontSize: 12),
                   ),
                   const SizedBox(height: 8),
                   Text(
