@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import '../../core/constants/app_strings.dart';
 import '../../core/constants/app_themes.dart';
 import '../../core/utils/debouncer.dart';
 import '../../models/song.dart';
@@ -9,6 +8,7 @@ import '../../providers/songs_provider.dart';
 import '../../providers/singers_provider.dart';
 import '../../providers/likes_provider.dart';
 import '../../providers/theme_provider.dart';
+import '../../services/singers_service.dart';
 import '../singers/singer_profile_screen.dart';
 import 'widgets/search_result_row.dart';
 
@@ -23,6 +23,7 @@ class _SearchScreenState extends State<SearchScreen> {
   final TextEditingController _searchController = TextEditingController();
   final Debouncer _debouncer =
       Debouncer(delay: const Duration(milliseconds: 300));
+  final SingersService _singersService = SingersService();
 
   List<Song> _songResults = [];
   List<Singer> _singerResults = [];
@@ -70,12 +71,14 @@ class _SearchScreenState extends State<SearchScreen> {
 
     try {
       final songsProvider = context.read<SongsProvider>();
-      final singersProvider = context.read<SingersProvider>();
 
-      // Run both remote searches concurrently
+      // Run both remote searches concurrently.
+      // NOTE: singers search goes through SingersService directly (side-effect-free)
+      // instead of SingersProvider.searchSingers, which would otherwise overwrite
+      // the Singers tab's filteredSingers list as a side effect.
       final results = await Future.wait<dynamic>([
         songsProvider.searchSongsRemote(term),
-        singersProvider.searchSingers(term),
+        _singersService.searchSingers(term),
       ]);
 
       if (!mounted || gen != _searchGeneration) return;
@@ -233,9 +236,14 @@ class _SearchScreenState extends State<SearchScreen> {
                               ),
                             ),
                           ),
-                          ..._songResults.map(
-                            (song) => SearchResultRow(song: song, t: t),
-                          ),
+                          ..._songResults.asMap().entries.map(
+                                (e) => SearchResultRow(
+                                  song: e.value,
+                                  t: t,
+                                  allResults: _songResults,
+                                  index: e.key,
+                                ),
+                              ),
                         ],
                       ],
                     ),
