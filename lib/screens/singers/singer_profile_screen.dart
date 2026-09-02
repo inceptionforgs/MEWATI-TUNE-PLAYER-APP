@@ -1,51 +1,65 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import '../../core/constants/app_strings.dart';
 import '../../core/widgets/loading_widget.dart';
 import '../../core/widgets/error_widget.dart';
 import '../../core/widgets/song_row.dart';
+import '../../models/singer.dart';
 import '../../models/song.dart';
-import '../../providers/songs_provider.dart';
 import '../../providers/player_provider.dart';
 import '../../providers/favorites_provider.dart';
 import '../../providers/downloads_provider.dart';
 import '../../providers/likes_provider.dart';
 import '../../providers/theme_provider.dart';
+import '../../providers/songs_provider.dart';
+import '../../services/app_cache_manager.dart';
 
-class SongsScreen extends StatefulWidget {
-  const SongsScreen({Key? key}) : super(key: key);
+class SingerProfileScreen extends StatefulWidget {
+  final Singer singer;
+
+  const SingerProfileScreen({Key? key, required this.singer}) : super(key: key);
 
   @override
-  State<SongsScreen> createState() => _SongsScreenState();
+  State<SingerProfileScreen> createState() => _SingerProfileScreenState();
 }
 
-class _SongsScreenState extends State<SongsScreen> {
-  final ScrollController _scrollController = ScrollController();
+class _SingerProfileScreenState extends State<SingerProfileScreen> {
+  List<Song> _songs = [];
+  bool _isLoading = false;
+  String? _errorMessage;
 
   @override
   void initState() {
     super.initState();
+    _loadSongs();
     Future.microtask(() {
-      final songsProvider = Provider.of<SongsProvider>(context, listen: false);
-      if (songsProvider.allSongs.isEmpty) {
-        songsProvider.loadSongs();
-      }
-      // Removed duplicate loadFavorites() – FavoritesScreen (mounted in IndexedStack) already handles it.
+      Provider.of<FavoritesProvider>(context, listen: false).loadFavorites();
     });
-
-    _scrollController.addListener(_onScroll);
   }
 
-  @override
-  void dispose() {
-    _scrollController.dispose();
-    super.dispose();
-  }
+  Future<void> _loadSongs() async {
+    setState(() {
+      _isLoading = true;
+      _errorMessage = null;
+    });
+    try {
+      final songs = await Provider.of<SongsProvider>(context, listen: false)
+          .fetchSongsBySinger(widget.singer.id);
+      if (!mounted) return;
+      setState(() => _songs = songs);
 
-  void _onScroll() {
-    if (_scrollController.position.pixels >=
-        _scrollController.position.maxScrollExtent - 200) {
-      Provider.of<SongsProvider>(context, listen: false).loadMoreSongs();
+      final likesProvider = Provider.of<LikesProvider>(context, listen: false);
+      likesProvider.loadLikesData(_songs.map((s) => s.id).toList());
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _errorMessage = e.toString();
+        _songs = [];
+      });
+    } finally {
+      if (!mounted) return;
+      setState(() => _isLoading = false);
     }
   }
 
@@ -65,16 +79,17 @@ class _SongsScreenState extends State<SongsScreen> {
   }
 
   void _cancelDownload(String songId) {
-    Provider.of<DownloadsProvider>(context, listen: false).cancelDownload(songId);
+    Provider.of<DownloadsProvider>(context, listen: false)
+        .cancelDownload(songId);
   }
 
-  void _removeDownload(String songId) {
-    Provider.of<DownloadsProvider>(context, listen: false).removeDownload(songId);
+  void _removeDownload(String songId, {String? audioUrl}) {
+    Provider.of<DownloadsProvider>(context, listen: false)
+        .removeDownload(songId, audioUrl: audioUrl);
   }
 
   @override
   Widget build(BuildContext context) {
-    final songsProvider = context.watch<SongsProvider>();
     final t = context.watch<ThemeProvider>().theme;
 
     final currentSongId = context.select<PlayerProvider, String?>(
@@ -88,39 +103,196 @@ class _SongsScreenState extends State<SongsScreen> {
     final downloadsProvider = context.watch<DownloadsProvider>();
     final likesProvider = context.watch<LikesProvider>();
 
-    if (songsProvider.isLoading && songsProvider.allSongs.isEmpty) {
+    final initial = widget.singer.name.isNotEmpty
+        ? widget.singer.name[0].toUpperCase()
+        : '?';
+
+    return Scaffold(
+      backgroundColor: t.background,
+      body: Container(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: t.screenGradient,
+          ),
+        ),
+        child: SafeArea(
+          child: Column(
+            children: [
+              Padding(
+                padding: const EdgeInsets.fromLTRB(10, 6, 10, 0),
+                child: Row(
+                  children: [
+                    InkWell(
+                      onTap: () => Navigator.of(context).pop(),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.chevron_left,
+                              color: t.textPrimary, size: 22),
+                          Text(
+                            'Back to Singers',
+                            style: TextStyle(
+                              color: t.textPrimary,
+                              fontSize: 14,
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(20, 10, 20, 19),
+                child: Column(
+                  children: [
+                    Container(
+                      width: 86,
+                      height: 86,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        border: Border.all(color: t.textPrimary, width: 2),
+                        gradient: const LinearGradient(
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                          colors: [Color(0xFF2B180D), Color(0xFF120C08)],
+                        ),
+                        boxShadow: const [
+                          BoxShadow(
+                              color: Colors.black38,
+                              blurRadius: 25,
+                              offset: Offset(0, 10)),
+                        ],
+                      ),
+                      child: (widget.singer.photoUrl != null &&
+                              widget.singer.photoUrl!.isNotEmpty)
+                          ? ClipOval(
+                              child: CachedNetworkImage(
+                                imageUrl: widget.singer.photoUrl!,
+                                fit: BoxFit.cover,
+                                cacheManager: AppCacheManager.instance, // <-- added
+                                placeholder: (context, url) => Center(
+                                  child: Text(
+                                    initial,
+                                    style: TextStyle(
+                                      color: t.textPrimary,
+                                      fontSize: 34,
+                                      fontStyle: FontStyle.italic,
+                                    ),
+                                  ),
+                                ),
+                                errorWidget: (context, url, error) => Center(
+                                  child: Text(
+                                    initial,
+                                    style: TextStyle(
+                                      color: t.textPrimary,
+                                      fontSize: 34,
+                                      fontStyle: FontStyle.italic,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            )
+                          : Center(
+                              child: Text(
+                                initial,
+                                style: TextStyle(
+                                  color: t.textPrimary,
+                                  fontSize: 34,
+                                  fontStyle: FontStyle.italic,
+                                ),
+                              ),
+                            ),
+                    ),
+                    const SizedBox(height: 12),
+                    Text(
+                      widget.singer.name,
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        color: t.textPrimary,
+                        fontSize: 24,
+                        fontWeight: FontWeight.w600,
+                        fontStyle: FontStyle.italic,
+                      ),
+                    ),
+                    const SizedBox(height: 5),
+                    Text(
+                      '${_songs.length} songs',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        color: t.textPrimary.withOpacity(0.70),
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Divider(
+                  color: t.textPrimary.withOpacity(0.15),
+                  height: 2,
+                  thickness: 2),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(19, 18, 19, 9),
+                child: Align(
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    'SONGS BY ${widget.singer.name.toUpperCase()}',
+                    style: TextStyle(
+                      color: t.textPrimary,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w900,
+                      letterSpacing: 1.35,
+                    ),
+                  ),
+                ),
+              ),
+              Expanded(
+                child: _buildBody(
+                  t,
+                  currentSongId,
+                  isPlaying,
+                  favoritesProvider,
+                  downloadsProvider,
+                  likesProvider,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildBody(
+    dynamic t,
+    String? currentSongId,
+    bool isPlaying,
+    FavoritesProvider favoritesProvider,
+    DownloadsProvider downloadsProvider,
+    LikesProvider likesProvider,
+  ) {
+    if (_isLoading) {
       return const LoadingWidget(message: AppStrings.loading);
     }
-
-    if (songsProvider.errorMessage != null && songsProvider.allSongs.isEmpty) {
-      return AppErrorWidget(
-        error: songsProvider.errorMessage,
-        onRetry: () => songsProvider.loadSongs(),
-      );
+    if (_errorMessage != null) {
+      return AppErrorWidget(error: _errorMessage, onRetry: _loadSongs);
     }
-
-    if (songsProvider.filteredSongs.isEmpty && !songsProvider.isLoading) {
+    if (_songs.isEmpty) {
       return Center(
-        child: Text(AppStrings.noSongsFound,
-            style: TextStyle(color: t.textSecondary)),
+        child:
+            Text(AppStrings.noSongsFound, style: TextStyle(color: t.textSecondary)),
       );
     }
 
-    final songs = songsProvider.filteredSongs;
-
-    return ListView.builder(
-      controller: _scrollController,
+    return ListView(
       padding: const EdgeInsets.only(bottom: 16),
-      itemCount: songs.length + (songsProvider.isLoadingMore ? 1 : 0),
-      itemBuilder: (context, index) {
-        if (index == songs.length) {
-          return const Padding(
-            padding: EdgeInsets.symmetric(vertical: 12),
-            child: Center(child: CircularProgressIndicator()),
-          );
-        }
-
-        final song = songs[index];
+      children: _songs.asMap().entries.map((entry) {
+        final index = entry.key;
+        final song = entry.value;
         final isNow = currentSongId == song.id;
         final isFav = favoritesProvider.isFavoriteSync(song.id);
         final isDownloaded = downloadsProvider.isDownloaded(song.id);
@@ -146,15 +318,15 @@ class _SongsScreenState extends State<SongsScreen> {
             likeCount: likeCount,
           ),
           actions: SongRowActions(
-            onTap: () => _playSong(songs, index),
+            onTap: () => _playSong(_songs, index),
             onToggleFavorite: () => _toggleFavorite(song),
             onDownload: () => _downloadSong(song),
             onCancelDownload: () => _cancelDownload(song.id),
-            onRemoveDownload: () => _removeDownload(song.id),
+            onRemoveDownload: () => _removeDownload(song.id, audioUrl: song.audioUrl),
             onToggleLike: () => likesProvider.toggleLike(song.id),
           ),
         );
-      },
+      }).toList(),
     );
   }
 }
