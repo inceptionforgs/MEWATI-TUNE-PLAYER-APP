@@ -38,6 +38,12 @@ class EqualizerService {
   }
 
   Future<void> applyPreset(String preset) async {
+    // Ensure initialized even if called before first playback.
+    if (!_isInitialized) {
+      await init();
+      if (!_isInitialized) return; // platform unsupported or init failed
+    }
+
     SoundMode mode;
     switch (preset) {
       case 'normal':
@@ -62,7 +68,10 @@ class EqualizerService {
   }
 
   Future<void> applySoundMode(SoundMode mode) async {
-    if (!_isInitialized) return;
+    if (!_isInitialized) {
+      await init();
+      if (!_isInitialized) return;
+    }
     try {
       final params = await equalizer.parameters;
       for (final band in params.bands) {
