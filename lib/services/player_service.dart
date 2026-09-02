@@ -1,6 +1,5 @@
 import 'dart:async';
 import 'dart:io';
-import 'dart:math';
 import 'package:flutter/foundation.dart';
 import 'package:just_audio/just_audio.dart';
 import 'package:just_audio_background/just_audio_background.dart';
@@ -30,6 +29,7 @@ class PlayerService {
   bool _shuffleMode = false;
   Timer? _fadeTimer;
   double _originalVolume = 1.0;
+  int _fadeToken = 0; // increments on cancel to invalidate running fade
 
   Stream<PlayerState> get playerStateStream => _player.playerStateStream;
   Stream<Duration> get positionStream => _player.positionStream;
@@ -53,24 +53,55 @@ class PlayerService {
         _currentIndex = index;
       }
     });
+    // Initialize equalizer as early as possible so preset changes work immediately.
+    _initEqualizer();
   }
 
-  Future<void> setPlaylist({required List<Song> songs, required int startIndex}) async {
+  Future<void> setPlaylist({
+    required List<Song> songs,
+    required int startIndex,
+  }) async {
     try {
-      final validSongs = songs.where((s) => s.audioUrl.trim().isNotEmpty).toList();
+      if (songs.isEmpty) {
+        throw Exception('Playlist is empty.');
+      }
+
+      // Read downloaded IDs once from SharedPreferences (fast, no file I/O per song).
+      final prefs = await SharedPreferences.getInstance();
+      final downloadedIds =
+          prefs.getStringList('downloaded_song_ids')?.toSet() ?? <String>{};
+
+      final validSongs = <Song>[];
+      for (final song in songs) {
+        final uri = Uri.tryParse(song.audioUrl);
+        if (uri == null || uri.host.isEmpty) {
+          debugPrint('PlayerService: skipping song with bad URL: ${song.title}');
+          continue;
+        }
+        validSongs.add(song);
+      }
+
       if (validSongs.isEmpty) {
-        throw Exception('No playable songs found (missing audio URLs).');
+        throw Exception('No playable songs found (missing or invalid audio URLs).');
       }
-      Song? requestedSong = (startIndex >= 0 && startIndex < songs.length) ? songs[startIndex] : null;
-      int adjustedStartIndex = 0;
-      if (requestedSong != null) {
-        final foundIndex = validSongs.indexWhere((s) => s.id == requestedSong.id);
-        if (foundIndex != -1) adjustedStartIndex = foundIndex;
+
+      // Adjust start index if requested song was filtered out.
+      int adjustedStart = 0;
+      if (startIndex >= 0 && startIndex < songs.length) {
+        final requested = songs[startIndex];
+        final found = validSongs.indexWhere((s) => s.id == requested.id);
+        if (found != -1) {
+          adjustedStart = found;
+        } else {
+          // If the requested song was skipped, start at beginning of valid list.
+          adjustedStart = 0;
+        }
       }
+
       _playlist = validSongs;
-      _currentIndex = adjustedStartIndex;
-      
-      List<AudioSource> audioSources = [];
+      _currentIndex = adjustedStart;
+
+      final audioSources = <AudioSource>[];
       for (final song in validSongs) {
         final mediaItem = MediaItem(
           id: song.id,
@@ -81,36 +112,32 @@ class PlayerService {
               : null,
         );
 
-        try {
-          bool isDownloaded = await _downloadsService.isSongDownloaded(song.id);
-          String localPath = await _downloadsService.getLocalSongPath(song.id);
-          
-          if (isDownloaded && await File(localPath).exists()) {
-            // Local file play
-            audioSources.add(AudioSource.file(File(localPath), tag: mediaItem));
-          } else {
-            // 🔥 FIX: Direct URI - No LockCachingAudioSource
-            audioSources.add(AudioSource.uri(Uri.parse(song.audioUrl), tag: mediaItem));
-          }
-        } catch (e) {
-          // Agar kisi ek song ka source nahi bana, toh use skip karo
-          debugPrint('⚠️ Skipping song ${song.id} due to error: $e');
-          continue;
+        if (downloadedIds.contains(song.id)) {
+          // Use local file without checking existence (fast). just_audio will error
+          // if missing, but we assume our downloaded set is accurate.
+          final localPath = await _downloadsService.getLocalSongPath(song.id);
+          audioSources.add(
+            AudioSource.uri(Uri.file(localPath), tag: mediaItem),
+          );
+        } else {
+          // Plain URI source – no caching to avoid disk bloat.
+          audioSources.add(
+            AudioSource.uri(Uri.parse(song.audioUrl), tag: mediaItem),
+          );
         }
       }
 
-      if (audioSources.isEmpty) {
-        throw Exception('No valid audio sources could be created.');
-      }
-
       final playlistSource = ConcatenatingAudioSource(children: audioSources);
-      await _player.setAudioSource(playlistSource, initialIndex: adjustedStartIndex);
-      _initEqualizer();
+      await _player.setAudioSource(playlistSource, initialIndex: adjustedStart);
 
-      // Play automatically (catch errors)
+      // Apply shuffle mode (just_audio manages the order internally).
+      await _player.setShuffleModeEnabled(_shuffleMode);
+
+      // Start playback but don't block on play().
       unawaited(_player.play().catchError((e) {
         debugPrint('PlayerService.play error: $e');
       }));
+
       _trackPlayCount(_playlist[_currentIndex]);
     } catch (e) {
       throw Exception('Failed to play playlist: ${e.toString()}');
@@ -152,60 +179,30 @@ class PlayerService {
 
   Future<void> next() async {
     if (_playlist.isEmpty) return;
-    if (_shuffleMode && _playlist.length > 1) {
-      int newIndex = _currentIndex;
-      while (newIndex == _currentIndex) {
-        newIndex = Random().nextInt(_playlist.length);
-      }
-      _currentIndex = newIndex;
-    } else {
-      if (_currentIndex < _playlist.length - 1) {
-        _currentIndex++;
-      } else if (_player.loopMode == LoopMode.all) {
-        _currentIndex = 0;
-      } else {
-        await _player.pause();
-        return;
-      }
+    // Let just_audio handle next with shuffle/loop modes correctly.
+    await _player.seekToNext();
+    // If seekToNext didn't trigger (e.g., at end), playback state will handle.
+    if (_player.playing) {
+      _trackPlayCount(_playlist[_currentIndex]);
     }
-    await _player.seek(Duration.zero, index: _currentIndex);
-    unawaited(_player.play().catchError((e) {
-      debugPrint('PlayerService.next play error: $e');
-    }));
-    _trackPlayCount(_playlist[_currentIndex]);
   }
 
   Future<void> previous() async {
     if (_playlist.isEmpty) return;
+    // Let just_audio handle previous; if position > 3s, restart current track.
     if (_player.position > const Duration(seconds: 3)) {
       await _player.seek(Duration.zero);
       return;
     }
-    if (_shuffleMode && _playlist.length > 1) {
-      int newIndex = _currentIndex;
-      while (newIndex == _currentIndex) {
-        newIndex = Random().nextInt(_playlist.length);
-      }
-      _currentIndex = newIndex;
-    } else {
-      if (_currentIndex > 0) {
-        _currentIndex--;
-      } else if (_player.loopMode == LoopMode.all) {
-        _currentIndex = _playlist.length - 1;
-      } else {
-        await _player.seek(Duration.zero);
-        return;
-      }
+    await _player.seekToPrevious();
+    if (_player.playing) {
+      _trackPlayCount(_playlist[_currentIndex]);
     }
-    await _player.seek(Duration.zero, index: _currentIndex);
-    unawaited(_player.play().catchError((e) {
-      debugPrint('PlayerService.previous play error: $e');
-    }));
-    _trackPlayCount(_playlist[_currentIndex]);
   }
 
   void toggleShuffle() {
     _shuffleMode = !_shuffleMode;
+    _player.setShuffleModeEnabled(_shuffleMode);
   }
 
   Future<void> setLoopMode(LoopMode mode) async {
@@ -217,20 +214,30 @@ class PlayerService {
   }
 
   Future<void> fadeOut({Duration duration = const Duration(seconds: 30)}) async {
-    _fadeTimer?.cancel();
+    // Cancel any existing fade and increment token to invalidate ongoing callbacks.
+    cancelFadeOut();
+    final token = ++_fadeToken;
     _originalVolume = _player.volume;
     final steps = duration.inMilliseconds ~/ 100;
     final volumeStep = _originalVolume / steps;
     int stepCount = 0;
 
     _fadeTimer = Timer.periodic(const Duration(milliseconds: 100), (timer) async {
+      // If a newer fade started or cancel was called, stop immediately.
+      if (token != _fadeToken) {
+        timer.cancel();
+        return;
+      }
       stepCount++;
       double newVolume = _originalVolume - (volumeStep * stepCount);
       if (newVolume <= 0.0) {
         timer.cancel();
-        await _player.setVolume(0.0);
-        await _player.pause();
-        await _player.setVolume(_originalVolume);
+        // Only pause if still the active fade.
+        if (token == _fadeToken) {
+          await _player.setVolume(0.0);
+          await _player.pause();
+          await _player.setVolume(_originalVolume);
+        }
       } else {
         await _player.setVolume(newVolume);
       }
@@ -238,8 +245,10 @@ class PlayerService {
   }
 
   void cancelFadeOut() {
+    _fadeToken++; // invalidates any pending async operations
     _fadeTimer?.cancel();
     _fadeTimer = null;
+    // Restore volume if it was changed.
     _player.setVolume(_originalVolume);
   }
 
