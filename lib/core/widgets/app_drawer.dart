@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../constants/app_themes.dart';
+import '../constants/app_strings.dart';
 import '../../providers/theme_provider.dart';
 import '../../providers/auth_provider.dart';
+import '../../routes/route_names.dart';
 
 class AppDrawer extends StatelessWidget {
   const AppDrawer({Key? key}) : super(key: key);
@@ -10,17 +12,23 @@ class AppDrawer extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final themeProvider = context.read<ThemeProvider>();
-    final authProvider = context.read<AuthProvider>();
+    // Fix: watch, not read — drawer was stuck on "Guest" after login
+    // because it never rebuilt when auth state changed.
+    final authProvider = context.watch<AuthProvider>();
     final t = themeProvider.theme;
 
-    String displayName = 'Guest';
-    bool isPremium = false;
-
+    final bool isLoggedIn = authProvider.isLoggedIn;
     final profile = authProvider.profile;
-    if (profile != null) {
-      displayName = 'Mewati Listener';
-      isPremium = profile.isPremium;
-    }
+
+    // No hardcoded fake identity. There's no display-name field on
+    // Profile (auth is anonymous-only), so we show a consistent,
+    // honest label instead of pretending it's personalized.
+    final String displayName = isLoggedIn ? 'Mewati Listener' : 'Guest';
+    final String avatarLetter = displayName[0].toUpperCase();
+
+    // Only show VIP if subscription_status genuinely says so
+    // (client can't fake this thanks to the profiles trigger in File 17).
+    final bool isPremium = profile?.isPremium ?? false;
 
     return Drawer(
       backgroundColor: t.background,
@@ -34,7 +42,7 @@ class AppDrawer extends StatelessWidget {
                   radius: 25,
                   backgroundColor: t.surface,
                   child: Text(
-                    displayName.isNotEmpty ? displayName[0].toUpperCase() : 'M',
+                    avatarLetter,
                     style: TextStyle(
                       color: t.accent,
                       fontWeight: FontWeight.w800,
@@ -142,11 +150,11 @@ class AppDrawer extends StatelessWidget {
               final label = preset == 'normal'
                   ? 'Normal'
                   : preset == 'mewati-bass'
-                      ? 'Mewati Bass™'
+                      ? 'Mewati BOOM™'
                       : preset == 'beats'
-                          ? 'Beats Mode'
+                          ? 'Beats Boost'
                           : preset == 'vocal'
-                              ? 'Vocal Boost'
+                              ? 'Voice Enhancer'
                               : 'Treble Boost';
               final isActive = themeProvider.eqPreset == preset;
               return Padding(
@@ -188,6 +196,19 @@ class AppDrawer extends StatelessWidget {
               );
             }).toList(),
             const SizedBox(height: 18),
+
+            // [F1] New drawer row: Feedback / Suggest a Song (File 30).
+            _DrawerActionRow(
+              icon: Icons.feedback_outlined,
+              label: AppStrings.feedbackDrawerLabel,
+              t: t,
+              onTap: () {
+                Navigator.of(context).pop();
+                Navigator.of(context).pushNamed(RouteNames.feedback);
+              },
+            ),
+            const SizedBox(height: 18),
+
             Text(
               'ABOUT APP',
               style: TextStyle(
@@ -218,7 +239,7 @@ class AppDrawer extends StatelessWidget {
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    'Version: 1.0.0 (Walkman Ed.)',
+                    AppStrings.appVersion,
                     style: TextStyle(color: t.textSecondary, fontSize: 12),
                   ),
                   const SizedBox(height: 4),
@@ -238,6 +259,65 @@ class AppDrawer extends StatelessWidget {
                 ],
               ),
             ),
+            const SizedBox(height: 18),
+
+            // [F2] New drawer row at the bottom: Advance Settings (File 31).
+            _DrawerActionRow(
+              icon: Icons.tune,
+              label: AppStrings.advanceSettingsDrawerLabel,
+              t: t,
+              onTap: () {
+                Navigator.of(context).pop();
+                Navigator.of(context).pushNamed(RouteNames.advanceSettings);
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _DrawerActionRow extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final dynamic t;
+  final VoidCallback onTap;
+
+  const _DrawerActionRow({
+    required this.icon,
+    required this.label,
+    required this.t,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(10),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+        decoration: BoxDecoration(
+          color: t.surface,
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(color: t.textPrimary.withOpacity(0.12)),
+        ),
+        child: Row(
+          children: [
+            Icon(icon, color: t.accent, size: 18),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                label,
+                style: TextStyle(
+                  color: t.textPrimary,
+                  fontWeight: FontWeight.w700,
+                  fontSize: 13,
+                ),
+              ),
+            ),
+            Icon(Icons.chevron_right, color: t.textSecondary, size: 18),
           ],
         ),
       ),
