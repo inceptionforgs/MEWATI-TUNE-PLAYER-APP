@@ -20,63 +20,72 @@ class _SeekBarState extends State<SeekBar> {
 
   @override
   Widget build(BuildContext context) {
-    final playerProvider = context.watch<PlayerProvider>();
+    final playerProvider = context.read<PlayerProvider>();
     final t = context.watch<ThemeProvider>().theme;
 
-    final duration = playerProvider.duration ?? Duration.zero;
-    final position = playerProvider.position;
-    final actualPct = duration.inMilliseconds == 0
-        ? 0.0
-        : (position.inMilliseconds / duration.inMilliseconds).clamp(0.0, 1.0);
-    final pct = _dragValue ?? actualPct;
+    return ValueListenableBuilder<Duration?>(
+      valueListenable: playerProvider.durationNotifier,
+      builder: (context, durationValue, _) {
+        final duration = durationValue ?? Duration.zero;
+        return ValueListenableBuilder<Duration>(
+          valueListenable: playerProvider.positionNotifier,
+          builder: (context, position, __) {
+            final actualPct = duration.inMilliseconds == 0
+                ? 0.0
+                : (position.inMilliseconds / duration.inMilliseconds).clamp(0.0, 1.0);
+            final pct = _dragValue ?? actualPct;
 
-    return Column(
-      children: [
-        SliderTheme(
-          data: SliderTheme.of(context).copyWith(
-            trackHeight: 4,
-            thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 7.5),
-            overlayShape: SliderComponentShape.noOverlay,
-            activeTrackColor: t.textPrimary,
-            inactiveTrackColor: t.textPrimary.withOpacity(0.28),
-            thumbColor: t.textPrimary,
-          ),
-          child: Slider(
-            value: pct,
-            onChanged: (v) {
-              setState(() => _dragValue = v);
-            },
-            onChangeEnd: (v) {
-              final newPos = Duration(
-                milliseconds: (v * duration.inMilliseconds).round(),
-              );
-              playerProvider.seek(newPos);
-              setState(() => _dragValue = null);
-            },
-          ),
-        ),
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Text(
-              _fmt(position),
-              style: TextStyle(
-                color: t.textPrimary.withOpacity(0.75),
-                fontSize: 12,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-            Text(
-              _fmt(duration),
-              style: TextStyle(
-                color: t.textPrimary.withOpacity(0.75),
-                fontSize: 12,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-          ],
-        ),
-      ],
+            return Column(
+              children: [
+                SliderTheme(
+                  data: SliderTheme.of(context).copyWith(
+                    trackHeight: 4,
+                    thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 7.5),
+                    overlayShape: SliderComponentShape.noOverlay,
+                    activeTrackColor: t.textPrimary,
+                    inactiveTrackColor: t.textPrimary.withOpacity(0.28),
+                    thumbColor: t.textPrimary,
+                  ),
+                  child: Slider(
+                    value: pct,
+                    onChanged: (v) {
+                      setState(() => _dragValue = v);
+                    },
+                    onChangeEnd: (v) {
+                      final newPos = Duration(
+                        milliseconds: (v * duration.inMilliseconds).round(),
+                      );
+                      playerProvider.seek(newPos);
+                      setState(() => _dragValue = null);
+                    },
+                  ),
+                ),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      _fmt(position),
+                      style: TextStyle(
+                        color: t.textPrimary.withOpacity(0.75),
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    Text(
+                      _fmt(duration),
+                      style: TextStyle(
+                        color: t.textPrimary.withOpacity(0.75),
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            );
+          },
+        );
+      },
     );
   }
 }
