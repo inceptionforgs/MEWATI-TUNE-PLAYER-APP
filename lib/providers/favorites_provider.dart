@@ -11,7 +11,11 @@ class FavoritesProvider extends ChangeNotifier {
   bool _isLoading = false;
   String? _errorMessage;
 
-  int _requestGeneration = 0;
+  // Separate generations: one for load operations, one for toggle operations.
+  // This prevents a toggle from invalidating an in‑flight load and leaving
+  // the UI stuck in loading state (bug A).
+  int _loadGeneration = 0;
+  int _toggleGeneration = 0;
 
   List<Song> get favoriteSongs => _favoriteSongs;
   bool get isLoading => _isLoading;
@@ -20,7 +24,10 @@ class FavoritesProvider extends ChangeNotifier {
   bool isFavoriteSync(String songId) => _favoriteSongIds.contains(songId);
 
   Future<void> loadFavorites() async {
-    final int myGeneration = ++_requestGeneration;
+    // Prevent duplicate concurrent loads (P1#10).
+    if (_isLoading) return;
+
+    final int myGeneration = ++_loadGeneration;
 
     _isLoading = true;
     _errorMessage = null;
@@ -29,18 +36,20 @@ class FavoritesProvider extends ChangeNotifier {
     try {
       final songs = await _favoritesService.fetchFavoriteSongs();
 
-      if (myGeneration != _requestGeneration) return;
+      // Only apply results if no newer load started.
+      if (myGeneration != _loadGeneration) return;
 
       _favoriteSongs = songs;
       _favoriteSongIds
         ..clear()
         ..addAll(songs.map((s) => s.id));
     } catch (e) {
-      if (myGeneration != _requestGeneration) return;
+      if (myGeneration != _loadGeneration) return;
       _favoriteSongs = [];
       _errorMessage = e.toString();
     } finally {
-      if (myGeneration == _requestGeneration) {
+      // Always clear loading flag for the current load, even if results were ignored.
+      if (myGeneration == _loadGeneration) {
         _isLoading = false;
       }
       notifyListeners();
@@ -48,12 +57,13 @@ class FavoritesProvider extends ChangeNotifier {
   }
 
   Future<void> toggleFavorite(Song song) async {
-    final int myGeneration = ++_requestGeneration;
+    final int myGeneration = ++_toggleGeneration;
 
     _errorMessage = null;
 
     final wasFavorite = _favoriteSongIds.contains(song.id);
 
+    // Optimistically update UI.
     if (wasFavorite) {
       _favoriteSongIds.remove(song.id);
       _favoriteSongs.removeWhere((s) => s.id == song.id);
@@ -70,7 +80,8 @@ class FavoritesProvider extends ChangeNotifier {
         await _favoritesService.addFavorite(song.id);
       }
     } catch (e) {
-      if (myGeneration != _requestGeneration) return;
+      // Rollback only if no newer toggle superseded this one.
+      if (myGeneration != _toggleGeneration) return;
 
       if (wasFavorite) {
         _favoriteSongIds.add(song.id);
