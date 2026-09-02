@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:just_audio_background/just_audio_background.dart';
@@ -5,6 +7,7 @@ import 'package:sentry_flutter/sentry_flutter.dart';
 import 'package:permission_handler/permission_handler.dart';
 
 import 'app.dart';
+import 'config/environment.dart';
 import 'providers/auth_provider.dart';
 import 'providers/downloads_provider.dart';
 import 'services/debug_log_service.dart';
@@ -17,11 +20,16 @@ Future<void> main() async {
   final authProvider = AuthProvider();
   final downloadsProvider = DownloadsProvider();
 
-  // Fully initialize Supabase, audio, cache, auth session, and downloads
-  // BEFORE the UI is shown. The app must never open in a half-initialized
-  // state (this used to be a fire-and-forget call, which is why favorites/
-  // auth state used to load empty on first frame).
-  await _initializeApp(authProvider, downloadsProvider);
+  // Fully await core initialization BEFORE runApp — the native launch
+  // screen (android/app/src/main/res/drawable/launch_background.xml) stays
+  // on screen the whole time, so the app is never shown half-initialized.
+  //
+  // Auth restoration itself is intentionally NOT awaited here: it's owned
+  // by SplashScreen (lib/screens/splash/splash_screen.dart, File 15), which
+  // awaits authProvider.loadCurrentUser() with its own timeout and
+  // Retry/Continue Offline UI. Awaiting it a second time here would just
+  // race/duplicate that network call for no benefit.
+  await _initializeApp(downloadsProvider);
 
   runApp(
     MewatiTunePlayerApp(
@@ -31,12 +39,11 @@ Future<void> main() async {
   );
 }
 
-Future<void> _initializeApp(
-  AuthProvider authProvider,
-  DownloadsProvider downloadsProvider,
-) async {
+Future<void> _initializeApp(DownloadsProvider downloadsProvider) async {
   try {
-    // Load environment variables (optional).
+    // Load environment variables (optional). Supabase/Sentry config no
+    // longer read from dotenv (see File 14) — this stays only in case
+    // other, non-critical parts of the app still want an optional .env.
     try {
       await dotenv.load(fileName: ".env");
     } catch (_) {}
@@ -54,20 +61,17 @@ Future<void> _initializeApp(
     // Initialize local cache (SharedPreferences).
     await LocalCacheService().initialize();
 
-    // Load user session (will trigger anonymous sign-in if needed).
-    await authProvider.loadCurrentUser();
-
     // Initialize downloads provider (reads cached downloaded IDs).
     await downloadsProvider.initialize();
 
-    // Initialize Sentry only if DSN is provided.
-    final sentryDsn =
-        dotenv.isInitialized ? (dotenv.env['SENTRY_DSN'] ?? '') : '';
-    if (sentryDsn.isNotEmpty) {
+    // Initialize Sentry only if a DSN was injected via --dart-define
+    // (Environment.sentryDsn — same no-hardcoded-fallback pattern as
+    // SupabaseConfig, see File 14).
+    if (Environment.sentryDsn.isNotEmpty) {
       await SentryFlutter.init(
         (options) {
-          options.dsn = sentryDsn;
-          options.tracesSampleRate = 1.0;
+          options.dsn = Environment.sentryDsn;
+          options.tracesSampleRate = Environment.sentryTracesSampleRate;
         },
       );
     }
@@ -78,7 +82,11 @@ Future<void> _initializeApp(
     DebugLogService().info('App initialized successfully');
   } catch (e) {
     DebugLogService().error('App initialization failed: $e');
-    // The app continues to run; splash screen will show appropriate UI.
+    // Deliberately not rethrown: the app still runs, and SplashScreen's own
+    // auth-restore attempt will surface a proper Retry/Continue Offline UI
+    // if Supabase/network is actually unreachable. Playback/API/DNS errors
+    // themselves are handled at the point each call happens (player, auth,
+    // search, etc.), not here — this is just startup bootstrapping.
   }
 }
 
