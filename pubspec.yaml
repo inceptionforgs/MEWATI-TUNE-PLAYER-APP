@@ -22,13 +22,12 @@ dependencies:
   path_provider: ^2.1.2
   shared_preferences: ^2.2.2
   cached_network_image: ^3.3.1
+  flutter_cache_manager: ^3.3.1   # <-- added for image cache limit
   intl: ^0.19.0
   http: ^1.2.0
 
   sentry_flutter: ^9.27.0
   connectivity_plus: ^5.0.2
-
-  # For Android 13+ notification permission
   permission_handler: ^11.3.1
 
 dev_dependencies:
