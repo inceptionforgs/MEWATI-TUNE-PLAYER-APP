@@ -102,7 +102,7 @@ class _SingersScreenState extends State<SingersScreen> {
         margin: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
         decoration: BoxDecoration(
-          color: Colors.black.withOpacity(0.15),
+          color: t.surface.withOpacity(0.15),
           borderRadius: BorderRadius.circular(14),
         ),
         child: Row(
@@ -178,7 +178,7 @@ class _SingersScreenState extends State<SingersScreen> {
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: TextStyle(
-                      color: t.textPrimary.withOpacity(0.70),
+                      color: t.textSecondary,
                       fontSize: 12.5,
                       fontWeight: FontWeight.w600,
                     ),
