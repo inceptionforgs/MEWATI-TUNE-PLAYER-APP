@@ -7,6 +7,7 @@ import '../../core/widgets/error_widget.dart';
 import '../../models/singer.dart';
 import '../../providers/singers_provider.dart';
 import '../../providers/theme_provider.dart';
+import '../../services/app_cache_manager.dart';
 
 class SingersScreen extends StatefulWidget {
   const SingersScreen({Key? key}) : super(key: key);
@@ -124,6 +125,7 @@ class _SingersScreenState extends State<SingersScreen> {
                       child: CachedNetworkImage(
                         imageUrl: singer.photoUrl!,
                         fit: BoxFit.cover,
+                        cacheManager: AppCacheManager.instance, // <-- added
                         placeholder: (context, url) => Center(
                           child: Text(
                             initial,
