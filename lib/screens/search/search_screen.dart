@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../core/constants/app_strings.dart';
+import '../../core/constants/app_themes.dart';
 import '../../core/utils/debouncer.dart';
 import '../../models/song.dart';
 import '../../models/singer.dart';
@@ -20,12 +21,14 @@ class SearchScreen extends StatefulWidget {
 
 class _SearchScreenState extends State<SearchScreen> {
   final TextEditingController _searchController = TextEditingController();
-  final Debouncer _debouncer = Debouncer(delay: const Duration(milliseconds: 300));
+  final Debouncer _debouncer =
+      Debouncer(delay: const Duration(milliseconds: 300));
 
   List<Song> _songResults = [];
   List<Singer> _singerResults = [];
   bool _isSearching = false;
   bool _isLoading = false;
+  int _searchGeneration = 0; // increments on every new search to discard stale results
 
   @override
   void initState() {
@@ -61,32 +64,37 @@ class _SearchScreenState extends State<SearchScreen> {
       return;
     }
 
+    // Invalidate previous searches
+    final gen = ++_searchGeneration;
     setState(() => _isLoading = true);
 
-    final songsProvider = context.read<SongsProvider>();
-    final singersProvider = context.read<SingersProvider>();
-
     try {
-      final songResultsFuture = songsProvider.searchSongsRemote(term);
-      final lowerTerm = term.toLowerCase();
-      final singerResults = singersProvider.allSingers
-          .where((singer) => singer.name.toLowerCase().contains(lowerTerm))
-          .toList();
+      final songsProvider = context.read<SongsProvider>();
+      final singersProvider = context.read<SingersProvider>();
 
-      final songResults = await songResultsFuture;
+      // Run both remote searches concurrently
+      final results = await Future.wait<dynamic>([
+        songsProvider.searchSongsRemote(term),
+        singersProvider.searchSingers(term),
+      ]);
 
-      if (!mounted) return;
+      if (!mounted || gen != _searchGeneration) return;
+
+      final songs = results[0] as List<Song>;
+      final singers = results[1] as List<Singer>;
+
       setState(() {
-        _songResults = songResults;
-        _singerResults = singerResults;
+        _songResults = songs;
+        _singerResults = singers;
         _isSearching = true;
         _isLoading = false;
       });
 
+      // Load likes for the found songs
       final likesProvider = Provider.of<LikesProvider>(context, listen: false);
       likesProvider.loadLikesData(_songResults.map((s) => s.id).toList());
     } catch (e) {
-      if (!mounted) return;
+      if (!mounted || gen != _searchGeneration) return;
       setState(() {
         _songResults = [];
         _singerResults = [];
@@ -102,7 +110,7 @@ class _SearchScreenState extends State<SearchScreen> {
     final hasResults = _songResults.isNotEmpty || _singerResults.isNotEmpty;
 
     return Scaffold(
-      backgroundColor: const Color(0xFF1E1E1E),
+      backgroundColor: t.background,
       body: SafeArea(
         child: Column(
           children: [
@@ -119,17 +127,19 @@ class _SearchScreenState extends State<SearchScreen> {
                       height: 40,
                       padding: const EdgeInsets.symmetric(horizontal: 12),
                       decoration: BoxDecoration(
-                        color: const Color(0xFF262626),
+                        color: t.surface,
                         borderRadius: BorderRadius.circular(10),
-                        border: Border.all(color: Colors.white24),
+                        border: Border.all(
+                          color: t.textPrimary.withOpacity(0.2),
+                        ),
                       ),
                       child: TextField(
                         controller: _searchController,
                         autofocus: true,
-                        style: const TextStyle(color: Colors.white, fontSize: 14),
-                        decoration: const InputDecoration(
+                        style: TextStyle(color: t.textPrimary, fontSize: 14),
+                        decoration: InputDecoration(
                           hintText: 'Search songs or singers...',
-                          hintStyle: TextStyle(color: Colors.white38),
+                          hintStyle: TextStyle(color: t.textSecondary),
                           border: InputBorder.none,
                         ),
                       ),
@@ -138,8 +148,9 @@ class _SearchScreenState extends State<SearchScreen> {
                 ],
               ),
             ),
-            const Divider(height: 1, color: Colors.white12),
-            if (_isLoading) const LinearProgressIndicator(minHeight: 2),
+            Divider(height: 1, color: t.textPrimary.withOpacity(0.2)),
+            if (_isLoading)
+              LinearProgressIndicator(minHeight: 2, color: t.accent),
             Expanded(
               child: !hasResults
                   ? Center(
@@ -147,12 +158,14 @@ class _SearchScreenState extends State<SearchScreen> {
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
                           Icon(Icons.search,
-                              size: 56, color: Colors.white.withOpacity(0.5)),
+                              size: 56, color: t.textSecondary),
                           const SizedBox(height: 15),
                           Text(
-                            _isSearching ? 'No matches found' : 'Type to Search',
-                            style: const TextStyle(
-                              color: Colors.white,
+                            _isSearching
+                                ? 'No matches found'
+                                : 'Type to Search',
+                            style: TextStyle(
+                              color: t.textPrimary,
                               fontSize: 22,
                               fontStyle: FontStyle.italic,
                               fontWeight: FontWeight.w600,
@@ -164,21 +177,21 @@ class _SearchScreenState extends State<SearchScreen> {
                               child: Text(
                                 'No songs or singers matched "${_searchController.text}".',
                                 textAlign: TextAlign.center,
-                                style: const TextStyle(
-                                  color: Colors.white70,
+                                style: TextStyle(
+                                  color: t.textSecondary,
                                   fontSize: 13,
                                   height: 1.5,
                                 ),
                               ),
                             )
                           else
-                            const Padding(
-                              padding: EdgeInsets.only(top: 7),
+                            Padding(
+                              padding: const EdgeInsets.only(top: 7),
                               child: Text(
                                 'Find your favorite Mewati songs & singers instantly.',
                                 textAlign: TextAlign.center,
                                 style: TextStyle(
-                                  color: Colors.white70,
+                                  color: t.textSecondary,
                                   fontSize: 13,
                                   height: 1.5,
                                 ),
@@ -203,7 +216,9 @@ class _SearchScreenState extends State<SearchScreen> {
                               ),
                             ),
                           ),
-                          ..._singerResults.map((singer) => _buildSingerResultRow(singer, t)),
+                          ..._singerResults.map(
+                            (singer) => _buildSingerResultRow(singer, t),
+                          ),
                         ],
                         if (_songResults.isNotEmpty) ...[
                           Padding(
@@ -231,8 +246,9 @@ class _SearchScreenState extends State<SearchScreen> {
     );
   }
 
-  Widget _buildSingerResultRow(Singer singer, dynamic t) {
-    final initial = singer.name.isNotEmpty ? singer.name[0].toUpperCase() : '?';
+  Widget _buildSingerResultRow(Singer singer, AppThemeData t) {
+    final initial =
+        singer.name.isNotEmpty ? singer.name[0].toUpperCase() : '?';
     return InkWell(
       onTap: () {
         Navigator.of(context).pop();
@@ -247,7 +263,7 @@ class _SearchScreenState extends State<SearchScreen> {
         margin: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
         decoration: BoxDecoration(
-          color: Colors.black.withOpacity(0.15),
+          color: t.surface.withOpacity(0.2),
           borderRadius: BorderRadius.circular(14),
         ),
         child: Row(
@@ -257,7 +273,10 @@ class _SearchScreenState extends State<SearchScreen> {
               backgroundColor: t.surface,
               child: Text(
                 initial,
-                style: TextStyle(color: t.accent, fontWeight: FontWeight.w800),
+                style: TextStyle(
+                  color: t.accent,
+                  fontWeight: FontWeight.w800,
+                ),
               ),
             ),
             const SizedBox(width: 12),
@@ -273,7 +292,7 @@ class _SearchScreenState extends State<SearchScreen> {
                 ),
               ),
             ),
-            Icon(Icons.chevron_right, color: t.textPrimary.withOpacity(0.6)),
+            Icon(Icons.chevron_right, color: t.textSecondary),
           ],
         ),
       ),
