@@ -1,125 +1,158 @@
-MEWATI TUNE PLAYER — FINAL CONSOLIDATED FIX LIST
-(Dono AI ki lists verify karke merge kiya gaya — false positives hataye gaye)
+MEWATI TUNE PLAYER — MASTER FIX LIST (3 AI cross-verified, false positives hataye gaye)
 
 ═══════════════════════════
 🔴 CRITICAL
 ═══════════════════════════
 
-1. lib/app.dart (line ~113) + lib/core/widgets/debug_panel.dart (line ~20-21)
-   Problem: DebugPanel har build (release included) mein render ho raha hai, 
-   kDebugMode gate jaan-bujh kar hataya gaya hai. Real users ko debug logs dikhte hain.
-   Fix: `const DebugPanel(),` ko `if (kDebugMode) const DebugPanel(),` se replace karo.
+1. lib/app.dart (~113) + lib/core/widgets/debug_panel.dart (~20-21)
+   DebugPanel release build mein bhi render hota hai (kDebugMode gate jaan-bujh kar hataya).
+   Fix: `if (kDebugMode) const DebugPanel(),`
 
-2. sql/setup_likes.sql (increment_like_count / decrement_like_count functions)
-   Problem: In RPC functions mein koi auth check nahi hai. Koi bhi anon user seedha 
-   RPC call karke like_count ko manipulate kar sakta hai — bina actual like insert kiye.
-   Fix: Function ke andar `IF auth.uid() IS NULL THEN RAISE EXCEPTION` daalo, 
-   ya better: trigger use karo `AFTER INSERT/DELETE ON likes` jo automatically 
-   count update kare — client/RPC se direct increment hatao.
+2. sql/ folder — profiles, favorites, songs table ka schema/RLS SQL MISSING hai
+   CONFIRMED: repo mein sirf setup_likes.sql aur cleanup_optional.sql hai. 
+   singers_with_song_count (view) aur increment_play_count (function) — dono 
+   database mein use ho rahe hain (singers_service.dart, songs_service.dart) 
+   par unki SQL definition kahin bhi repo mein nahi hai. Matlab RLS audit 
+   possible hi nahi hai kyunki source of truth version control mein hi nahi hai.
+   Fix: Supabase dashboard se poora schema dump karke sql/ folder mein migrations 
+   add karo — especially profiles/favorites/songs RLS policies aur ye missing 
+   view+function definitions.
 
-3. lib/services/like_service.dart (addLike, removeLike — line ~39-56)
-   Problem: likes table insert/delete aur like_count update do alag network calls 
-   hain, atomic nahi. Ek fail ho jaye to like_count desync ho jata hai permanently.
-   Fix: Ek Postgres trigger/function banao jo insert+increment ek hi transaction 
-   mein kare (upar wale fix #2 ke sath combine ho sakta hai).
+3. increment_play_count / increment_like_count / decrement_like_count RPCs — auth check nahi
+   CONFIRMED: In sabhi RPC functions mein koi `auth.uid() IS NULL` check nahi hai. 
+   Koi bhi anon user directly RPC call karke play_count/like_count ko spam kar sakta hai.
+   Fix: Function ke andar auth check daalo, ya trigger-based approach use karo 
+   jo sirf actual insert/delete se automatically trigger ho.
 
-4. lib/providers/likes_provider.dart (toggleLike — line ~105)
-   Problem: Double-tap pe koi in-flight lock nahi hai, race condition se local 
-   aur server state mismatch ho sakta hai.
-   Fix: Per-songId "already toggling" set rakho, duplicate call ignore karo jab 
-   tak pehla request complete na ho.
+4. lib/services/like_service.dart (addLike/removeLike, ~39-56) — non-atomic like operations
+   Insert + count-update do alag network calls, atomic nahi. Fail hone par like_count desync.
+   Fix: Single Postgres transaction/trigger mein combine karo (point 3 ke saath).
 
-5. lib/main.dart (_initializeApp) + lib/screens/splash/splash_screen.dart (line ~25)
-   Problem: Splash sirf fixed 2-second timer pe wait karta hai, real Supabase 
-   init background mein async chal raha hota hai. Slow network pe init 2 sec 
-   se zyada le to authProvider.loadCurrentUser() Supabase client ready hone se 
-   pehle call ho sakta hai → exception.
-   Fix: Ek Future/completer banao jo _initializeApp complete hone par resolve 
-   ho; splash usko await kare, fixed timer pe depend na kare.
+5. lib/providers/likes_provider.dart (toggleLike, ~105) — double-tap race condition
+   In-flight lock nahi hai, rapid double-tap se local/server state mismatch hota hai.
+   Fix: Per-songId "toggling" set rakho, duplicate call ignore karo.
+
+6. android/app/build.gradle (~51) — release build debug key se sign ho sakta hai
+   CONFIRMED: `signingConfig ... storeFile != null ? release : debug` — agar 
+   release keystore missing hai to silently debug signing use ho jayega.
+   Fix: Debug fallback hatao — release keystore missing ho to build FAIL hona chahiye, 
+   silently debug-sign nahi.
+
+7. lib/main.dart + lib/screens/splash/splash_screen.dart (~25) — init race condition
+   Splash fixed 2-sec timer pe wait karta hai, real Supabase init async background 
+   mein chalta hai. Slow network pe authProvider.loadCurrentUser() Supabase client 
+   ready hone se pehle call ho sakta hai → exception.
+   Fix: Completer/Future banao jo _initializeApp complete hone par resolve ho, 
+   splash usko await kare.
+
+8. lib/services/player_service.dart (next/previous, ~171-189) — currentIndex race condition
+   seekToNext()/seekToPrevious() complete hone ke baad _currentIndex turant reliable 
+   nahi hai — ye ek separate currentIndexStream listener se async update hota hai. 
+   _trackPlayCount(_playlist[_currentIndex]) galat (purane) song ka play count 
+   increment kar sakta hai agar stream event abhi tak fire nahi hua.
+   Fix: currentIndexStream ke through hi play count track karo, ya seekToNext ke 
+   baad player.currentIndex (synchronous getter agar available ho) use karo, 
+   direct _currentIndex pe bharosa mat karo.
 
 ═══════════════════════════
 🟡 MEDIUM
 ═══════════════════════════
 
-6. lib/providers/likes_provider.dart (_loadLikedSongs, _loadLikeCounts — line ~57-85)
-   Problem: N+1 query problem — 50 songs ke liye 50+ alag API calls (ek-ek 
-   song ke liye separate query loop mein). Supabase bill aur latency badhti hai.
-   Fix: Batch RPC banao (jaise `get_likes_batch(song_ids uuid[])`) jo ek call 
-   mein saare likes + counts return kare.
+9. lib/providers/likes_provider.dart (~57-85) — N+1 query problem
+   50 songs ke liye 50+ alag API calls sequentially. Batch RPC banao.
 
-7. lib/services/favorites_service.dart (fetchFavoriteSongs — line ~59-96)
-   Problem: `.select()` use ho raha hai bina `singers(name)` join ke — 
-   songs_service.dart ke `.select('*, singers(name)')` se inconsistent. 
-   Favorites screen pe singer name "Unknown Artist" dikhega.
-   Fix: `.select()` ko `.select('*, singers(name)')` karo, aur Song.fromJson 
-   mein singer name properly map karo.
+10. lib/services/favorites_service.dart (fetchFavoriteSongs, ~59-96) — singer name missing
+    `.select()` bina `singers(name)` join ke — Favorites screen pe "Unknown Artist" dikhega.
+    Fix: `.select('*, singers(name)')` karo.
 
-8. Cloudflare R2 audio URLs — public/unsigned
-   Problem: Poore codebase mein kahin bhi signed/expiring URL logic nahi mili. 
-   Audio URLs seedhe direct-access hain — koi bhi link copy karke gaana 
-   download/share kar sakta hai, poori library scrape ho sakti hai.
-   Fix: R2 bucket private karo, Supabase Edge Function se short-lived 
-   (15 min) signed URL generate karke client ko do.
+11. Cloudflare R2 audio URLs — public/unsigned, no expiry
+    Poore codebase mein signing logic kahin nahi. Direct link se scraping/download risk.
+    Fix: Signed URLs (15 min expiry) Edge Function se generate karo.
 
-9. lib/providers/songs_provider.dart (loadMoreSongs — line ~94)
-   Problem: Har pagination call pe poori accumulated song list SharedPreferences 
-   mein re-save hoti hai — library badhne pe slow ho jayega.
-   Fix: Cache sirf first page pe karo ya periodic interval pe, ya 
-   SharedPreferences ki jagah sqflite/Hive use karo.
+12. lib/services/player_service.dart (setPlaylist, ~109-113) — downloaded file existence check nahi
+    CONFIRMED: `downloadedIds.contains(song.id)` true hone par bina file-exists 
+    check kiye seedha local path use hota hai. Agar file delete/corrupt ho gayi 
+    ho (manually ya storage cleanup se), playback fail hoga instead of falling 
+    back to remote URL.
+    Fix: Local file use karne se pehle `File(localPath).exists()` check karo, 
+    missing ho to remote URL pe fallback karo aur stale entry SharedPreferences se hatao.
 
-10. lib/services/downloads_service.dart (line ~104-110)
-    Problem: Download complete hone ka check sirf "file exists + size > 0" 
-    hai, content verify nahi hota — corrupt/partial download bhi valid maan liya jata hai.
-    Fix: Expected Content-Length se match karo ya checksum verify karo.
+13. lib/providers/songs_provider.dart (loadMoreSongs, ~94) — poori list SharedPreferences mein re-save
+    Har pagination call pe accumulated list phir se save hoti hai — scale nahi karega.
+    Fix: sqflite/Hive use karo, ya sirf first page cache karo.
 
-11. lib/services/downloads_service.dart (line ~45)
-    Problem: songId directly file path mein interpolate ho raha hai, koi validation nahi.
-    Fix: songId ko UUID regex se validate karo path banane se pehle.
+14. lib/services/downloads_service.dart (~104-110) — download content verify nahi hota
+    Sirf file exists + size>0 check hota hai, corrupt partial download bhi valid maana jata hai.
+    Fix: Content-Length match ya checksum verify karo.
 
-12. lib/services/player_service.dart (line ~132)
-    Problem: Play count turant increment ho jata hai setPlaylist call hote hi, 
-    chahe actual playback fail ho jaye — inflated counts.
-    Fix: Play count sirf playback actually shuru hone (kuch seconds play) ke baad increment karo.
+15. lib/services/downloads_service.dart (~45) — songId direct file path mein
+    Fix: UUID regex validate karo path banane se pehle.
 
-13. sql/setup_likes.sql (line ~18 — "Users can view all likes" policy)
-    Problem: `FOR SELECT USING (true)` — koi bhi user dekh sakta hai kisne 
-    kya like kiya hai. Minor privacy leak.
-    Fix: `FOR SELECT USING (auth.uid() = user_id)` karo, ya likes ko public 
-    mat rakho — sirf like_count public rahe.
+16. lib/services/player_service.dart (_trackPlayCount, ~132) — playback fail hone par bhi play count badhta hai
+    Fix: Actual playback start confirm hone ke baad count karo.
+
+17. sql/setup_likes.sql (~18) — "Users can view all likes" — sabko sab dikhta hai
+    Fix: `USING (auth.uid() = user_id)` karo, ya sirf like_count public rakho.
+
+18. lib/main.dart (~90-99) — notification permission app launch pe hi maang liya jata hai
+    Fix: Pehli baar audio play karne pe / background feature use karne pe maango.
+
+19. lib/screens/player/widgets/album_art.dart (~40-48) — CachedNetworkImage memCache size set nahi
+    CONFIRMED: 230x230 display size hai but full-resolution image RAM mein decode hoti hai.
+    Fix: `memCacheWidth: 460, memCacheHeight: 460` (2x for retina) add karo — 
+    yahi check song_row.dart aur singer profile images mein bhi karo.
+
+20. lib/screens/player/widgets/album_art.dart (~23) — hardcoded gradient colors
+    CONFIRMED: `Color(0xFF2A170D), Color(0xFF120C08)` theme se independent hai — 
+    dark theme fallback lagta hai, light theme mein bhi same rahega.
+    (Note: app_drawer.dart, mini_player_bar.dart, seek_bar.dart mein ye issue 
+    NAHI mila — wo already fully themed hain, Meta ki us claim ko already reject kiya tha.)
+    Fix: t.gradientColors jaisa theme field banao.
 
 ═══════════════════════════
 🟢 MINOR
 ═══════════════════════════
 
-14. lib/services/songs_service.dart (fetchAllSongs — line ~26)
-    Problem: Dead code hai — kahin call nahi hota, but agar future mein use 
-    hua to no-limit query hai, bade dataset pe hang kar sakta hai.
-    Fix: Ya to function delete karo, ya usmein bhi pagination limit lagao.
+21. lib/services/songs_service.dart (fetchAllSongs, ~26) — dead code, no pagination
+    Kahin call nahi hoti abhi. Delete karo ya limit lagao.
 
-15. lib/main.dart (line ~81)
-    Problem: `Connectivity().onConnectivityChanged.listen((_) {})` — empty, 
-    unused, never cancelled subscription.
-    Fix: Hatao ya connectivity_banner widget se actually connect karo.
+22. lib/main.dart (~81) — empty unused connectivity listener
+    `Connectivity().onConnectivityChanged.listen((_) {})` — hatao ya use karo.
 
-16. lib/services/downloads_service.dart (line ~117)
-    Problem: print() use ho raha hai release build mein bhi console output ke liye.
-    Fix: debugPrint() se replace karo.
+23. lib/services/downloads_service.dart (~117) — print() instead of debugPrint()
 
-17. lib/services/auth_service.dart (line ~32) + premium_gate.dart
-    Problem: subscription_status client-side default set hota hai; jab premium 
-    feature banega, ye field client se writable nahi hona chahiye.
-    Fix: subscription_status sirf server-side (webhook/RLS policy) se update ho.
+24. lib/services/auth_service.dart (~32) + premium_gate.dart — subscription_status client-writable
+    Abhi immediate risk nahi (feature incomplete/TODO hai) but future-proof karna zaroori hai — 
+    premium status sirf server-side set ho.
 
-18. lib/config/supabase_config.dart (line ~6-7)
-    Problem: Dev fallback URL/anon key hardcoded hai code mein.
-    Fix: Hardcoded fallback hatao, sirf .env se load karo (anon key public 
-    hone ke liye designed hai Supabase mein, RLS hi real protection hai — 
-    isliye ye critical nahi, sirf cleanup hai).
+25. lib/config/supabase_config.dart (~6-7) — hardcoded dev fallback URL/anon key
+    Cleanup ke liye hatao (anon key public-safe hai Supabase design mein, RLS real protection hai).
+
+26. .gitignore — sirf `.env` hai
+    Fix: android/key.properties, *.jks, *.keystore, build/, .dart_tool/ bhi add karo 
+    taaki accidentally signing keys commit na ho jayein.
+
+27. Error handling inconsistent — kahin silent `catch (_) {}`, kahin debugPrint, kahin Exception throw
+    Poore codebase mein ek consistent pattern follow karo (Service → typed error → 
+    Provider → user-facing message).
 
 ═══════════════════════════
-❌ IGNORE (verify kiya, galat nikle — inpe waqt mat lagao)
+❌ IGNORE — verify kiya, GALAT nikle
 ═══════════════════════════
-- AndroidManifest "package vs namespace crash" — dono match karte hain, koi crash nahi
-- downloads_service "path mismatch" — dono jagah same path logic hai, sahi hai
-- player_service "wrong index after filter bug" — code already isko sahi handle karta hai
-- app_drawer/mini_player/seek_bar "hardcoded colors" — teeno already fully themed hain
+- AndroidManifest "package vs namespace crash" — dono match karte hain
+- downloads_service "path mismatch" (download vs check) — same path logic hai
+- player_service "wrong index after filter" bug — code already sahi handle karta hai
+- app_drawer/mini_player_bar/seek_bar "hardcoded colors" — ye teeno fully themed hain 
+  (hardcoded color sirf album_art.dart mein mila, upar point #20 dekho)
+- singers_provider "local-only search" — ye already remote search use karta hai 
+  (SingersService.searchSingers), GPT ka ye point galat tha
+- singers_service/songs_service LIKE escaping — already properly implemented hai 
+  (_escapeLikePattern function), testing advice theek hai but "bug" nahi hai
+
+═══════════════════════════
+NOTE: Baaki GPT ke generic checklist items (testing suggestions #41-45, code 
+architecture cleanup #33-36, "large playlist memory" #18, "download resume 
+edge cases" #21) valid general advice hain lekin actual confirmed bugs nahi — 
+ye "good practice to verify" category mein hain, priority list mein critical/
+medium ke baad hi rakho.
+═══════════════════════════
