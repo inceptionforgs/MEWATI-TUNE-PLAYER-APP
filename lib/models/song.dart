@@ -34,6 +34,19 @@ class Song {
       singerName = json['singer_name'] as String?;
     }
 
+    // Helper to safely convert int? from num or String.
+    int? parseInt(dynamic value) {
+      if (value == null) return null;
+      if (value is int) return value;
+      if (value is num) return value.toInt();
+      if (value is String) return int.tryParse(value);
+      return null;
+    }
+
+    int parseIntWithDefault(dynamic value, int defaultValue) {
+      return parseInt(value) ?? defaultValue;
+    }
+
     return Song(
       id: json['id'] as String? ?? '',
       title: json['title'] as String? ?? 'Unknown Song',
@@ -42,9 +55,9 @@ class Song {
       category: json['category'] as String?,
       audioUrl: json['audio_url'] as String? ?? '',
       coverImageUrl: json['cover_image_url'] as String?,
-      duration: json['duration'] as int?,
-      playCount: json['play_count'] as int? ?? 0,
-      likeCount: json['like_count'] as int? ?? 0,
+      duration: parseInt(json['duration']),
+      playCount: parseIntWithDefault(json['play_count'], 0),
+      likeCount: parseIntWithDefault(json['like_count'], 0),
       isPremium: json['is_premium'] as bool? ?? false,
     );
   }
