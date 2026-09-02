@@ -5,6 +5,8 @@ import '../../../providers/favorites_provider.dart';
 import '../../../providers/downloads_provider.dart';
 import '../../../providers/sleep_timer_provider.dart';
 import '../../../providers/theme_provider.dart';
+import '../../../providers/likes_provider.dart';
+import '../../../core/utils/formatters.dart';
 
 class NowPlayingActions extends StatelessWidget {
   final Song song;
@@ -23,6 +25,9 @@ class NowPlayingActions extends StatelessWidget {
     final favoritesProvider = context.watch<FavoritesProvider>();
     final downloadsProvider = context.watch<DownloadsProvider>();
     final sleepTimerProvider = context.watch<SleepTimerProvider>();
+    // Now Playing screen had no like button at all — added, consistent
+    // with the File 21 fix on list rows.
+    final likesProvider = context.watch<LikesProvider>();
     final t = context.watch<ThemeProvider>().theme;
 
     final isFav = favoritesProvider.isFavoriteSync(song.id);
@@ -30,10 +35,34 @@ class NowPlayingActions extends StatelessWidget {
     final isDownloading = downloadsProvider.isDownloading(song.id);
     final progress = downloadsProvider.getProgress(song.id);
     final isTimerActive = sleepTimerProvider.isActive;
+    final isLiked = likesProvider.isLikedSync(song.id);
+    final likeCount = likesProvider.getLikeCountSync(song.id);
 
     return Row(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
+        Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            IconButton(
+              icon: Icon(
+                isLiked ? Icons.thumb_up : Icons.thumb_up_outlined,
+                color: isLiked ? t.accent : t.textPrimary.withOpacity(0.75),
+                size: 22,
+              ),
+              onPressed: () => likesProvider.toggleLike(song.id),
+            ),
+            Text(
+              formatCount(likeCount),
+              style: TextStyle(
+                color: t.textPrimary.withOpacity(0.75),
+                fontSize: 9,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(width: 18),
         IconButton(
           icon: Icon(
             isFav ? Icons.favorite : Icons.favorite_border,
@@ -42,11 +71,11 @@ class NowPlayingActions extends StatelessWidget {
           ),
           onPressed: () => favoritesProvider.toggleFavorite(song),
         ),
-        const SizedBox(width: 22),
+        const SizedBox(width: 18),
         if (isDownloaded)
           IconButton(
             icon: const Icon(Icons.check_circle, color: Color(0xFF4CD964), size: 22),
-            onPressed: () => downloadsProvider.removeDownload(song.id),
+            onPressed: () => downloadsProvider.removeDownload(song.id, audioUrl: song.audioUrl),
           )
         else if (isDownloading)
           SizedBox(
@@ -73,7 +102,7 @@ class NowPlayingActions extends StatelessWidget {
                 color: t.textPrimary.withOpacity(0.75), size: 22),
             onPressed: () => downloadsProvider.downloadSong(song),
           ),
-        const SizedBox(width: 22),
+        const SizedBox(width: 18),
         IconButton(
           icon: Icon(
             Icons.timer_outlined,
@@ -82,7 +111,7 @@ class NowPlayingActions extends StatelessWidget {
           ),
           onPressed: onTimerTap,
         ),
-        const SizedBox(width: 22),
+        const SizedBox(width: 18),
         IconButton(
           icon: Icon(Icons.equalizer,
               color: t.textPrimary.withOpacity(0.75), size: 22),
