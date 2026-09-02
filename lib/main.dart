@@ -1,10 +1,7 @@
-import 'dart:async';
-
 import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:just_audio_background/just_audio_background.dart';
 import 'package:sentry_flutter/sentry_flutter.dart';
-import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:permission_handler/permission_handler.dart';
 
 import 'app.dart';
@@ -17,14 +14,15 @@ import 'services/supabase_service.dart';
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // Create providers first; their initialization will run in background.
   final authProvider = AuthProvider();
   final downloadsProvider = DownloadsProvider();
 
-  // Kick off heavy initialization without blocking the UI thread.
-  unawaited(_initializeApp(authProvider, downloadsProvider));
+  // Fully initialize Supabase, audio, cache, auth session, and downloads
+  // BEFORE the UI is shown. The app must never open in a half-initialized
+  // state (this used to be a fire-and-forget call, which is why favorites/
+  // auth state used to load empty on first frame).
+  await _initializeApp(authProvider, downloadsProvider);
 
-  // Run the app immediately with a responsive splash/loading screen.
   runApp(
     MewatiTunePlayerApp(
       authProvider: authProvider,
@@ -76,9 +74,6 @@ Future<void> _initializeApp(
 
     // Request notification permission on Android 13+ (needed for media playback).
     await _requestNotificationPermission();
-
-    // Start listening to connectivity changes (harmless).
-    Connectivity().onConnectivityChanged.listen((_) {});
 
     DebugLogService().info('App initialized successfully');
   } catch (e) {
