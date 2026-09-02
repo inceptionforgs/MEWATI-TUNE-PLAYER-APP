@@ -47,6 +47,22 @@ class Song {
       return parseInt(value) ?? defaultValue;
     }
 
+    // Fix (File 27): robust bool parser — Supabase can send 0/1 (or even
+    // "true"/"false" strings) instead of a real boolean, and a direct
+    // `json['is_premium'] as bool?` cast would throw on those, silently
+    // dropping the row or crashing the mapping.
+    bool parseBool(dynamic value, bool defaultValue) {
+      if (value == null) return defaultValue;
+      if (value is bool) return value;
+      if (value is num) return value != 0;
+      if (value is String) {
+        final v = value.toLowerCase().trim();
+        if (v == 'true' || v == '1') return true;
+        if (v == 'false' || v == '0') return false;
+      }
+      return defaultValue;
+    }
+
     return Song(
       id: json['id'] as String? ?? '',
       title: json['title'] as String? ?? 'Unknown Song',
@@ -58,7 +74,7 @@ class Song {
       duration: parseInt(json['duration']),
       playCount: parseIntWithDefault(json['play_count'], 0),
       likeCount: parseIntWithDefault(json['like_count'], 0),
-      isPremium: json['is_premium'] as bool? ?? false,
+      isPremium: parseBool(json['is_premium'], false),
     );
   }
 
