@@ -221,24 +221,28 @@ class _TrendingScreenState extends State<TrendingScreen> {
             : song.likeCount;
 
         return SongRow(
-          song: song,
-          isNow: isNow,
-          isPlaying: isPlaying,
-          isFav: isFav,
-          isDownloaded: isDownloaded,
-          isDownloading: isDownloading,
-          progress: progress,
           t: t,
-          subtitle:
-              '${song.singerName ?? "Unknown Artist"} · Plays: ${song.playCount}',
-          isLiked: isLiked,
-          likeCount: likeCount,
-          onTap: () => _playSong(_trendingSongs, index),
-          onToggleFavorite: () => _toggleFavorite(song),
-          onDownload: () => _downloadSong(song),
-          onCancelDownload: () => _cancelDownload(song.id),
-          onRemoveDownload: () => _removeDownload(song.id),
-          onToggleLike: () => likesProvider.toggleLike(song.id),
+          data: SongRowData(
+            song: song,
+            isNow: isNow,
+            isPlaying: isPlaying,
+            isFav: isFav,
+            isDownloaded: isDownloaded,
+            isDownloading: isDownloading,
+            progress: progress,
+            subtitle:
+                '${song.singerName ?? "Unknown Artist"} · Plays: ${song.playCount}',
+            isLiked: isLiked,
+            likeCount: likeCount,
+          ),
+          actions: SongRowActions(
+            onTap: () => _playSong(_trendingSongs, index),
+            onToggleFavorite: () => _toggleFavorite(song),
+            onDownload: () => _downloadSong(song),
+            onCancelDownload: () => _cancelDownload(song.id),
+            onRemoveDownload: () => _removeDownload(song.id),
+            onToggleLike: () => likesProvider.toggleLike(song.id),
+          ),
         );
       },
     );
