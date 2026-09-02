@@ -3,7 +3,7 @@ import '../models/singer.dart';
 import 'supabase_service.dart';
 
 class SingersService {
-  final _supabase = SupabaseService().client;
+  SupabaseClient get _supabase => SupabaseService().client;
 
   String _escapeLikePattern(String input) {
     return input.replaceAll('\\', '\\\\').replaceAll('%', '\\%').replaceAll('_', '\\_');
