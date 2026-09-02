@@ -34,10 +34,13 @@ class _NowPlayingScreenState extends State<NowPlayingScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final playerProvider = context.watch<PlayerProvider>();
     final t = context.watch<ThemeProvider>().theme;
 
-    if (!playerProvider.hasSong) {
+    // Use context.select to avoid rebuilding whole screen on every position tick.
+    final hasSong = context.select<PlayerProvider, bool>((p) => p.hasSong);
+    final song = context.select<PlayerProvider, dynamic>((p) => p.currentSong);
+
+    if (!hasSong || song == null) {
       return Scaffold(
         backgroundColor: t.background,
         body: SafeArea(
@@ -66,8 +69,6 @@ class _NowPlayingScreenState extends State<NowPlayingScreen> {
         ),
       );
     }
-
-    final song = playerProvider.currentSong!;
 
     return Scaffold(
       key: _scaffoldKey,
