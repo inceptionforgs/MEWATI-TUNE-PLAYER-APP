@@ -1,8 +1,12 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:just_audio_background/just_audio_background.dart';
 import 'package:sentry_flutter/sentry_flutter.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
+import 'package:permission_handler/permission_handler.dart';
+
 import 'app.dart';
 import 'providers/auth_provider.dart';
 import 'providers/downloads_provider.dart';
@@ -13,30 +17,52 @@ import 'services/supabase_service.dart';
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
+  // Create providers first; their initialization will run in background.
+  final authProvider = AuthProvider();
+  final downloadsProvider = DownloadsProvider();
+
+  // Kick off heavy initialization without blocking the UI thread.
+  unawaited(_initializeApp(authProvider, downloadsProvider));
+
+  // Run the app immediately with a responsive splash/loading screen.
+  runApp(
+    MewatiTunePlayerApp(
+      authProvider: authProvider,
+      downloadsProvider: downloadsProvider,
+    ),
+  );
+}
+
+Future<void> _initializeApp(
+  AuthProvider authProvider,
+  DownloadsProvider downloadsProvider,
+) async {
   try {
+    // Load environment variables (optional).
     try {
       await dotenv.load(fileName: ".env");
     } catch (_) {}
 
+    // Initialize just_audio background support (needed for playback).
     await JustAudioBackground.init(
       androidNotificationChannelId: 'com.mewatitune.player.channel.audio',
       androidNotificationChannelName: 'Mewati Tune Player Playback',
       androidNotificationOngoing: true,
     );
 
+    // Initialize Supabase.
     await SupabaseService().initialize();
+
+    // Initialize local cache (SharedPreferences).
     await LocalCacheService().initialize();
 
-    final authProvider = AuthProvider();
+    // Load user session (will trigger anonymous sign-in if needed).
     await authProvider.loadCurrentUser();
 
-    final downloadsProvider = DownloadsProvider();
+    // Initialize downloads provider (reads cached downloaded IDs).
     await downloadsProvider.initialize();
 
-    DebugLogService().info('App started');
-    DebugLogService().info(
-        'Auth status: ${authProvider.isLoggedIn ? "logged in" : "not logged in"}');
-
+    // Initialize Sentry only if DSN is provided.
     final sentryDsn =
         dotenv.isInitialized ? (dotenv.env['SENTRY_DSN'] ?? '') : '';
     if (sentryDsn.isNotEmpty) {
@@ -48,36 +74,27 @@ Future<void> main() async {
       );
     }
 
+    // Request notification permission on Android 13+ (needed for media playback).
+    await _requestNotificationPermission();
+
+    // Start listening to connectivity changes (harmless).
     Connectivity().onConnectivityChanged.listen((_) {});
 
-    runApp(
-      MewatiTunePlayerApp(
-        authProvider: authProvider,
-        downloadsProvider: downloadsProvider,
-      ),
-    );
+    DebugLogService().info('App initialized successfully');
   } catch (e) {
-    DebugLogService().error('App failed to start: $e');
-    runApp(
-      MaterialApp(
-        debugShowCheckedModeBanner: false,
-        home: Scaffold(
-          backgroundColor: const Color(0xFF121212),
-          body: Center(
-            child: Padding(
-              padding: const EdgeInsets.all(24.0),
-              child: Text(
-                'Failed to start app:\n\n${e.toString()}',
-                textAlign: TextAlign.center,
-                style: const TextStyle(
-                  color: Color(0xFFE53935),
-                  fontSize: 16,
-                ),
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
+    DebugLogService().error('App initialization failed: $e');
+    // The app continues to run; splash screen will show appropriate UI.
+  }
+}
+
+Future<void> _requestNotificationPermission() async {
+  try {
+    // On Android 13+ (API 33+), we need to request POST_NOTIFICATIONS.
+    // On older versions, permission is granted by default.
+    if (await Permission.notification.isDenied) {
+      await Permission.notification.request();
+    }
+  } catch (e) {
+    DebugLogService().warning('Notification permission request failed: $e');
   }
 }
