@@ -2,7 +2,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'supabase_service.dart';
 
 class LikeService {
-  final _supabase = SupabaseService().client;
+  SupabaseClient get _supabase => SupabaseService().client;
 
   Future<bool> isLiked(String songId) async {
     try {
@@ -36,53 +36,30 @@ class LikeService {
     }
   }
 
-  Future<void> addLike(String songId) async {
+  /// Toggles the current user's like on [songId] via the single
+  /// `toggle_like` RPC (SECURITY DEFINER, requires auth.uid()).
+  /// The RPC does the likes insert/delete AND the songs.like_count
+  /// update in one transaction, so client and server can never desync.
+  ///
+  /// Returns the new like_count for the song after the toggle.
+  /// Replaces the old separate insert + increment_like_count /
+  /// delete + decrement_like_count calls entirely — those RPCs must
+  /// no longer be called directly from the client.
+  Future<int> toggleLike(String songId) async {
+    final userId = _supabase.auth.currentUser?.id;
+    if (userId == null) {
+      throw Exception('You must be logged in to like songs.');
+    }
     try {
-      final userId = _supabase.auth.currentUser?.id;
-      if (userId == null) {
-        throw Exception('You must be logged in to like songs.');
-      }
-      await _supabase.from('likes').insert({
-        'user_id': userId,
-        'song_id': songId,
-      });
-      await _supabase.rpc(
-        'increment_like_count',
+      final result = await _supabase.rpc(
+        'toggle_like',
         params: {'song_id_input': songId},
       );
+      if (result is int) return result;
+      if (result is num) return result.toInt();
+      return 0;
     } catch (e) {
-      throw Exception('Failed to add like: ${e.toString()}');
-    }
-  }
-
-  Future<void> removeLike(String songId) async {
-    try {
-      final userId = _supabase.auth.currentUser?.id;
-      if (userId == null) {
-        throw Exception('You must be logged in to unlike songs.');
-      }
-      await _supabase
-          .from('likes')
-          .delete()
-          .eq('user_id', userId)
-          .eq('song_id', songId);
-      await _supabase.rpc(
-        'decrement_like_count',
-        params: {'song_id_input': songId},
-      );
-    } catch (e) {
-      throw Exception('Failed to remove like: ${e.toString()}');
-    }
-  }
-
-  Future<bool> toggleLike(String songId) async {
-    final liked = await isLiked(songId);
-    if (liked) {
-      await removeLike(songId);
-      return false;
-    } else {
-      await addLike(songId);
-      return true;
+      throw Exception('Failed to toggle like: ${e.toString()}');
     }
   }
 }
