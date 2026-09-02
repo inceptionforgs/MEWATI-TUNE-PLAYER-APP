@@ -5,10 +5,18 @@ import 'supabase_service.dart';
 class SongsService {
   final _supabase = SupabaseService().client;
 
+  // Helper to map response rows to Song objects, skipping any invalid row.
   List<Song> _mapSongs(List<dynamic> response) {
-    return response
-        .map((json) => Song.fromJson(json as Map<String, dynamic>))
-        .toList();
+    final songs = <Song>[];
+    for (final item in response) {
+      try {
+        songs.add(Song.fromJson(item as Map<String, dynamic>));
+      } catch (e) {
+        // Log and skip bad rows to prevent one bad record from failing the page.
+        debugPrint('SongsService: skipping invalid song row: $e');
+      }
+    }
+    return songs;
   }
 
   String _escapeLikePattern(String input) {
