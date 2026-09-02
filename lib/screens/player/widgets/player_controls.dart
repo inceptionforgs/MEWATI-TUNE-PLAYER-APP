@@ -36,13 +36,13 @@ class PlayerControls extends StatelessWidget {
           height: 66,
           decoration: BoxDecoration(
             shape: BoxShape.circle,
-            border: Border.all(color: Colors.white, width: 2),
-            color: Colors.white.withOpacity(0.08),
+            border: Border.all(color: t.textPrimary, width: 2),
+            color: t.textPrimary.withOpacity(0.08),
           ),
           child: IconButton(
             icon: Icon(
               playerProvider.isPlaying ? Icons.pause : Icons.play_arrow,
-              color: Colors.white,
+              color: t.textPrimary,
               size: 28,
             ),
             onPressed: () => playerProvider.togglePlayPause(),
