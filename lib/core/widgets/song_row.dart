@@ -3,7 +3,8 @@ import 'package:cached_network_image/cached_network_image.dart';
 import '../utils/formatters.dart';
 import '../../models/song.dart';
 
-class SongRow extends StatelessWidget {
+/// Holds all visual state needed by [SongRow].
+class SongRowData {
   final Song song;
   final bool isNow;
   final bool isPlaying;
@@ -11,19 +12,11 @@ class SongRow extends StatelessWidget {
   final bool isDownloaded;
   final bool isDownloading;
   final double progress;
-  final dynamic t;
   final String? subtitle;
   final bool isLiked;
   final int likeCount;
-  final VoidCallback onTap;
-  final VoidCallback onToggleFavorite;
-  final VoidCallback onDownload;
-  final VoidCallback onCancelDownload;
-  final VoidCallback onRemoveDownload;
-  final VoidCallback onToggleLike;
 
-  const SongRow({
-    Key? key,
+  const SongRowData({
     required this.song,
     required this.isNow,
     required this.isPlaying,
@@ -31,22 +24,58 @@ class SongRow extends StatelessWidget {
     required this.isDownloaded,
     required this.isDownloading,
     required this.progress,
-    required this.t,
     this.subtitle,
     required this.isLiked,
     required this.likeCount,
+  });
+}
+
+/// Holds all callbacks used by [SongRow].
+class SongRowActions {
+  final VoidCallback onTap;
+  final VoidCallback onToggleFavorite;
+  final VoidCallback onDownload;
+  final VoidCallback onCancelDownload;
+  final VoidCallback onRemoveDownload;
+  final VoidCallback onToggleLike;
+
+  const SongRowActions({
     required this.onTap,
     required this.onToggleFavorite,
     required this.onDownload,
     required this.onCancelDownload,
     required this.onRemoveDownload,
     required this.onToggleLike,
+  });
+}
+
+class SongRow extends StatelessWidget {
+  final SongRowData data;
+  final SongRowActions actions;
+  final dynamic t; // theme object (AppThemeData)
+
+  const SongRow({
+    Key? key,
+    required this.data,
+    required this.actions,
+    required this.t,
   }) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
+    final song = data.song;
+    final isNow = data.isNow;
+    final isPlaying = data.isPlaying;
+    final isFav = data.isFav;
+    final isDownloaded = data.isDownloaded;
+    final isDownloading = data.isDownloading;
+    final progress = data.progress;
+    final subtitle = data.subtitle;
+    final isLiked = data.isLiked;
+    final likeCount = data.likeCount;
+
     return InkWell(
-      onTap: onTap,
+      onTap: actions.onTap,
       borderRadius: BorderRadius.circular(14),
       child: Container(
         margin: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
@@ -150,7 +179,7 @@ class SongRow extends StatelessWidget {
                       color: isLiked ? t.accent : t.textPrimary.withOpacity(0.75),
                       size: 20,
                     ),
-                    onPressed: onToggleLike,
+                    onPressed: actions.onToggleLike,
                     padding: EdgeInsets.zero,
                     constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
                   ),
@@ -169,16 +198,16 @@ class SongRow extends StatelessWidget {
                   isFav ? Icons.favorite : Icons.favorite_border,
                   color: isFav ? Colors.redAccent : t.textPrimary.withOpacity(0.75),
                 ),
-                onPressed: onToggleFavorite,
+                onPressed: actions.onToggleFavorite,
               ),
               if (isDownloaded)
                 IconButton(
                   icon: const Icon(Icons.check_circle, color: Color(0xFF4CD964)),
-                  onPressed: onRemoveDownload,
+                  onPressed: actions.onRemoveDownload,
                 )
               else if (isDownloading)
                 GestureDetector(
-                  onTap: onCancelDownload,
+                  onTap: actions.onCancelDownload,
                   child: SizedBox(
                     width: 36,
                     height: 36,
@@ -204,7 +233,7 @@ class SongRow extends StatelessWidget {
                     Icons.download_outlined,
                     color: t.textPrimary.withOpacity(0.75),
                   ),
-                  onPressed: onDownload,
+                  onPressed: actions.onDownload,
                 ),
             ],
           ],
