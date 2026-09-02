@@ -4,14 +4,23 @@ import '../models/song.dart';
 import 'supabase_service.dart';
 
 class SongsService {
-  final _supabase = SupabaseService().client;
+  SupabaseClient get _supabase => SupabaseService().client;
 
   // Helper to map response rows to Song objects, skipping any invalid row.
+  // A row is skipped (not thrown) if it has no id, or if audioUrl is
+  // empty/invalid — one bad row must never break the whole list.
   List<Song> _mapSongs(List<dynamic> response) {
     final songs = <Song>[];
     for (final item in response) {
       try {
-        songs.add(Song.fromJson(item as Map<String, dynamic>));
+        final map = item as Map<String, dynamic>;
+        final id = map['id'] as String? ?? '';
+        final audioUrl = map['audio_url'] as String? ?? '';
+        if (id.isEmpty || audioUrl.trim().isEmpty) {
+          debugPrint('SongsService: skipping row with missing id/audioUrl: $map');
+          continue;
+        }
+        songs.add(Song.fromJson(map));
       } catch (e) {
         debugPrint('SongsService: skipping invalid song row: $e');
       }
@@ -21,19 +30,6 @@ class SongsService {
 
   String _escapeLikePattern(String input) {
     return input.replaceAll('\\', '\\\\').replaceAll('%', '\\%').replaceAll('_', '\\_');
-  }
-
-  Future<List<Song>> fetchAllSongs() async {
-    try {
-      final response = await _supabase
-          .from('songs')
-          .select('*, singers(name)')
-          .order('title', ascending: true);
-
-      return _mapSongs(response as List<dynamic>);
-    } catch (e) {
-      throw Exception('Failed to load songs: ${e.toString()}');
-    }
   }
 
   Future<List<Song>> fetchSongsPage({required int offset, required int limit}) async {
