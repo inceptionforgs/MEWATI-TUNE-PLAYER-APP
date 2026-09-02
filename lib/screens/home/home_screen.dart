@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../core/widgets/ad_banner_widget.dart';
 import '../../core/widgets/connectivity_banner.dart';
-import '../../core/widgets/mini_player_bar.dart';
 import '../../core/widgets/app_drawer.dart';
 import '../songs/songs_screen.dart';
 import '../singers/singers_screen.dart';
@@ -12,9 +11,6 @@ import '../downloads/downloads_screen.dart';
 import '../search/search_screen.dart';
 import 'widgets/brand_row.dart';
 import 'widgets/home_tabs.dart';
-import '../../providers/songs_provider.dart';
-import '../../providers/singers_provider.dart';
-import '../../providers/likes_provider.dart';
 import '../../providers/theme_provider.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -39,23 +35,9 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   void initState() {
     super.initState();
-    Future.microtask(() async {
-      final songsProvider = Provider.of<SongsProvider>(context, listen: false);
-      final singersProvider = Provider.of<SingersProvider>(context, listen: false);
-      final likesProvider = Provider.of<LikesProvider>(context, listen: false);
-
-      if (songsProvider.allSongs.isEmpty) {
-        await songsProvider.loadSongs();
-      }
-      if (singersProvider.allSingers.isEmpty) {
-        singersProvider.loadSingers();
-      }
-      if (songsProvider.allSongs.isNotEmpty) {
-        likesProvider.loadLikesData(
-          songsProvider.allSongs.map((s) => s.id).toList(),
-        );
-      }
-    });
+    // No duplicate data loading here.
+    // Each tab screen (SongsScreen, SingersScreen, etc.) is responsible for
+    // loading its own data when it is first built.
   }
 
   void _openSearch() {
@@ -105,7 +87,9 @@ class _HomeScreenState extends State<HomeScreen> {
                   children: _screens,
                 ),
               ),
-              const MiniPlayerBar(),
+              // MiniPlayerBar is now provided globally via MaterialApp.builder overlay
+              // (see lib/app.dart). Removing it here prevents duplicate control decks
+              // and ensures it appears on all pushed routes.
               const AdBannerWidget(),
             ],
           ),
