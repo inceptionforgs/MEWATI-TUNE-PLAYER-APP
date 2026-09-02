@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import '../utils/formatters.dart';
 import '../../models/song.dart';
+import '../../services/app_cache_manager.dart';
 
 /// Holds all visual state needed by [SongRow].
 class SongRowData {
@@ -52,7 +53,7 @@ class SongRowActions {
 class SongRow extends StatelessWidget {
   final SongRowData data;
   final SongRowActions actions;
-  final dynamic t; // theme object (AppThemeData)
+  final dynamic t;
 
   const SongRow({
     Key? key,
@@ -109,6 +110,7 @@ class SongRow extends StatelessWidget {
                       child: CachedNetworkImage(
                         imageUrl: song.coverImageUrl!,
                         fit: BoxFit.cover,
+                        cacheManager: AppCacheManager.instance, // <-- added
                         placeholder: (context, url) => Icon(
                           isNow && isPlaying ? Icons.pause : Icons.play_arrow,
                           color: t.textPrimary,
