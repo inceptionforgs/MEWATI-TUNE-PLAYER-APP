@@ -62,8 +62,11 @@ class _SingerProfileScreenState extends State<SingerProfileScreen> {
     }
   }
 
-  void _playSong(Song song) {
-    Provider.of<PlayerProvider>(context, listen: false).playSong(song);
+  void _playSong(List<Song> songs, int index) {
+    Provider.of<PlayerProvider>(context, listen: false).setPlaylist(
+      songs: songs,
+      startIndex: index,
+    );
   }
 
   void _toggleFavorite(Song song) {
@@ -285,14 +288,16 @@ class _SingerProfileScreenState extends State<SingerProfileScreen> {
 
     return ListView(
       padding: const EdgeInsets.only(bottom: 16),
-      children: _songs.map((song) {
+      children: _songs.asMap().entries.map((entry) {
+        final index = entry.key;
+        final song = entry.value;
         final isNow = currentSongId == song.id;
         final isFav = favoritesProvider.isFavoriteSync(song.id);
         final isDownloaded = downloadsProvider.isDownloaded(song.id);
         final isDownloading = downloadsProvider.isDownloading(song.id);
         final progress = downloadsProvider.getProgress(song.id);
         final isLiked = likesProvider.isLikedSync(song.id);
-        final likeCount = likesProvider.getLikeCountSync(song.id) > 0
+        final likeCount = likesProvider.likeCounts.containsKey(song.id)
             ? likesProvider.getLikeCountSync(song.id)
             : song.likeCount;
 
@@ -305,9 +310,10 @@ class _SingerProfileScreenState extends State<SingerProfileScreen> {
           isDownloading: isDownloading,
           progress: progress,
           t: t,
+          subtitle: song.singerName ?? 'Unknown Artist',
           isLiked: isLiked,
           likeCount: likeCount,
-          onTap: () => _playSong(song),
+          onTap: () => _playSong(_songs, index),
           onToggleFavorite: () => _toggleFavorite(song),
           onDownload: () => _downloadSong(song),
           onCancelDownload: () => _cancelDownload(song.id),
