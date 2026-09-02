@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'core/constants/app_theme.dart';
@@ -14,6 +15,41 @@ import 'providers/likes_provider.dart';
 import 'providers/sleep_timer_provider.dart';
 import 'providers/theme_provider.dart';
 import 'routes/app_router.dart';
+import 'routes/route_names.dart';
+
+/// Tracks the currently active top-level route by name so the mini-player
+/// can decide whether to show/hide itself. Uses a real NavigatorObserver
+/// instead of RouteObserver/RouteAware (which requires a ModalRoute
+/// subscriber and isn't meant to be used this way).
+class _MiniPlayerRouteObserver extends NavigatorObserver {
+  _MiniPlayerRouteObserver(this.onRouteChanged);
+
+  final ValueChanged<String?> onRouteChanged;
+
+  @override
+  void didPush(Route<dynamic> route, Route<dynamic>? previousRoute) {
+    super.didPush(route, previousRoute);
+    onRouteChanged(route.settings.name);
+  }
+
+  @override
+  void didPop(Route<dynamic> route, Route<dynamic>? previousRoute) {
+    super.didPop(route, previousRoute);
+    onRouteChanged(previousRoute?.settings.name);
+  }
+
+  @override
+  void didRemove(Route<dynamic> route, Route<dynamic>? previousRoute) {
+    super.didRemove(route, previousRoute);
+    onRouteChanged(previousRoute?.settings.name);
+  }
+
+  @override
+  void didReplace({Route<dynamic>? newRoute, Route<dynamic>? oldRoute}) {
+    super.didReplace(newRoute: newRoute, oldRoute: oldRoute);
+    onRouteChanged(newRoute?.settings.name);
+  }
+}
 
 class MewatiTunePlayerApp extends StatefulWidget {
   final AuthProvider? authProvider;
@@ -32,22 +68,18 @@ class MewatiTunePlayerApp extends StatefulWidget {
 class _MewatiTunePlayerAppState extends State<MewatiTunePlayerApp> {
   final GlobalKey<NavigatorState> _navigatorKey = GlobalKey<NavigatorState>();
   final ValueNotifier<String?> _currentRouteName = ValueNotifier<String?>(null);
-  late final RouteObserver<PageRoute> _routeObserver;
+  late final _MiniPlayerRouteObserver _routeObserver;
 
   @override
   void initState() {
     super.initState();
-    _routeObserver = RouteObserver<PageRoute>();
-    _routeObserver.subscribe(this, (Route<dynamic>? route) {
-      if (route is PageRoute) {
-        _currentRouteName.value = route.settings.name;
-      }
-    });
+    _routeObserver = _MiniPlayerRouteObserver(
+      (name) => _currentRouteName.value = name,
+    );
   }
 
   @override
   void dispose() {
-    _routeObserver.unsubscribe(this);
     _currentRouteName.dispose();
     super.dispose();
   }
@@ -79,15 +111,18 @@ class _MewatiTunePlayerAppState extends State<MewatiTunePlayerApp> {
             onGenerateRoute: AppRouter.generateRoute,
             navigatorKey: _navigatorKey,
             navigatorObservers: [_routeObserver],
-            initialRoute: '/',
+            initialRoute: RouteNames.splash,
             builder: (context, child) {
               return ValueListenableBuilder<String?>(
                 valueListenable: _currentRouteName,
                 builder: (context, routeName, _) {
-                  final playerProvider = context.read<PlayerProvider>();
-                  final hasSong = playerProvider.hasSong;
-                  final isNowPlaying = routeName == '/now-playing';
-                  final isSplash = routeName == '/';
+                  // Watch (not read) hasSong so the mini-player reacts to
+                  // playback state changes too, not only route changes.
+                  final hasSong = context.select<PlayerProvider, bool>(
+                    (p) => p.hasSong,
+                  );
+                  final isNowPlaying = routeName == RouteNames.nowPlaying;
+                  final isSplash = routeName == RouteNames.splash;
                   final showMiniPlayer = hasSong && !isNowPlaying && !isSplash;
 
                   return Stack(
@@ -109,8 +144,8 @@ class _MewatiTunePlayerAppState extends State<MewatiTunePlayerApp> {
                           bottom: 0,
                           child: const MiniPlayerBar(),
                         ),
-                      // DebugPanel directly in Stack (it manages its own Positioned)
-                      const DebugPanel(),
+                      // Debug-only overlay: never shown to real end users.
+                      if (kDebugMode) const DebugPanel(),
                     ],
                   );
                 },
