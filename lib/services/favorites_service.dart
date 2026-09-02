@@ -4,7 +4,7 @@ import '../models/song.dart';
 import 'supabase_service.dart';
 
 class FavoritesService {
-  final _supabase = SupabaseService().client;
+  SupabaseClient get _supabase => SupabaseService().client;
   static const int _batchSize = 100;
 
   Future<void> addFavorite(String songId) async {
@@ -13,10 +13,16 @@ class FavoritesService {
       if (userId == null) {
         throw Exception('You must be logged in to add favorites.');
       }
-      await _supabase.from('favorites').insert({
-        'user_id': userId,
-        'song_id': songId,
-      });
+      // Upsert with ignoreDuplicates so a double-tap / race that hits the
+      // (user_id, song_id) unique constraint doesn't throw.
+      await _supabase.from('favorites').upsert(
+        {
+          'user_id': userId,
+          'song_id': songId,
+        },
+        onConflict: 'user_id,song_id',
+        ignoreDuplicates: true,
+      );
     } catch (e) {
       throw Exception('Failed to add favorite: ${e.toString()}');
     }
@@ -80,8 +86,12 @@ class FavoritesService {
           (i + _batchSize > songIds.length) ? songIds.length : i + _batchSize,
         );
 
-        final songsResponse =
-            await _supabase.from('songs').select().inFilter('id', chunk);
+        // Include singers(name) — without it, favorited songs showed
+        // "Unknown Artist" because singer_name never came back on this join.
+        final songsResponse = await _supabase
+            .from('songs')
+            .select('*, singers(name)')
+            .inFilter('id', chunk);
 
         songs.addAll(
           (songsResponse as List<dynamic>)
