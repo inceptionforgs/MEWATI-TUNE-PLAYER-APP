@@ -1,9 +1,10 @@
+import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/profile.dart';
 import 'supabase_service.dart';
 
 class AuthService {
-  final _supabase = SupabaseService().client;
+  SupabaseClient get _supabase => SupabaseService().client;
 
   Future<void> signInAnonymously() async {
     try {
@@ -18,7 +19,10 @@ class AuthService {
     }
   }
 
-  Future<void> _ensureProfileExists(String userId) async {
+  /// Ensures a profile row exists for [userId].
+  /// Retries once on failure and surfaces the error instead of swallowing it,
+  /// so callers (AuthProvider) can decide whether to retry again later.
+  Future<void> _ensureProfileExists(String userId, {int attempt = 0}) async {
     try {
       final existing = await _supabase
           .from('profiles')
@@ -34,8 +38,24 @@ class AuthService {
         });
       }
     } catch (e) {
-      // Non-fatal: profile creation failure should not block app usage.
+      debugPrint('AuthService: profile creation failed (attempt $attempt): $e');
+      if (attempt < 1) {
+        // One retry — transient network/RLS hiccups on first launch are common.
+        await _ensureProfileExists(userId, attempt: attempt + 1);
+        return;
+      }
+      // Surface the error after retrying instead of silently continuing,
+      // so AuthProvider can reflect the failure and retry later if needed.
+      throw Exception('Failed to create user profile: ${e.toString()}');
     }
+  }
+
+  /// Public entry point so AuthProvider can retry profile creation
+  /// after a failed attempt (e.g. once connectivity is restored).
+  Future<void> retryProfileCreation() async {
+    final userId = getCurrentUser()?.id;
+    if (userId == null) return;
+    await _ensureProfileExists(userId);
   }
 
   Future<void> signOut() async {
