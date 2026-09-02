@@ -148,8 +148,9 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
 
     return ListView(
       padding: const EdgeInsets.only(bottom: 16, top: 8),
-      children: favoriteSongs.map((song) {
-        final index = favoriteSongs.indexOf(song);
+      children: favoriteSongs.asMap().entries.map((entry) {
+        final index = entry.key;
+        final song = entry.value;
         final isNow = currentSongId == song.id;
         final isDownloaded = downloadsProvider.isDownloaded(song.id);
         final isDownloading = downloadsProvider.isDownloading(song.id);
@@ -160,23 +161,27 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
             : song.likeCount;
 
         return SongRow(
-          song: song,
-          isNow: isNow,
-          isPlaying: isPlaying,
-          isFav: true,
-          isDownloaded: isDownloaded,
-          isDownloading: isDownloading,
-          progress: progress,
           t: t,
-          subtitle: song.singerName ?? 'Unknown Artist',
-          isLiked: isLiked,
-          likeCount: likeCount,
-          onTap: () => _playSong(favoriteSongs, index),
-          onToggleFavorite: () => _toggleFavorite(song),
-          onDownload: () => _downloadSong(song),
-          onCancelDownload: () => _cancelDownload(song.id),
-          onRemoveDownload: () => _removeDownload(song.id),
-          onToggleLike: () => likesProvider.toggleLike(song.id),
+          data: SongRowData(
+            song: song,
+            isNow: isNow,
+            isPlaying: isPlaying,
+            isFav: true,
+            isDownloaded: isDownloaded,
+            isDownloading: isDownloading,
+            progress: progress,
+            subtitle: song.singerName ?? 'Unknown Artist',
+            isLiked: isLiked,
+            likeCount: likeCount,
+          ),
+          actions: SongRowActions(
+            onTap: () => _playSong(favoriteSongs, index),
+            onToggleFavorite: () => _toggleFavorite(song),
+            onDownload: () => _downloadSong(song),
+            onCancelDownload: () => _cancelDownload(song.id),
+            onRemoveDownload: () => _removeDownload(song.id),
+            onToggleLike: () => likesProvider.toggleLike(song.id),
+          ),
         );
       }).toList(),
     );
