@@ -29,7 +29,7 @@ class PlayerService {
   bool _shuffleMode = false;
   Timer? _fadeTimer;
   double _originalVolume = 1.0;
-  int _fadeToken = 0; // increments on cancel to invalidate running fade
+  int _fadeToken = 0;
 
   Stream<PlayerState> get playerStateStream => _player.playerStateStream;
   Stream<Duration> get positionStream => _player.positionStream;
@@ -53,7 +53,6 @@ class PlayerService {
         _currentIndex = index;
       }
     });
-    // Initialize equalizer as early as possible so preset changes work immediately.
     _initEqualizer();
   }
 
@@ -66,7 +65,6 @@ class PlayerService {
         throw Exception('Playlist is empty.');
       }
 
-      // Read downloaded IDs once from SharedPreferences (fast, no file I/O per song).
       final prefs = await SharedPreferences.getInstance();
       final downloadedIds =
           prefs.getStringList('downloaded_song_ids')?.toSet() ?? <String>{};
@@ -85,16 +83,12 @@ class PlayerService {
         throw Exception('No playable songs found (missing or invalid audio URLs).');
       }
 
-      // Adjust start index if requested song was filtered out.
       int adjustedStart = 0;
       if (startIndex >= 0 && startIndex < songs.length) {
         final requested = songs[startIndex];
         final found = validSongs.indexWhere((s) => s.id == requested.id);
         if (found != -1) {
           adjustedStart = found;
-        } else {
-          // If the requested song was skipped, start at beginning of valid list.
-          adjustedStart = 0;
         }
       }
 
@@ -113,14 +107,14 @@ class PlayerService {
         );
 
         if (downloadedIds.contains(song.id)) {
-          // Use local file without checking existence (fast). just_audio will error
-          // if missing, but we assume our downloaded set is accurate.
-          final localPath = await _downloadsService.getLocalSongPath(song.id);
+          final localPath = await _downloadsService.getLocalSongPath(
+            song.id,
+            audioUrl: song.audioUrl,
+          );
           audioSources.add(
             AudioSource.uri(Uri.file(localPath), tag: mediaItem),
           );
         } else {
-          // Plain URI source – no caching to avoid disk bloat.
           audioSources.add(
             AudioSource.uri(Uri.parse(song.audioUrl), tag: mediaItem),
           );
@@ -129,11 +123,8 @@ class PlayerService {
 
       final playlistSource = ConcatenatingAudioSource(children: audioSources);
       await _player.setAudioSource(playlistSource, initialIndex: adjustedStart);
-
-      // Apply shuffle mode (just_audio manages the order internally).
       await _player.setShuffleModeEnabled(_shuffleMode);
 
-      // Start playback but don't block on play().
       unawaited(_player.play().catchError((e) {
         debugPrint('PlayerService.play error: $e');
       }));
@@ -179,9 +170,7 @@ class PlayerService {
 
   Future<void> next() async {
     if (_playlist.isEmpty) return;
-    // Let just_audio handle next with shuffle/loop modes correctly.
     await _player.seekToNext();
-    // If seekToNext didn't trigger (e.g., at end), playback state will handle.
     if (_player.playing) {
       _trackPlayCount(_playlist[_currentIndex]);
     }
@@ -189,7 +178,6 @@ class PlayerService {
 
   Future<void> previous() async {
     if (_playlist.isEmpty) return;
-    // Let just_audio handle previous; if position > 3s, restart current track.
     if (_player.position > const Duration(seconds: 3)) {
       await _player.seek(Duration.zero);
       return;
@@ -214,7 +202,6 @@ class PlayerService {
   }
 
   Future<void> fadeOut({Duration duration = const Duration(seconds: 30)}) async {
-    // Cancel any existing fade and increment token to invalidate ongoing callbacks.
     cancelFadeOut();
     final token = ++_fadeToken;
     _originalVolume = _player.volume;
@@ -223,7 +210,6 @@ class PlayerService {
     int stepCount = 0;
 
     _fadeTimer = Timer.periodic(const Duration(milliseconds: 100), (timer) async {
-      // If a newer fade started or cancel was called, stop immediately.
       if (token != _fadeToken) {
         timer.cancel();
         return;
@@ -232,7 +218,6 @@ class PlayerService {
       double newVolume = _originalVolume - (volumeStep * stepCount);
       if (newVolume <= 0.0) {
         timer.cancel();
-        // Only pause if still the active fade.
         if (token == _fadeToken) {
           await _player.setVolume(0.0);
           await _player.pause();
@@ -245,10 +230,9 @@ class PlayerService {
   }
 
   void cancelFadeOut() {
-    _fadeToken++; // invalidates any pending async operations
+    _fadeToken++;
     _fadeTimer?.cancel();
     _fadeTimer = null;
-    // Restore volume if it was changed.
     _player.setVolume(_originalVolume);
   }
 
