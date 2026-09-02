@@ -1,7 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/song.dart';
-import '../services/debug_log_service.dart';
 import '../services/downloads_service.dart';
 
 class DownloadsProvider with ChangeNotifier {
@@ -9,12 +8,15 @@ class DownloadsProvider with ChangeNotifier {
 
   final Set<String> _downloadedSongIds = {};
   final Map<String, double> _downloadProgress = {};
-  String? _lastError;
   static const String _prefsKey = 'downloaded_song_ids';
+
+  // Separate notifier for progress updates to avoid notifying all listeners
+  // on every progress tick (P1#14).
+  final ValueNotifier<Map<String, double>> progressNotifier =
+      ValueNotifier<Map<String, double>>({});
 
   Set<String> get downloadedSongIds => _downloadedSongIds;
   Map<String, double> get downloadProgress => _downloadProgress;
-  String? get lastError => _lastError;
 
   bool isDownloaded(String songId) => _downloadedSongIds.contains(songId);
   bool isDownloading(String songId) => _downloadProgress.containsKey(songId);
@@ -49,7 +51,6 @@ class DownloadsProvider with ChangeNotifier {
           return await _downloadsService.isSongDownloaded(song.id);
         } catch (e) {
           debugPrint('Download check failed for ${song.id}: $e');
-          DebugLogService().error('Download check failed for ${song.id}: $e');
           return false;
         }
       }),
@@ -76,7 +77,6 @@ class DownloadsProvider with ChangeNotifier {
           }
         } catch (e) {
           debugPrint('Cache verification failed for ${song.id}: $e');
-          DebugLogService().error('Cache verification failed for ${song.id}: $e');
         }
       }
     }
@@ -87,28 +87,29 @@ class DownloadsProvider with ChangeNotifier {
     if (isDownloaded(song.id) || isDownloading(song.id)) return;
 
     _downloadProgress[song.id] = 0.0;
-    _lastError = null;
-    notifyListeners();
+    progressNotifier.value = Map.unmodifiable(_downloadProgress);
+    notifyListeners(); // notify for starting state (downloading icon)
 
     try {
       await _downloadsService.downloadSong(
         song,
         onProgress: (progress, total) {
           _downloadProgress[song.id] = progress;
-          notifyListeners();
+          // Update only progress notifier, not main listeners
+          progressNotifier.value = Map.unmodifiable(_downloadProgress);
         },
       );
 
       _downloadProgress.remove(song.id);
+      progressNotifier.value = Map.unmodifiable(_downloadProgress);
       _downloadedSongIds.add(song.id);
       await _saveCache();
-      notifyListeners();
+      notifyListeners(); // now download complete, update download status
     } catch (e) {
       _downloadProgress.remove(song.id);
-      _lastError = e.toString();
-      notifyListeners();
+      progressNotifier.value = Map.unmodifiable(_downloadProgress);
+      notifyListeners(); // revert downloading state
       debugPrint("Download Error: $e");
-      DebugLogService().error('Download Error for "${song.title}": $e');
     }
   }
 
@@ -116,6 +117,7 @@ class DownloadsProvider with ChangeNotifier {
     if (!isDownloading(songId)) return;
     await _downloadsService.cancelDownload(songId);
     _downloadProgress.remove(songId);
+    progressNotifier.value = Map.unmodifiable(_downloadProgress);
     notifyListeners();
   }
 
@@ -124,5 +126,11 @@ class DownloadsProvider with ChangeNotifier {
     _downloadedSongIds.remove(songId);
     await _saveCache();
     notifyListeners();
+  }
+
+  @override
+  void dispose() {
+    progressNotifier.dispose();
+    super.dispose();
   }
 }
