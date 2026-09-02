@@ -22,14 +22,31 @@ class DownloadsService {
     return directory.path;
   }
 
-  Future<String> getLocalSongPath(String songId) async {
-    final dirPath = await _getDownloadDirectory();
-    // Files are stored under MewatiOfflineSongs/ subdirectory inside documents.
-    return '$dirPath/MewatiOfflineSongs/song_$songId.m4a';
+  /// Derive file extension from audio URL.
+  String _getExtensionFromUrl(String audioUrl) {
+    try {
+      final uri = Uri.parse(audioUrl);
+      final path = uri.path;
+      if (path.contains('.')) {
+        final ext = path.split('.').last;
+        // Sanitize extension: only allow common audio extensions, else fallback to m4a.
+        const allowed = ['mp3', 'm4a', 'aac', 'wav', 'flac', 'ogg'];
+        if (allowed.contains(ext.toLowerCase())) {
+          return ext.toLowerCase();
+        }
+      }
+    } catch (_) {}
+    return 'm4a'; // default fallback
   }
 
-  Future<bool> isSongDownloaded(String songId) async {
-    final filePath = await getLocalSongPath(songId);
+  Future<String> getLocalSongPath(String songId, {String? audioUrl}) async {
+    final dirPath = await _getDownloadDirectory();
+    final ext = audioUrl != null ? _getExtensionFromUrl(audioUrl) : 'm4a';
+    return '$dirPath/MewatiOfflineSongs/song_$songId.$ext';
+  }
+
+  Future<bool> isSongDownloaded(String songId, {String? audioUrl}) async {
+    final filePath = await getLocalSongPath(songId, audioUrl: audioUrl);
     final file = File(filePath);
     if (!await file.exists()) return false;
     return await file.length() > 0;
@@ -50,13 +67,13 @@ class DownloadsService {
     Song song, {
     Function(double progress, int total)? onProgress,
   }) async {
-    if (await isSongDownloaded(song.id)) return;
-
+    // Use audioUrl to determine extension; if not available, fallback to m4a.
+    final ext = _getExtensionFromUrl(song.audioUrl);
+    final filename = 'song_${song.id}.$ext';
     final taskId = 'song_${song.id}';
-    final filename = 'song_${song.id}.m4a';
-    // Use relative directory and baseDirectory as expected by the plugin.
-    // This avoids absolute path confusion and ensures the file lands in
-    // <documents>/MewatiOfflineSongs/.
+
+    if (await isSongDownloaded(song.id, audioUrl: song.audioUrl)) return;
+
     final task = DownloadTask(
       taskId: taskId,
       url: song.audioUrl,
@@ -82,7 +99,7 @@ class DownloadsService {
         throw Exception('Download did not complete: ${result.status}');
       }
 
-      final localPath = await getLocalSongPath(song.id);
+      final localPath = await getLocalSongPath(song.id, audioUrl: song.audioUrl);
       final file = File(localPath);
       if (!await file.exists()) {
         throw Exception('Downloaded file not found on disk.');
@@ -95,7 +112,7 @@ class DownloadsService {
       _progressCallbacks.remove(taskId);
       _tasks.remove(taskId);
       try {
-        await deleteSong(song.id);
+        await deleteSong(song.id, audioUrl: song.audioUrl);
       } catch (cleanupError) {
         print('Failed to clean up partial download for ${song.id}: $cleanupError');
       }
@@ -112,8 +129,8 @@ class DownloadsService {
     }
   }
 
-  Future<void> deleteSong(String songId) async {
-    final filePath = await getLocalSongPath(songId);
+  Future<void> deleteSong(String songId, {String? audioUrl}) async {
+    final filePath = await getLocalSongPath(songId, audioUrl: audioUrl);
     final file = File(filePath);
     if (await file.exists()) {
       await file.delete();
