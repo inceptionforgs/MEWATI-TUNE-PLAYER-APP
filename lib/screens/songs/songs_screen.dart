@@ -30,7 +30,7 @@ class _SongsScreenState extends State<SongsScreen> {
       if (songsProvider.allSongs.isEmpty) {
         songsProvider.loadSongs();
       }
-      Provider.of<FavoritesProvider>(context, listen: false).loadFavorites();
+      // Removed duplicate loadFavorites() – FavoritesScreen (mounted in IndexedStack) already handles it.
     });
 
     _scrollController.addListener(_onScroll);
@@ -127,7 +127,7 @@ class _SongsScreenState extends State<SongsScreen> {
         final isDownloading = downloadsProvider.isDownloading(song.id);
         final progress = downloadsProvider.getProgress(song.id);
         final isLiked = likesProvider.isLikedSync(song.id);
-        final likeCount = likesProvider.getLikeCountSync(song.id) > 0
+        final likeCount = likesProvider.likeCounts.containsKey(song.id)
             ? likesProvider.getLikeCountSync(song.id)
             : song.likeCount;
 
