@@ -83,7 +83,7 @@ class SongRow extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
         decoration: BoxDecoration(
           color: isNow
-              ? Colors.black.withOpacity(0.45)
+              ? t.surface.withOpacity(0.45)
               : Colors.black.withOpacity(0.15),
           borderRadius: BorderRadius.circular(14),
           border: isNow
@@ -110,7 +110,7 @@ class SongRow extends StatelessWidget {
                       child: CachedNetworkImage(
                         imageUrl: song.coverImageUrl!,
                         fit: BoxFit.cover,
-                        cacheManager: AppCacheManager.instance, // <-- added
+                        cacheManager: AppCacheManager.instance,
                         placeholder: (context, url) => Icon(
                           isNow && isPlaying ? Icons.pause : Icons.play_arrow,
                           color: t.textPrimary,
@@ -155,89 +155,93 @@ class SongRow extends StatelessWidget {
                 ],
               ),
             ),
+            // Fix: NOW badge shown ALONGSIDE the action icons, not
+            // instead of them — user can still like/fav/download the
+            // currently playing song from any list.
             if (isNow)
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                decoration: BoxDecoration(
-                  color: t.textPrimary.withOpacity(0.20),
-                  borderRadius: BorderRadius.circular(6),
+              Padding(
+                padding: const EdgeInsets.only(right: 6),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: t.textPrimary.withOpacity(0.20),
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                  child: Text(
+                    isPlaying ? 'Ⅱ NOW' : '▶ NOW',
+                    style: TextStyle(
+                      color: t.textPrimary,
+                      fontSize: 11,
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
                 ),
-                child: Text(
-                  isPlaying ? 'Ⅱ NOW' : '▶ NOW',
+              ),
+            Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                IconButton(
+                  icon: Icon(
+                    isLiked ? Icons.thumb_up : Icons.thumb_up_outlined,
+                    color: isLiked ? t.accent : t.textPrimary.withOpacity(0.75),
+                    size: 20,
+                  ),
+                  onPressed: actions.onToggleLike,
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+                ),
+                Text(
+                  formatCount(likeCount),
                   style: TextStyle(
-                    color: t.textPrimary,
-                    fontSize: 11,
-                    fontWeight: FontWeight.w900,
+                    color: t.textPrimary.withOpacity(0.75),
+                    fontSize: 9,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
+            ),
+            IconButton(
+              icon: Icon(
+                isFav ? Icons.favorite : Icons.favorite_border,
+                color: isFav ? Colors.redAccent : t.textPrimary.withOpacity(0.75),
+              ),
+              onPressed: actions.onToggleFavorite,
+            ),
+            if (isDownloaded)
+              IconButton(
+                icon: const Icon(Icons.check_circle, color: Color(0xFF4CD964)),
+                onPressed: actions.onRemoveDownload,
+              )
+            else if (isDownloading)
+              GestureDetector(
+                onTap: actions.onCancelDownload,
+                child: SizedBox(
+                  width: 36,
+                  height: 36,
+                  child: Stack(
+                    alignment: Alignment.center,
+                    children: [
+                      CircularProgressIndicator(
+                        value: progress,
+                        strokeWidth: 2.5,
+                        color: t.textPrimary,
+                      ),
+                      Text(
+                        '${(progress * 100).round()}',
+                        style: TextStyle(fontSize: 8.5, color: t.textPrimary),
+                      ),
+                    ],
                   ),
                 ),
               )
-            else ...[
-              Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  IconButton(
-                    icon: Icon(
-                      isLiked ? Icons.thumb_up : Icons.thumb_up_outlined,
-                      color: isLiked ? t.accent : t.textPrimary.withOpacity(0.75),
-                      size: 20,
-                    ),
-                    onPressed: actions.onToggleLike,
-                    padding: EdgeInsets.zero,
-                    constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
-                  ),
-                  Text(
-                    formatCount(likeCount),
-                    style: TextStyle(
-                      color: t.textPrimary.withOpacity(0.75),
-                      fontSize: 9,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ],
-              ),
+            else
               IconButton(
                 icon: Icon(
-                  isFav ? Icons.favorite : Icons.favorite_border,
-                  color: isFav ? Colors.redAccent : t.textPrimary.withOpacity(0.75),
+                  Icons.download_outlined,
+                  color: t.textPrimary.withOpacity(0.75),
                 ),
-                onPressed: actions.onToggleFavorite,
+                onPressed: actions.onDownload,
               ),
-              if (isDownloaded)
-                IconButton(
-                  icon: const Icon(Icons.check_circle, color: Color(0xFF4CD964)),
-                  onPressed: actions.onRemoveDownload,
-                )
-              else if (isDownloading)
-                GestureDetector(
-                  onTap: actions.onCancelDownload,
-                  child: SizedBox(
-                    width: 36,
-                    height: 36,
-                    child: Stack(
-                      alignment: Alignment.center,
-                      children: [
-                        CircularProgressIndicator(
-                          value: progress,
-                          strokeWidth: 2.5,
-                          color: t.textPrimary,
-                        ),
-                        Text(
-                          '${(progress * 100).round()}',
-                          style: TextStyle(fontSize: 8.5, color: t.textPrimary),
-                        ),
-                      ],
-                    ),
-                  ),
-                )
-              else
-                IconButton(
-                  icon: Icon(
-                    Icons.download_outlined,
-                    color: t.textPrimary.withOpacity(0.75),
-                  ),
-                  onPressed: actions.onDownload,
-                ),
-            ],
           ],
         ),
       ),
