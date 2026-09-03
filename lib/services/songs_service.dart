@@ -1,6 +1,7 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../core/utils/like_pattern_escaper.dart';
 import '../models/song.dart';
+import 'debug_log_service.dart';
 import 'supabase_service.dart';
 
 class SongsService {
@@ -99,7 +100,10 @@ class SongsService {
         params: {'p_song_id': songId},
       );
     } catch (e) {
-      // Non-critical operation — silently ignore errors.
+      // Non-critical operation — failure doesn't block playback, but it's
+      // now logged via DebugLogService instead of being silently swallowed.
+      DebugLogService().error(
+          'SongsService.incrementPlayCount failed for song $songId: $e');
     }
   }
 }
