@@ -1,6 +1,7 @@
 // FILE: lib/screens/trending/trending_screen.dart
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import '../../core/constants/app_dimensions.dart';
 import '../../core/constants/app_strings.dart';
 import '../../core/widgets/loading_widget.dart';
 import '../../core/widgets/error_widget.dart';
@@ -206,7 +207,9 @@ class _TrendingScreenState extends State<TrendingScreen> {
 
     return ListView.builder(
       controller: _scrollController,
-      padding: const EdgeInsets.only(bottom: 16),
+      // Bottom padding accounts for the mini-player bar overlaying the
+      // bottom of the screen, so the last row(s) aren't hidden behind it.
+      padding: EdgeInsets.only(bottom: 16 + AppDimensions.miniPlayerHeight),
       itemCount: _trendingSongs.length +
           (_isLoadingMore || _loadMoreError != null ? 1 : 0),
       itemBuilder: (context, index) {
