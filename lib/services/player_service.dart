@@ -4,10 +4,12 @@ import 'dart:math';
 import 'package:flutter/foundation.dart';
 import 'package:just_audio/just_audio.dart';
 import 'package:just_audio_background/just_audio_background.dart';
+import 'package:permission_handler/permission_handler.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../config/media_config.dart';
 import '../core/utils/queue_builder.dart';
 import '../models/song.dart';
+import 'debug_log_service.dart';
 import 'downloads_service.dart';
 import 'equalizer_service.dart';
 import 'songs_service.dart';
@@ -45,6 +47,11 @@ class PlayerService {
   Timer? _playCountTimer;
   final Set<String> _playCountedSongIds = {};
   static const Duration _playCountThreshold = Duration(seconds: 25);
+
+  // POST_NOTIFICATIONS (Android 13+) is requested the first time playback
+  // actually starts, not at app bootstrap. Guarded so it only ever asks
+  // once per app run.
+  static bool _notificationPermissionRequested = false;
 
   // Readiness gate so play() never races JustAudioBackground.init().
   // main.dart (File 5) must call PlayerService.markReady() once init
@@ -93,6 +100,23 @@ class PlayerService {
     final deadline = DateTime.now().add(const Duration(seconds: 5));
     while (!_backgroundReady && DateTime.now().isBefore(deadline)) {
       await Future.delayed(const Duration(milliseconds: 50));
+    }
+  }
+
+  /// Requests POST_NOTIFICATIONS (Android 13+) the first time playback is
+  /// actually about to start. On older Android versions the permission is
+  /// granted by default, and the underlying plugin call is a no-op there.
+  /// Guarded by [_notificationPermissionRequested] so this only ever runs
+  /// once per app run, no matter how many times setPlaylist is called.
+  Future<void> _ensureNotificationPermission() async {
+    if (_notificationPermissionRequested) return;
+    _notificationPermissionRequested = true;
+    try {
+      if (await Permission.notification.isDenied) {
+        await Permission.notification.request();
+      }
+    } catch (e) {
+      DebugLogService().warning('Notification permission request failed: $e');
     }
   }
 
@@ -201,6 +225,11 @@ class PlayerService {
       final playlistSource = ConcatenatingAudioSource(children: audioSources);
       await _player.setAudioSource(playlistSource, initialIndex: _currentIndex);
       await _player.setShuffleModeEnabled(_shuffleMode);
+
+      // First-play notification permission request (Item 5): guarded, only
+      // ever runs once, and happens right before the first real play()
+      // call rather than at app bootstrap.
+      await _ensureNotificationPermission();
 
       unawaited(_player.play().catchError((e) {
         debugPrint('PlayerService.play error: $e');
