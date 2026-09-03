@@ -2,6 +2,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import '../../core/constants/app_dimensions.dart';
 import '../../core/constants/app_strings.dart';
 import '../../core/widgets/loading_widget.dart';
 import '../../core/widgets/error_widget.dart';
@@ -315,7 +316,9 @@ class _SingerProfileScreenState extends State<SingerProfileScreen> {
     }
 
     return ListView.builder(
-      padding: const EdgeInsets.only(bottom: 16),
+      // Bottom padding accounts for the mini-player bar overlaying the
+      // bottom of the screen, so the last row(s) aren't hidden behind it.
+      padding: EdgeInsets.only(bottom: 16 + AppDimensions.miniPlayerHeight),
       itemCount: _songs.length,
       itemBuilder: (context, index) {
         final song = _songs[index];
