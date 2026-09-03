@@ -1,4 +1,6 @@
+// FILE: lib/providers/favorites_provider.dart
 import 'package:flutter/foundation.dart';
+import '../core/utils/error_handler.dart';
 import '../models/song.dart';
 import '../services/favorites_service.dart';
 
@@ -46,7 +48,7 @@ class FavoritesProvider extends ChangeNotifier {
     } catch (e) {
       if (myGeneration != _loadGeneration) return;
       _favoriteSongs = [];
-      _errorMessage = e.toString();
+      _errorMessage = ErrorHandler.getMessage(e);
     } finally {
       // Always clear loading flag for the current load, even if results were ignored.
       if (myGeneration == _loadGeneration) {
@@ -90,7 +92,7 @@ class FavoritesProvider extends ChangeNotifier {
         _favoriteSongIds.remove(song.id);
         _favoriteSongs.removeWhere((s) => s.id == song.id);
       }
-      _errorMessage = e.toString();
+      _errorMessage = ErrorHandler.getMessage(e);
       notifyListeners();
     }
   }
