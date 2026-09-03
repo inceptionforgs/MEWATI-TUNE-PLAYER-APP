@@ -68,8 +68,9 @@ class _SongsScreenState extends State<SongsScreen> {
     Provider.of<DownloadsProvider>(context, listen: false).cancelDownload(songId);
   }
 
-  void _removeDownload(String songId) {
-    Provider.of<DownloadsProvider>(context, listen: false).removeDownload(songId);
+  void _removeDownload(String songId, {required String audioUrl}) {
+    Provider.of<DownloadsProvider>(context, listen: false)
+        .removeDownload(songId, audioUrl: audioUrl);
   }
 
   @override
@@ -150,7 +151,7 @@ class _SongsScreenState extends State<SongsScreen> {
             onToggleFavorite: () => _toggleFavorite(song),
             onDownload: () => _downloadSong(song),
             onCancelDownload: () => _cancelDownload(song.id),
-            onRemoveDownload: () => _removeDownload(song.id),
+            onRemoveDownload: () => _removeDownload(song.id, audioUrl: song.audioUrl),
             onToggleLike: () => likesProvider.toggleLike(song.id),
           ),
         );
