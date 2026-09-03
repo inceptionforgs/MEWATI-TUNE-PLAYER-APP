@@ -50,7 +50,7 @@ class AppThemes {
 
   static const AppThemeData cyberBlack = AppThemeData(
     id: AppThemeId.cyberBlack,
-    label: 'Cyber Black',
+    label: 'Deep Black',
     accent: Color(0xFF00E5D6),
     accentLight: Color(0xFF6FFCF0),
     accentDark: Color(0xFF00A89C),
@@ -67,7 +67,7 @@ class AppThemes {
 
   static const AppThemeData silverChrome = AppThemeData(
     id: AppThemeId.silverChrome,
-    label: 'Silver Chrome',
+    label: 'Apple Green',
     accent: Color(0xFFC7CDD3),
     accentLight: Color(0xFFE7EAED),
     accentDark: Color(0xFF8A919A),
