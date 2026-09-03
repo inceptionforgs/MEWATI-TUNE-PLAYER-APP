@@ -1,3 +1,4 @@
+// FILE: lib/screens/singers/singer_profile_screen.dart
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:cached_network_image/cached_network_image.dart';
@@ -50,7 +51,7 @@ class _SingerProfileScreenState extends State<SingerProfileScreen> {
       setState(() => _songs = songs);
 
       final likesProvider = Provider.of<LikesProvider>(context, listen: false);
-      likesProvider.loadLikesData(_songs.map((s) => s.id).toList());
+      likesProvider.loadLikesData(_songs);
     } catch (e) {
       if (!mounted) return;
       setState(() {
@@ -290,11 +291,11 @@ class _SingerProfileScreenState extends State<SingerProfileScreen> {
       );
     }
 
-    return ListView(
+    return ListView.builder(
       padding: const EdgeInsets.only(bottom: 16),
-      children: _songs.asMap().entries.map((entry) {
-        final index = entry.key;
-        final song = entry.value;
+      itemCount: _songs.length,
+      itemBuilder: (context, index) {
+        final song = _songs[index];
         final isNow = currentSongId == song.id;
         final isFav = favoritesProvider.isFavoriteSync(song.id);
         final isDownloaded = downloadsProvider.isDownloaded(song.id);
@@ -328,7 +329,7 @@ class _SingerProfileScreenState extends State<SingerProfileScreen> {
             onToggleLike: () => likesProvider.toggleLike(song.id),
           ),
         );
-      }).toList(),
+      },
     );
   }
 }
