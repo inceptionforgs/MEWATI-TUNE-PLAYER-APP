@@ -93,4 +93,33 @@ class Song {
       'is_premium': isPremium,
     };
   }
+
+  /// Maps raw Supabase rows to [Song]s, skipping (not throwing on) any row
+  /// with a missing id or empty/invalid audioUrl.
+  ///
+  /// Fixed (Serial 17): moved here from SongsService._mapSongs so this
+  /// validation/skip logic can be unit tested directly without a network
+  /// call — Dart privacy is per-file, so the old private method could
+  /// never be tested on its own. Behavior is unchanged: a bad row is still
+  /// skipped, never thrown. (The per-row debugPrint logging that used to
+  /// live alongside this in SongsService was dropped since this file has
+  /// no Flutter dependency by design — the skip behavior itself, which is
+  /// what matters functionally, is identical.)
+  static List<Song> mapValidRows(List<dynamic> rows) {
+    final songs = <Song>[];
+    for (final item in rows) {
+      try {
+        final map = item as Map<String, dynamic>;
+        final id = map['id'] as String? ?? '';
+        final audioUrl = map['audio_url'] as String? ?? '';
+        if (id.isEmpty || audioUrl.trim().isEmpty) {
+          continue;
+        }
+        songs.add(Song.fromJson(map));
+      } catch (_) {
+        // Skip any row that fails to parse instead of throwing.
+      }
+    }
+    return songs;
+  }
 }
