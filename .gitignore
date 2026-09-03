@@ -1,1 +1,14 @@
 .env
+.env.*
+.dart_tool/
+.pub/
+build/
+android/.gradle/
+android/local.properties
+android/key.properties
+*.jks
+*.keystore
+.idea/
+.vscode/
+*.iml
+.DS_Store
