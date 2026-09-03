@@ -57,6 +57,12 @@ class MewatiTunePlayerApp extends StatefulWidget {
   final AuthProvider? authProvider;
   final DownloadsProvider? downloadsProvider;
 
+  // NEW: static so MiniPlayerBar (a sibling of the Navigator, not a
+  // descendant — see the note on the removed instance field below) can
+  // reach it directly instead of via `Navigator.of(context)`.
+  static final GlobalKey<NavigatorState> navigatorKey =
+      GlobalKey<NavigatorState>();
+
   const MewatiTunePlayerApp({
     Key? key,
     this.authProvider,
@@ -69,7 +75,15 @@ class MewatiTunePlayerApp extends StatefulWidget {
 
 class _MewatiTunePlayerAppState extends State<MewatiTunePlayerApp>
     with WidgetsBindingObserver {
-  final GlobalKey<NavigatorState> _navigatorKey = GlobalKey<NavigatorState>();
+  final GlobalKey<NavigatorState> _navigatorKey =
+      MewatiTunePlayerApp.navigatorKey;
+  // CHANGED: was a private instance field (`_navigatorKey`). MiniPlayerBar
+  // is rendered as a SIBLING of the app's routed content inside the Stack
+  // below (see `builder:`), not as its descendant — so `Navigator.of(context)`
+  // called from inside MiniPlayerBar can never find this Navigator and the
+  // header-tap / Drive Mode taps there silently do nothing. Exposing this
+  // key as static lets MiniPlayerBar navigate via
+  // `MewatiTunePlayerApp.navigatorKey.currentState` instead.
   final ValueNotifier<String?> _currentRouteName = ValueNotifier<String?>(null);
   late final _MiniPlayerRouteObserver _routeObserver;
 
