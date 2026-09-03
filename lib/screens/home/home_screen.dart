@@ -1,3 +1,5 @@
+// File: lib/screens/home/home_screen.dart
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../core/widgets/ad_banner_widget.dart';
@@ -24,12 +26,21 @@ class _HomeScreenState extends State<HomeScreen> {
   int _currentIndex = 0;
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
 
-  static const List<Widget> _screens = [
-    SongsScreen(),
-    SingersScreen(),
-    TrendingScreen(),
-    FavoritesScreen(),
-    DownloadsScreen(),
+  // Fixed (P5-4): only tab 0 (Songs) is "visited" at startup. The other 4
+  // tabs' screens are not built at all until the user actually taps them —
+  // previously IndexedStack built all 5 screens immediately on launch,
+  // firing 5 simultaneous data fetches (Downloads also separately called
+  // loadSongs, doubling one of them). Once a tab is built here, IndexedStack
+  // keeps it mounted (just hidden) when switching away, so this also gives
+  // "keep alive" behavior for free — no re-fetch on returning to a tab.
+  final Set<int> _visitedTabs = {0};
+
+  static final List<Widget Function()> _screenBuilders = [
+    () => const SongsScreen(),
+    () => const SingersScreen(),
+    () => const TrendingScreen(),
+    () => const FavoritesScreen(),
+    () => const DownloadsScreen(),
   ];
 
   @override
@@ -38,6 +49,13 @@ class _HomeScreenState extends State<HomeScreen> {
     // No duplicate data loading here.
     // Each tab screen (SongsScreen, SingersScreen, etc.) is responsible for
     // loading its own data when it is first built.
+  }
+
+  void _onTabSelected(int index) {
+    setState(() {
+      _currentIndex = index;
+      _visitedTabs.add(index);
+    });
   }
 
   void _openSearch() {
@@ -79,12 +97,16 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
               HomeTabs(
                 currentIndex: _currentIndex,
-                onTabSelected: (index) => setState(() => _currentIndex = index),
+                onTabSelected: _onTabSelected,
               ),
               Expanded(
                 child: IndexedStack(
                   index: _currentIndex,
-                  children: _screens,
+                  children: List.generate(_screenBuilders.length, (i) {
+                    return _visitedTabs.contains(i)
+                        ? _screenBuilders[i]()
+                        : const SizedBox.shrink();
+                  }),
                 ),
               ),
               // MiniPlayerBar is now provided globally via MaterialApp.builder overlay
