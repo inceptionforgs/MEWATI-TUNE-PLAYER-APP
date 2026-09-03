@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:io';
+import 'dart:math';
 import 'package:flutter/foundation.dart';
 import 'package:just_audio/just_audio.dart';
 import 'package:just_audio_background/just_audio_background.dart';
@@ -280,7 +281,7 @@ class PlayerService {
     cancelFadeOut();
     final token = ++_fadeToken;
     _originalVolume = _player.volume;
-    final steps = duration.inMilliseconds ~/ 100;
+    final steps = max(1, duration.inMilliseconds ~/ 100);
     final volumeStep = _originalVolume / steps;
     int stepCount = 0;
 
