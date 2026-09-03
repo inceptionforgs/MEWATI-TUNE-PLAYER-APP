@@ -1,3 +1,5 @@
+// File: lib/screens/home/widgets/home_tabs.dart
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../../core/constants/app_strings.dart';
@@ -37,33 +39,46 @@ class HomeTabs extends StatelessWidget {
         children: List.generate(labels.length, (index) {
           final isActive = index == currentIndex;
           return Expanded(
-            child: GestureDetector(
-              onTap: () => onTabSelected(index),
-              child: Stack(
-                alignment: Alignment.bottomCenter,
-                children: [
-                  Center(
-                    child: Text(
-                      labels[index],
-                      style: TextStyle(
-                        color: isActive
-                            ? t.textPrimary
-                            : t.textPrimary.withOpacity(0.63),
-                        fontSize: 14,
-                        fontWeight: FontWeight.w800,
+            child: Semantics(
+              button: true,
+              selected: isActive,
+              label: labels[index],
+              child: GestureDetector(
+                onTap: () => onTabSelected(index),
+                child: Stack(
+                  alignment: Alignment.bottomCenter,
+                  children: [
+                    Center(
+                      // Fixed (P5-11): 5 labels at fontSize 14/w800 overflow
+                      // on 360px-wide screens. FittedBox scales each label
+                      // down just enough to fit its own Expanded slot,
+                      // instead of clipping/wrapping awkwardly.
+                      child: FittedBox(
+                        fit: BoxFit.scaleDown,
+                        child: Text(
+                          labels[index],
+                          maxLines: 1,
+                          style: TextStyle(
+                            color: isActive
+                                ? t.textPrimary
+                                : t.textPrimary.withOpacity(0.63),
+                            fontSize: 14,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
                       ),
                     ),
-                  ),
-                  if (isActive)
-                    Container(
-                      height: 4,
-                      margin: const EdgeInsets.only(bottom: -2),
-                      decoration: BoxDecoration(
-                        color: t.textPrimary,
-                        borderRadius: BorderRadius.circular(2),
+                    if (isActive)
+                      Container(
+                        height: 4,
+                        margin: const EdgeInsets.only(bottom: -2),
+                        decoration: BoxDecoration(
+                          color: t.textPrimary,
+                          borderRadius: BorderRadius.circular(2),
+                        ),
                       ),
-                    ),
-                ],
+                  ],
+                ),
               ),
             ),
           );
