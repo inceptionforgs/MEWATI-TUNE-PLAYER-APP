@@ -49,6 +49,21 @@ class SearchResultRow extends StatelessWidget {
     }
   }
 
+  static Future<void> _downloadSong(
+      BuildContext context, DownloadsProvider downloadsProvider, Song song) async {
+    // Fixed (Item 11): await the download and show a SnackBar on failure,
+    // mirroring the pattern used above for favorite/like toggle errors.
+    // downloadSong() rethrows on failure specifically so callers can do
+    // this — previously this call was fire-and-forget and errors were
+    // silently dropped.
+    try {
+      await downloadsProvider.downloadSong(song);
+    } catch (e) {
+      if (!context.mounted) return;
+      _showFailureSnackBar(context, 'Failed to download song. Please try again.');
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final currentSongId = context.select<PlayerProvider, String?>(
@@ -68,36 +83,52 @@ class SearchResultRow extends StatelessWidget {
         ? likesProvider.getLikeCountSync(song.id)
         : song.likeCount;
 
-    return SongRow(
-      t: t,
-      data: SongRowData(
-        song: song,
-        isNow: isNow,
-        isPlaying: isPlaying,
-        isFav: isFav,
-        isDownloaded: downloadsProvider.isDownloaded(song.id),
-        isDownloading: downloadsProvider.isDownloading(song.id),
-        progress: downloadsProvider.getProgress(song.id),
-        subtitle: song.singerName ?? 'Unknown Artist',
-        isLiked: isLiked,
-        likeCount: likeCount,
-      ),
-      actions: SongRowActions(
-        onTap: () {
-          // Play the full search results list starting at this song.
-          context.read<PlayerProvider>().setPlaylist(
-                songs: allResults,
-                startIndex: index,
-              );
-          Navigator.of(context).pop();
-        },
-        onToggleFavorite: () => _toggleFavorite(context, favoritesProvider, song),
-        onDownload: () => downloadsProvider.downloadSong(song),
-        onCancelDownload: () => downloadsProvider.cancelDownload(song.id),
-        onRemoveDownload: () =>
-            downloadsProvider.removeDownload(song.id, audioUrl: song.audioUrl),
-        onToggleLike: () => _toggleLike(context, likesProvider, song.id),
-      ),
+    // Fixed (Item 10): consume downloadsProvider.progressNotifier via
+    // ValueListenableBuilder so this row's progress actually animates
+    // during a download — progressNotifier deliberately never calls
+    // notifyListeners(), so reading getProgress()/isDownloading() directly
+    // in build() was stale until some unrelated rebuild happened to occur.
+    return ValueListenableBuilder<Map<String, double>>(
+      valueListenable: downloadsProvider.progressNotifier,
+      builder: (context, progressMap, _) {
+        final isDownloading = progressMap.containsKey(song.id);
+        final progress = progressMap[song.id] ?? 0.0;
+
+        return SongRow(
+          t: t,
+          data: SongRowData(
+            song: song,
+            isNow: isNow,
+            isPlaying: isPlaying,
+            isFav: isFav,
+            isDownloaded: downloadsProvider.isDownloaded(song.id),
+            isDownloading: isDownloading,
+            progress: progress,
+            subtitle: song.singerName ?? 'Unknown Artist',
+            isLiked: isLiked,
+            likeCount: likeCount,
+          ),
+          actions: SongRowActions(
+            onTap: () {
+              // Play the full search results list starting at this song.
+              context.read<PlayerProvider>().setPlaylist(
+                    songs: allResults,
+                    startIndex: index,
+                  );
+              Navigator.of(context).pop();
+            },
+            onToggleFavorite: () =>
+                _toggleFavorite(context, favoritesProvider, song),
+            onDownload: () => _downloadSong(context, downloadsProvider, song),
+            onCancelDownload: () => downloadsProvider.cancelDownload(song.id),
+            onRemoveDownload: () => downloadsProvider.removeDownload(
+              song.id,
+              audioUrl: song.audioUrl,
+            ),
+            onToggleLike: () => _toggleLike(context, likesProvider, song.id),
+          ),
+        );
+      },
     );
   }
 }
