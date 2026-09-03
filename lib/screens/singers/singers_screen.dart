@@ -1,3 +1,5 @@
+// File: lib/screens/singers/singers_screen.dart
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:cached_network_image/cached_network_image.dart';
@@ -8,6 +10,7 @@ import '../../core/widgets/error_widget.dart';
 import '../../models/singer.dart';
 import '../../providers/singers_provider.dart';
 import '../../providers/theme_provider.dart';
+import '../../routes/route_names.dart';
 import '../../services/app_cache_manager.dart';
 
 class SingersScreen extends StatefulWidget {
@@ -44,7 +47,7 @@ class _SingersScreenState extends State<SingersScreen> {
   }
 
   void _openSingerProfile(Singer singer) {
-    Navigator.of(context).pushNamed('/singer-profile', arguments: singer);
+    Navigator.of(context).pushNamed(RouteNames.singerProfile, arguments: singer);
   }
 
   @override
