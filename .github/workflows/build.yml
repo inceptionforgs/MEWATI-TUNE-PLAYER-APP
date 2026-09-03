@@ -28,7 +28,7 @@ jobs:
         run: flutter test
 
       - name: Build APK
-        run: flutter build apk --release
+        run: flutter build apk --release --dart-define=AUDIO_CDN_HOST=vryngmkjnposksoaknik.supabase.co
 
       - uses: actions/upload-artifact@v4
         with:
