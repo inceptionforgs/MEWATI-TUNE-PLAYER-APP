@@ -2,6 +2,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import '../../core/constants/app_dimensions.dart';
 import '../../core/constants/app_strings.dart';
 import '../../core/widgets/loading_widget.dart';
 import '../../core/widgets/error_widget.dart';
@@ -176,7 +177,12 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
     final favoriteSongs = favoritesProvider.favoriteSongs;
 
     return ListView.builder(
-      padding: const EdgeInsets.only(bottom: 16, top: 8),
+      // Bottom padding accounts for the mini-player bar overlaying the
+      // bottom of the screen, so the last row(s) aren't hidden behind it.
+      padding: EdgeInsets.only(
+        bottom: 16 + AppDimensions.miniPlayerHeight,
+        top: 8,
+      ),
       itemCount: favoriteSongs.length,
       itemBuilder: (context, index) {
         final song = favoriteSongs[index];
