@@ -29,6 +29,7 @@ dependencies:
   sentry_flutter: ^9.27.0
   connectivity_plus: ^5.0.2
   permission_handler: ^11.3.1
+  wakelock_plus: ^1.2.8   # <-- added for Drive Mode (File 32): keep screen awake
 
 dev_dependencies:
   flutter_test:
