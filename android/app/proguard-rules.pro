@@ -59,3 +59,11 @@
 -keepclassmembers class * {
     @io.flutter.plugin.common.PluginRegistry$Registrar *;
 }
+
+# ---- Play Core split-install (deferred components) ----
+# Referenced by Flutter's embedding for Play Store dynamic feature
+# delivery, but this app does not use split/deferred components —
+# these classes are intentionally absent, safe to ignore.
+-dontwarn com.google.android.play.core.splitcompat.**
+-dontwarn com.google.android.play.core.splitinstall.**
+-dontwarn com.google.android.play.core.tasks.**
