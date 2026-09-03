@@ -3,7 +3,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../../core/constants/app_strings.dart';
-import '../../../core/constants/app_themes.dart';
 import '../../../providers/theme_provider.dart';
 
 class HomeTabs extends StatelessWidget {
