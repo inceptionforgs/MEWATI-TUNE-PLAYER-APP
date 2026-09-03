@@ -6,6 +6,7 @@ import 'package:just_audio/just_audio.dart';
 import '../../providers/player_provider.dart';
 import '../../providers/theme_provider.dart';
 import '../../routes/route_names.dart';
+import '../../app.dart';
 import '../extensions/duration_extensions.dart';
 
 class MiniPlayerBar extends StatelessWidget {
@@ -64,7 +65,13 @@ class MiniPlayerBar extends StatelessWidget {
         children: [
           // Header row (tap to open now playing)
           GestureDetector(
-            onTap: () => Navigator.of(context).pushNamed(RouteNames.nowPlaying),
+            // CHANGED: was Navigator.of(context) — this widget sits
+            // outside the app's Navigator subtree (it's a sibling in
+            // app.dart's Stack, not a descendant), so that call found
+            // no Navigator and silently did nothing. Using the shared
+            // key reaches the real Navigator directly.
+            onTap: () => MewatiTunePlayerApp.navigatorKey.currentState
+                ?.pushNamed(RouteNames.nowPlaying),
             child: Row(
               children: [
                 Expanded(
@@ -154,8 +161,11 @@ class MiniPlayerBar extends StatelessWidget {
                     color: t.textPrimary.withOpacity(0.85),
                   ),
                   tooltip: 'Drive Mode',
-                  onPressed: () =>
-                      Navigator.of(context).pushNamed(RouteNames.driveMode),
+                  // CHANGED: was Navigator.of(context) — same root
+                  // cause as the header tap above, this is why the Drive
+                  // Mode icon looked like it did nothing when tapped.
+                  onPressed: () => MewatiTunePlayerApp.navigatorKey
+                      .currentState?.pushNamed(RouteNames.driveMode),
                 ),
               ),
               Row(
