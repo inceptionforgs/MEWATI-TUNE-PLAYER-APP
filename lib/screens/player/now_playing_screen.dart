@@ -1,6 +1,7 @@
+// File: lib/screens/player/now_playing_screen.dart
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import '../../core/constants/app_theme.dart';
 import '../../core/widgets/app_drawer.dart';
 import '../../providers/player_provider.dart';
 import '../../providers/theme_provider.dart';
