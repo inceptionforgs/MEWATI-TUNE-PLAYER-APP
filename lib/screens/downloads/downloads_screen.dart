@@ -1,8 +1,7 @@
+// File: lib/screens/downloads/downloads_screen.dart
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import '../../core/constants/app_strings.dart';
-import '../../core/widgets/loading_widget.dart';
-import '../../core/widgets/error_widget.dart';
 import '../../core/widgets/song_row.dart';
 import '../../models/song.dart';
 import '../../providers/downloads_provider.dart';
@@ -24,16 +23,25 @@ class _DownloadsScreenState extends State<DownloadsScreen> {
   void initState() {
     super.initState();
     Future.microtask(() async {
-      final songsProvider = Provider.of<SongsProvider>(context, listen: false);
       final downloadsProvider =
           Provider.of<DownloadsProvider>(context, listen: false);
       final likesProvider = Provider.of<LikesProvider>(context, listen: false);
 
-      if (songsProvider.allSongs.isEmpty) {
-        await songsProvider.loadSongs();
+      // Make sure the provider's own persisted download store (ids + full
+      // song data) is loaded.
+      await downloadsProvider.initialize();
+
+      // Still verify on-disk files against whatever songs are currently
+      // loaded elsewhere in the app (cache-integrity check only — this
+      // no longer decides what's SHOWN on this screen, see build() below).
+      final songsProvider = Provider.of<SongsProvider>(context, listen: false);
+      if (songsProvider.allSongs.isNotEmpty) {
+        await downloadsProvider.checkExistingDownloads(songsProvider.allSongs);
       }
-      await downloadsProvider.checkExistingDownloads(songsProvider.allSongs);
-      likesProvider.loadLikesData(songsProvider.allSongs.map((s) => s.id).toList());
+
+      likesProvider.loadLikesData(
+        downloadsProvider.downloadedSongsList.map((s) => s.id).toList(),
+      );
     });
   }
 
@@ -57,34 +65,29 @@ class _DownloadsScreenState extends State<DownloadsScreen> {
         .cancelDownload(songId);
   }
 
-  Future<void> _removeDownload(String songId) async {
+  // Fixed: audioUrl is now required (File 36) so the correct file/extension
+  // actually gets deleted from disk, and the result is checked to show the
+  // right SnackBar instead of assuming success via try/catch on a void call.
+  Future<void> _removeDownload(Song song) async {
     final downloadsProvider =
         Provider.of<DownloadsProvider>(context, listen: false);
-    try {
-      await downloadsProvider.removeDownload(songId);
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Removed from downloads'),
-            backgroundColor: Color(0xFFE53935),
-          ),
-        );
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Failed to remove download'),
-            backgroundColor: Colors.grey,
-          ),
-        );
-      }
-    }
+    final success = await downloadsProvider.removeDownload(
+      song.id,
+      audioUrl: song.audioUrl,
+    );
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          success ? 'Removed from downloads' : 'Failed to remove download',
+        ),
+        backgroundColor: success ? const Color(0xFFE53935) : Colors.grey,
+      ),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
-    final songsProvider = context.watch<SongsProvider>();
     final downloadsProvider = context.watch<DownloadsProvider>();
     final favoritesProvider = context.watch<FavoritesProvider>();
     final likesProvider = context.watch<LikesProvider>();
@@ -97,20 +100,11 @@ class _DownloadsScreenState extends State<DownloadsScreen> {
       (p) => p.isPlaying,
     );
 
-    if (songsProvider.isLoading) {
-      return const LoadingWidget(message: AppStrings.loading);
-    }
-
-    if (songsProvider.errorMessage != null && songsProvider.allSongs.isEmpty) {
-      return AppErrorWidget(
-        error: songsProvider.errorMessage,
-        onRetry: () => songsProvider.loadSongs(),
-      );
-    }
-
-    final downloadedSongs = songsProvider.allSongs
-        .where((song) => downloadsProvider.isDownloaded(song.id))
-        .toList();
+    // Fixed: this list now comes from the provider's own persisted
+    // downloaded-songs store, NOT from SongsProvider.allSongs (which is
+    // only a paginated subset). A song downloaded from Search or Trending
+    // that was never in the first loaded page now correctly shows up here.
+    final downloadedSongs = downloadsProvider.downloadedSongsList;
 
     if (downloadedSongs.isEmpty) {
       return Center(
@@ -154,11 +148,11 @@ class _DownloadsScreenState extends State<DownloadsScreen> {
       );
     }
 
-    return ListView(
+    return ListView.builder(
       padding: const EdgeInsets.only(bottom: 16, top: 8),
-      children: downloadedSongs.asMap().entries.map((entry) {
-        final index = entry.key;
-        final song = entry.value;
+      itemCount: downloadedSongs.length,
+      itemBuilder: (context, index) {
+        final song = downloadedSongs[index];
         final isNow = currentSongId == song.id;
         final isFav = favoritesProvider.isFavoriteSync(song.id);
         final isDownloading = downloadsProvider.isDownloading(song.id);
@@ -187,11 +181,11 @@ class _DownloadsScreenState extends State<DownloadsScreen> {
             onToggleFavorite: () => _toggleFavorite(song),
             onDownload: () => _downloadSong(song),
             onCancelDownload: () => _cancelDownload(song.id),
-            onRemoveDownload: () => _removeDownload(song.id),
+            onRemoveDownload: () => _removeDownload(song),
             onToggleLike: () => likesProvider.toggleLike(song.id),
           ),
         );
-      }).toList(),
+      },
     );
   }
 }
