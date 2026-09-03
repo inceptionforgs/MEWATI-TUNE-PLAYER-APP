@@ -111,6 +111,8 @@ class SongRow extends StatelessWidget {
                         imageUrl: song.coverImageUrl!,
                         fit: BoxFit.cover,
                         cacheManager: AppCacheManager.instance,
+                        memCacheWidth: 128,
+                        memCacheHeight: 128,
                         placeholder: (context, url) => Icon(
                           isNow && isPlaying ? Icons.pause : Icons.play_arrow,
                           color: t.textPrimary,
