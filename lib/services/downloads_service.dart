@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:flutter/foundation.dart' show kDebugMode, debugPrint;
 import 'package:background_downloader/background_downloader.dart';
 import 'package:path_provider/path_provider.dart';
+import '../config/media_config.dart';
 import '../models/song.dart';
 
 class DownloadsService {
@@ -38,7 +39,9 @@ class DownloadsService {
         }
       }
     } catch (e) {
-      debugPrint('Failed to parse extension from audio URL "$audioUrl": $e');
+      if (kDebugMode) {
+        debugPrint('Failed to parse extension from audio URL "$audioUrl": $e');
+      }
     }
     return 'm4a'; // default fallback
   }
@@ -71,6 +74,16 @@ class DownloadsService {
     Song song, {
     Function(double progress, int total)? onProgress,
   }) async {
+    // Host allowlist: reject downloads whose audioUrl host is not the
+    // project's CDN host, before ever handing the URL to the downloader.
+    if (!MediaConfig.isAllowedAudioUrl(song.audioUrl)) {
+      if (kDebugMode) {
+        debugPrint(
+            'DownloadsService: rejecting download for "${song.title}" — audio URL host not in CDN allowlist.');
+      }
+      throw Exception('Download rejected: audio URL host is not allowed.');
+    }
+
     // Use audioUrl to determine extension; if not available, fallback to m4a.
     final ext = _getExtensionFromUrl(song.audioUrl);
     final filename = 'song_${song.id}.$ext';
