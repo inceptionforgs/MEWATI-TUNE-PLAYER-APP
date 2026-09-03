@@ -5,7 +5,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:just_audio_background/just_audio_background.dart';
 import 'package:sentry_flutter/sentry_flutter.dart';
-import 'package:permission_handler/permission_handler.dart';
 
 import 'app.dart';
 import 'config/environment.dart';
@@ -80,8 +79,10 @@ Future<void> _initializeApp(DownloadsProvider downloadsProvider) async {
       );
     }
 
-    // Request notification permission on Android 13+ (needed for media playback).
-    await _requestNotificationPermission();
+    // Notification permission (Android 13+ POST_NOTIFICATIONS) is no longer
+    // requested here at bootstrap. It's now requested the first time the
+    // user actually starts playback — see PlayerService.setPlaylist, right
+    // before the first play() call — guarded so it only ever asks once.
 
     DebugLogService().info('App initialized successfully');
   } catch (e) {
@@ -91,17 +92,5 @@ Future<void> _initializeApp(DownloadsProvider downloadsProvider) async {
     // if Supabase/network is actually unreachable. Playback/API/DNS errors
     // themselves are handled at the point each call happens (player, auth,
     // search, etc.), not here — this is just startup bootstrapping.
-  }
-}
-
-Future<void> _requestNotificationPermission() async {
-  try {
-    // On Android 13+ (API 33+), we need to request POST_NOTIFICATIONS.
-    // On older versions, permission is granted by default.
-    if (await Permission.notification.isDenied) {
-      await Permission.notification.request();
-    }
-  } catch (e) {
-    DebugLogService().warning('Notification permission request failed: $e');
   }
 }
