@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 import 'package:just_audio/just_audio.dart';
 import '../../providers/player_provider.dart';
 import '../../providers/theme_provider.dart';
+import '../../routes/route_names.dart';
 import '../extensions/duration_extensions.dart';
 
 class MiniPlayerBar extends StatelessWidget {
@@ -56,7 +57,7 @@ class MiniPlayerBar extends StatelessWidget {
         children: [
           // Header row (tap to open now playing)
           GestureDetector(
-            onTap: () => Navigator.of(context).pushNamed('/now-playing'),
+            onTap: () => Navigator.of(context).pushNamed(RouteNames.nowPlaying),
             child: Row(
               children: [
                 Expanded(
@@ -113,7 +114,7 @@ class MiniPlayerBar extends StatelessWidget {
                   ),
                   tooltip: 'Drive Mode',
                   onPressed: () =>
-                      Navigator.of(context).pushNamed('/drive-mode'),
+                      Navigator.of(context).pushNamed(RouteNames.driveMode),
                 ),
               ),
               Row(
