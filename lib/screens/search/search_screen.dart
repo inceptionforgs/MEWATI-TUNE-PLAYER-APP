@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../core/constants/app_themes.dart';
 import '../../core/utils/debouncer.dart';
+import '../../core/widgets/error_widget.dart';
 import '../../models/song.dart';
 import '../../models/singer.dart';
 import '../../providers/songs_provider.dart';
@@ -40,6 +41,11 @@ class _SearchScreenState extends State<SearchScreen> {
   bool _isLoading = false;
   int _searchGeneration = 0; // increments on every new search to discard stale results
 
+  // Fixed (14c): distinct error state — a real search failure (network/API)
+  // is now shown via AppErrorWidget with Retry, separate from the genuine
+  // "no matches found" empty-results case, which keeps its existing copy.
+  String? _errorMessage;
+
   @override
   void initState() {
     super.initState();
@@ -70,13 +76,17 @@ class _SearchScreenState extends State<SearchScreen> {
         _singerResults = [];
         _isSearching = false;
         _isLoading = false;
+        _errorMessage = null;
       });
       return;
     }
 
     // Invalidate previous searches
     final gen = ++_searchGeneration;
-    setState(() => _isLoading = true);
+    setState(() {
+      _isLoading = true;
+      _errorMessage = null;
+    });
 
     try {
       final songsProvider = context.read<SongsProvider>();
@@ -100,13 +110,10 @@ class _SearchScreenState extends State<SearchScreen> {
         _singerResults = singers;
         _isSearching = true;
         _isLoading = false;
+        _errorMessage = null;
       });
 
       // Load likes for the found songs.
-      // Fixed: loadLikesData requires List<Song>, not List<String> — was
-      // passing .map((s) => s.id).toList() (same class of compile-blocking
-      // type-mismatch bug already fixed elsewhere for trending/singer
-      // profile/downloads screens).
       final likesProvider = Provider.of<LikesProvider>(context, listen: false);
       likesProvider.loadLikesData(_songResults);
     } catch (e) {
@@ -116,14 +123,20 @@ class _SearchScreenState extends State<SearchScreen> {
         _singerResults = [];
         _isSearching = true;
         _isLoading = false;
+        _errorMessage = e.toString();
       });
     }
+  }
+
+  void _retrySearch() {
+    _performSearch(_searchController.text);
   }
 
   @override
   Widget build(BuildContext context) {
     final t = context.watch<ThemeProvider>().theme;
     final hasResults = _songResults.isNotEmpty || _singerResults.isNotEmpty;
+    final hasError = _errorMessage != null;
 
     // Flatten singer/song headers + rows into a single item list for
     // ListView.builder so mixed section headers and rows are built lazily.
@@ -184,99 +197,106 @@ class _SearchScreenState extends State<SearchScreen> {
             if (_isLoading)
               LinearProgressIndicator(minHeight: 2, color: t.accent),
             Expanded(
-              child: !hasResults
-                  ? Center(
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(Icons.search,
-                              size: 56, color: t.textSecondary),
-                          const SizedBox(height: 15),
-                          Text(
-                            _isSearching
-                                ? 'No matches found'
-                                : 'Type to Search',
-                            style: TextStyle(
-                              color: t.textPrimary,
-                              fontSize: 22,
-                              fontStyle: FontStyle.italic,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                          if (_isSearching)
-                            Padding(
-                              padding: const EdgeInsets.only(top: 7),
-                              child: Text(
-                                'No songs or singers matched "${_searchController.text}".',
-                                textAlign: TextAlign.center,
-                                style: TextStyle(
-                                  color: t.textSecondary,
-                                  fontSize: 13,
-                                  height: 1.5,
-                                ),
-                              ),
-                            )
-                          else
-                            Padding(
-                              padding: const EdgeInsets.only(top: 7),
-                              child: Text(
-                                'Find your favorite Mewati songs & singers instantly.',
-                                textAlign: TextAlign.center,
-                                style: TextStyle(
-                                  color: t.textSecondary,
-                                  fontSize: 13,
-                                  height: 1.5,
-                                ),
-                              ),
-                            ),
-                        ],
-                      ),
+              child: hasError
+                  ? AppErrorWidget(
+                      error: _errorMessage,
+                      onRetry: _retrySearch,
                     )
-                  : ListView.builder(
-                      padding: const EdgeInsets.only(bottom: 16),
-                      itemCount: items.length,
-                      itemBuilder: (context, i) {
-                        final item = items[i];
-                        switch (item.type) {
-                          case _SearchItemType.singerHeader:
-                            return Padding(
-                              padding: const EdgeInsets.fromLTRB(19, 18, 19, 9),
-                              child: Text(
-                                'SINGERS (${_singerResults.length})',
+                  : !hasResults
+                      ? Center(
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(Icons.search,
+                                  size: 56, color: t.textSecondary),
+                              const SizedBox(height: 15),
+                              Text(
+                                _isSearching
+                                    ? 'No matches found'
+                                    : 'Type to Search',
                                 style: TextStyle(
                                   color: t.textPrimary,
-                                  fontSize: 13,
-                                  fontWeight: FontWeight.w900,
-                                  letterSpacing: 1.35,
+                                  fontSize: 22,
+                                  fontStyle: FontStyle.italic,
+                                  fontWeight: FontWeight.w600,
                                 ),
                               ),
-                            );
-                          case _SearchItemType.singerRow:
-                            return _buildSingerResultRow(
-                                _singerResults[item.index], t);
-                          case _SearchItemType.songHeader:
-                            return Padding(
-                              padding: const EdgeInsets.fromLTRB(19, 18, 19, 9),
-                              child: Text(
-                                'SONGS (${_songResults.length})',
-                                style: TextStyle(
-                                  color: t.textPrimary,
-                                  fontSize: 13,
-                                  fontWeight: FontWeight.w900,
-                                  letterSpacing: 1.35,
+                              if (_isSearching)
+                                Padding(
+                                  padding: const EdgeInsets.only(top: 7),
+                                  child: Text(
+                                    'No songs or singers matched "${_searchController.text}".',
+                                    textAlign: TextAlign.center,
+                                    style: TextStyle(
+                                      color: t.textSecondary,
+                                      fontSize: 13,
+                                      height: 1.5,
+                                    ),
+                                  ),
+                                )
+                              else
+                                Padding(
+                                  padding: const EdgeInsets.only(top: 7),
+                                  child: Text(
+                                    'Find your favorite Mewati songs & singers instantly.',
+                                    textAlign: TextAlign.center,
+                                    style: TextStyle(
+                                      color: t.textSecondary,
+                                      fontSize: 13,
+                                      height: 1.5,
+                                    ),
+                                  ),
                                 ),
-                              ),
-                            );
-                          case _SearchItemType.songRow:
-                            return SearchResultRow(
-                              song: _songResults[item.index],
-                              t: t,
-                              allResults: _songResults,
-                              index: item.index,
-                            );
-                        }
-                      },
-                    ),
+                            ],
+                          ),
+                        )
+                      : ListView.builder(
+                          padding: const EdgeInsets.only(bottom: 16),
+                          itemCount: items.length,
+                          itemBuilder: (context, i) {
+                            final item = items[i];
+                            switch (item.type) {
+                              case _SearchItemType.singerHeader:
+                                return Padding(
+                                  padding:
+                                      const EdgeInsets.fromLTRB(19, 18, 19, 9),
+                                  child: Text(
+                                    'SINGERS (${_singerResults.length})',
+                                    style: TextStyle(
+                                      color: t.textPrimary,
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.w900,
+                                      letterSpacing: 1.35,
+                                    ),
+                                  ),
+                                );
+                              case _SearchItemType.singerRow:
+                                return _buildSingerResultRow(
+                                    _singerResults[item.index], t);
+                              case _SearchItemType.songHeader:
+                                return Padding(
+                                  padding:
+                                      const EdgeInsets.fromLTRB(19, 18, 19, 9),
+                                  child: Text(
+                                    'SONGS (${_songResults.length})',
+                                    style: TextStyle(
+                                      color: t.textPrimary,
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.w900,
+                                      letterSpacing: 1.35,
+                                    ),
+                                  ),
+                                );
+                              case _SearchItemType.songRow:
+                                return SearchResultRow(
+                                  song: _songResults[item.index],
+                                  t: t,
+                                  allResults: _songResults,
+                                  index: item.index,
+                                );
+                            }
+                          },
+                        ),
             ),
           ],
         ),
