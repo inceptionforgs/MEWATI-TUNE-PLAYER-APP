@@ -1,3 +1,5 @@
+// FILE: lib/main.dart
+
 import 'dart:async';
 
 import 'package:flutter/material.dart';
@@ -16,24 +18,36 @@ import 'services/supabase_service.dart';
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  final authProvider = AuthProvider();
+  // IMPORTANT:
+  // DownloadsProvider Supabase par depend nahi karta, isliye ise
+  // startup se pehle safely create kiya ja sakta hai.
   final downloadsProvider = DownloadsProvider();
 
-  // Fully await core initialization BEFORE runApp — the native launch
-  // screen (android/app/src/main/res/drawable/launch_background.xml) stays
-  // on screen the whole time, so the app is never shown half-initialized.
+  // ============================================================
+  // INITIALIZE ALL CORE SERVICES FIRST
   //
-  // Every individual step inside _initializeApp is now independently
-  // try/catch + timeout guarded, so a hang in any single plugin
-  // (JustAudioBackground, Supabase, SharedPreferences, Sentry, etc.)
-  // cannot block runApp() from ever being called.
+  // IMPORTANT FIX:
   //
-  // Auth restoration itself is intentionally NOT awaited here: it's owned
-  // by SplashScreen (lib/screens/splash/splash_screen.dart), which awaits
-  // authProvider.loadCurrentUser() with its own timeout and Retry/Continue
-  // Offline UI. Awaiting it a second time here would just race/duplicate
-  // that network call for no benefit.
+  // AuthProvider ko Supabase initialize hone se PEHLE create nahi
+  // karna chahiye.
+  //
+  // AuthProvider constructor immediately authStateChanges listen
+  // karta hai, jo SupabaseService().client access karta hai.
+  //
+  // Isliye initialization order:
+  //
+  // Supabase initialize
+  //        ↓
+  // AuthProvider create
+  //        ↓
+  // runApp
+  // ============================================================
+
   await _initializeApp(downloadsProvider);
+
+  // Supabase initialization attempt complete hone ke BAAD hi
+  // AuthProvider create karo.
+  final authProvider = AuthProvider();
 
   runApp(
     MewatiTunePlayerApp(
@@ -43,92 +57,196 @@ Future<void> main() async {
   );
 }
 
-Future<void> _initializeApp(DownloadsProvider downloadsProvider) async {
+Future<void> _initializeApp(
+  DownloadsProvider downloadsProvider,
+) async {
   try {
-    // Load environment variables (optional). Supabase/Sentry config no
-    // longer read from dotenv — this stays only in case other,
-    // non-critical parts of the app still want an optional .env.
+    // ============================================================
+    // OPTIONAL ENVIRONMENT FILE
+    // ============================================================
+
+    // Load environment variables (optional).
+    //
+    // Supabase/Sentry configuration dotenv se directly depend nahi
+    // karti, lekin optional .env doosre non-critical parts ke liye
+    // available reh sakti hai.
     try {
-      await dotenv.load(fileName: ".env");
+      await dotenv.load(fileName: '.env');
     } catch (e) {
-      // Optional file — app must keep booting without it. Logged only.
+      // .env optional hai.
+      // Missing hone par app startup block nahi hoga.
       debugPrint('Optional .env not loaded: $e');
     }
 
-    // Initialize just_audio background support (needed for playback).
-    // Bounded — a stuck platform-channel call here must not freeze the
-    // app on the launch icon forever.
+    // ============================================================
+    // JUST AUDIO BACKGROUND
+    // ============================================================
+
+    // Background audio support initialize karo.
+    //
+    // Timeout intentionally use kiya gaya hai taaki koi stuck
+    // platform-channel call native splash screen ko permanently
+    // hold na kare.
     try {
       await JustAudioBackground.init(
-        androidNotificationChannelId: 'com.mewatitune.player.channel.audio',
-        androidNotificationChannelName: 'Mewati Tune Player Playback',
+        androidNotificationChannelId:
+            'com.mewatitune.player.channel.audio',
+        androidNotificationChannelName:
+            'Mewati Tune Player Playback',
         androidNotificationOngoing: true,
-      ).timeout(const Duration(seconds: 8));
+      ).timeout(
+        const Duration(seconds: 8),
+      );
     } catch (e) {
-      debugPrint('JustAudioBackground.init failed/timed out: $e');
-      // Non-fatal at boot — playback will just lack the lock-screen
-      // notification if this failed; it must not block startup.
+      debugPrint(
+        'JustAudioBackground.init failed/timed out: $e',
+      );
+
+      // Non-fatal startup failure.
+      // App boot continue karega.
     }
 
-    // Initialize Supabase (bounded — a hung network call (dead/slow
-    // internet, paused Supabase project, DNS issues) must not freeze the
-    // app on the native launch icon forever; a plain try/catch does not
-    // help here because a hang is not an exception).
+    // ============================================================
+    // SUPABASE
+    // ============================================================
+
+    // IMPORTANT:
+    //
+    // AuthProvider create hone se pehle Supabase initialization
+    // yahin complete hota hai.
     try {
       await SupabaseService().initialize().timeout(
         const Duration(seconds: 10),
         onTimeout: () {
-          throw Exception('Supabase initialization timed out.');
+          throw TimeoutException(
+            'Supabase initialization timed out.',
+          );
         },
       );
+
+      DebugLogService().info(
+        'Supabase initialized successfully',
+      );
     } catch (e) {
-      debugPrint('Supabase init failed/timed out: $e');
+      debugPrint(
+        'Supabase init failed/timed out: $e',
+      );
+
+      DebugLogService().error(
+        'Supabase initialization failed: $e',
+      );
+
+      // IMPORTANT:
+      //
+      // Is failure ke baad app run karne ki koshish karne par
+      // AuthProvider Supabase client access karega.
+      //
+      // Isliye configuration/startup problem ko clearly surface
+      // karne ke liye exception rethrow kiya ja raha hai.
+      //
+      // Agar Supabase initialize nahi ho sakta, AuthProvider ko
+      // create karna safe nahi hai.
+      rethrow;
     }
 
-    // Initialize local cache (SharedPreferences). Bounded.
+    // ============================================================
+    // LOCAL CACHE
+    // ============================================================
+
     try {
       await LocalCacheService()
           .initialize()
-          .timeout(const Duration(seconds: 5));
+          .timeout(
+            const Duration(seconds: 5),
+          );
+
+      DebugLogService().info(
+        'Local cache initialized successfully',
+      );
     } catch (e) {
-      debugPrint('LocalCacheService.initialize failed/timed out: $e');
+      debugPrint(
+        'LocalCacheService.initialize failed/timed out: $e',
+      );
+
+      DebugLogService().error(
+        'Local cache initialization failed: $e',
+      );
+
+      // Cache failure fatal nahi hai.
+      // App network data ke saath continue kar sakta hai.
     }
 
-    // Initialize downloads provider (reads cached downloaded IDs). Bounded.
+    // ============================================================
+    // DOWNLOADS PROVIDER
+    // ============================================================
+
     try {
-      await downloadsProvider.initialize().timeout(const Duration(seconds: 5));
+      await downloadsProvider.initialize().timeout(
+        const Duration(seconds: 5),
+      );
+
+      DebugLogService().info(
+        'DownloadsProvider initialized successfully',
+      );
     } catch (e) {
-      debugPrint('DownloadsProvider.initialize failed/timed out: $e');
+      debugPrint(
+        'DownloadsProvider.initialize failed/timed out: $e',
+      );
+
+      DebugLogService().error(
+        'DownloadsProvider initialization failed: $e',
+      );
+
+      // Download cache/load failure startup ko block nahi karega.
     }
 
-    // Initialize Sentry only if a DSN was injected via --dart-define
-    // (Environment.sentryDsn — same no-hardcoded-fallback pattern as
-    // SupabaseConfig). Bounded, and never allowed to block/crash boot.
+    // ============================================================
+    // SENTRY
+    // ============================================================
+
+    // Sentry sirf tab initialize hoga jab DSN provided ho.
     if (Environment.sentryDsn.isNotEmpty) {
       try {
         await SentryFlutter.init(
           (options) {
             options.dsn = Environment.sentryDsn;
-            options.tracesSampleRate = Environment.sentryTracesSampleRate;
+            options.tracesSampleRate =
+                Environment.sentryTracesSampleRate;
           },
-        ).timeout(const Duration(seconds: 5));
+        ).timeout(
+          const Duration(seconds: 5),
+        );
+
+        DebugLogService().info(
+          'Sentry initialized successfully',
+        );
       } catch (e) {
-        debugPrint('SentryFlutter.init failed/timed out: $e');
+        debugPrint(
+          'SentryFlutter.init failed/timed out: $e',
+        );
+
+        DebugLogService().error(
+          'Sentry initialization failed: $e',
+        );
+
+        // Sentry failure app startup ko block nahi karega.
       }
     }
 
-    // Notification permission (Android 13+ POST_NOTIFICATIONS) is no longer
-    // requested here at bootstrap. It's now requested the first time the
-    // user actually starts playback — see PlayerService.setPlaylist, right
-    // before the first play() call — guarded so it only ever asks once.
+    // ============================================================
+    // STARTUP COMPLETE
+    // ============================================================
 
-    DebugLogService().info('App initialized successfully');
+    DebugLogService().info(
+      'App initialized successfully',
+    );
   } catch (e) {
-    DebugLogService().error('App initialization failed: $e');
-    // Deliberately not rethrown: the app still runs, and SplashScreen's own
-    // auth-restore attempt will surface a proper Retry/Continue Offline UI
-    // if Supabase/network is actually unreachable. Playback/API/DNS errors
-    // themselves are handled at the point each call happens (player, auth,
-    // search, etc.), not here — this is just startup bootstrapping.
+    DebugLogService().error(
+      'App initialization failed: $e',
+    );
+
+    // Supabase initialization fatal hai because AuthProvider
+    // Supabase client par depend karta hai.
+    rethrow;
   }
 }
