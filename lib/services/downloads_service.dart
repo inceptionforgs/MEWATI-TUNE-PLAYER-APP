@@ -1,5 +1,4 @@
-// File: lib/services/downloads_service.dart
-
+// FILE: lib/services/downloads_service.dart
 import 'dart:async';
 import 'dart:io';
 import 'package:flutter/foundation.dart' show kDebugMode, debugPrint;
@@ -38,7 +37,9 @@ class DownloadsService {
           return ext.toLowerCase();
         }
       }
-    } catch (_) {}
+    } catch (e) {
+      debugPrint('Failed to parse extension from audio URL "$audioUrl": $e');
+    }
     return 'm4a'; // default fallback
   }
 
