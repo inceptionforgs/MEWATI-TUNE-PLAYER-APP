@@ -1,6 +1,7 @@
 // FILE: lib/screens/downloads/downloads_screen.dart
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import '../../core/constants/app_dimensions.dart';
 import '../../core/widgets/song_row.dart';
 import '../../models/song.dart';
 import '../../providers/downloads_provider.dart';
@@ -173,7 +174,12 @@ class _DownloadsScreenState extends State<DownloadsScreen> {
     }
 
     return ListView.builder(
-      padding: const EdgeInsets.only(bottom: 16, top: 8),
+      // Bottom padding accounts for the mini-player bar overlaying the
+      // bottom of the screen, so the last row(s) aren't hidden behind it.
+      padding: EdgeInsets.only(
+        bottom: 16 + AppDimensions.miniPlayerHeight,
+        top: 8,
+      ),
       itemCount: downloadedSongs.length,
       itemBuilder: (context, index) {
         final song = downloadedSongs[index];
