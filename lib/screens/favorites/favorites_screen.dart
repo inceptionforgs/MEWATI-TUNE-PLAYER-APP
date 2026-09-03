@@ -1,3 +1,5 @@
+// File: lib/screens/favorites/favorites_screen.dart
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../core/constants/app_strings.dart';
@@ -22,8 +24,19 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
   @override
   void initState() {
     super.initState();
-    Future.microtask(() {
-      Provider.of<FavoritesProvider>(context, listen: false).loadFavorites();
+    Future.microtask(() async {
+      final favoritesProvider =
+          Provider.of<FavoritesProvider>(context, listen: false);
+      final likesProvider = Provider.of<LikesProvider>(context, listen: false);
+
+      await favoritesProvider.loadFavorites();
+
+      // Fixed (P5-2): Favorites screen previously never called
+      // loadLikesData at all, so hearts/like counts here relied on
+      // whatever another screen happened to have already loaded.
+      if (favoritesProvider.favoriteSongs.isNotEmpty) {
+        likesProvider.loadLikesData(favoritesProvider.favoriteSongs);
+      }
     });
   }
 
@@ -43,9 +56,25 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
         .cancelDownload(songId);
   }
 
-  void _removeDownload(String songId) {
-    Provider.of<DownloadsProvider>(context, listen: false)
-        .removeDownload(songId);
+  // Fixed: audioUrl is now required by DownloadsProvider.removeDownload
+  // (File 36) so the correct file/extension actually gets deleted, and the
+  // result is checked to show the right SnackBar.
+  Future<void> _removeDownload(Song song) async {
+    final downloadsProvider =
+        Provider.of<DownloadsProvider>(context, listen: false);
+    final success = await downloadsProvider.removeDownload(
+      song.id,
+      audioUrl: song.audioUrl,
+    );
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          success ? 'Removed from downloads' : 'Failed to remove download',
+        ),
+        backgroundColor: success ? const Color(0xFFE53935) : Colors.grey,
+      ),
+    );
   }
 
   Future<void> _toggleFavorite(Song song) async {
@@ -146,11 +175,11 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
 
     final favoriteSongs = favoritesProvider.favoriteSongs;
 
-    return ListView(
+    return ListView.builder(
       padding: const EdgeInsets.only(bottom: 16, top: 8),
-      children: favoriteSongs.asMap().entries.map((entry) {
-        final index = entry.key;
-        final song = entry.value;
+      itemCount: favoriteSongs.length,
+      itemBuilder: (context, index) {
+        final song = favoriteSongs[index];
         final isNow = currentSongId == song.id;
         final isDownloaded = downloadsProvider.isDownloaded(song.id);
         final isDownloading = downloadsProvider.isDownloading(song.id);
@@ -179,11 +208,11 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
             onToggleFavorite: () => _toggleFavorite(song),
             onDownload: () => _downloadSong(song),
             onCancelDownload: () => _cancelDownload(song.id),
-            onRemoveDownload: () => _removeDownload(song.id),
+            onRemoveDownload: () => _removeDownload(song),
             onToggleLike: () => likesProvider.toggleLike(song.id),
           ),
         );
-      }).toList(),
+      },
     );
   }
 }
