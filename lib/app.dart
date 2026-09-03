@@ -5,6 +5,7 @@ import 'core/constants/app_theme.dart';
 import 'core/constants/app_dimensions.dart';
 import 'core/widgets/debug_panel.dart';
 import 'core/widgets/mini_player_bar.dart';
+import 'services/player_service.dart';
 import 'providers/auth_provider.dart';
 import 'providers/player_provider.dart';
 import 'providers/songs_provider.dart';
@@ -65,7 +66,8 @@ class MewatiTunePlayerApp extends StatefulWidget {
   State<MewatiTunePlayerApp> createState() => _MewatiTunePlayerAppState();
 }
 
-class _MewatiTunePlayerAppState extends State<MewatiTunePlayerApp> {
+class _MewatiTunePlayerAppState extends State<MewatiTunePlayerApp>
+    with WidgetsBindingObserver {
   final GlobalKey<NavigatorState> _navigatorKey = GlobalKey<NavigatorState>();
   final ValueNotifier<String?> _currentRouteName = ValueNotifier<String?>(null);
   late final _MiniPlayerRouteObserver _routeObserver;
@@ -76,12 +78,28 @@ class _MewatiTunePlayerAppState extends State<MewatiTunePlayerApp> {
     _routeObserver = _MiniPlayerRouteObserver(
       (name) => _currentRouteName.value = name,
     );
+    WidgetsBinding.instance.addObserver(this);
   }
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _currentRouteName.dispose();
     super.dispose();
+  }
+
+  // Item 15: wire PlayerService's lifecycle handling into the app's real
+  // lifecycle. Only AppLifecycleState.detached (app process actually being
+  // torn down) calls handleAppDetached() — a normal pause/resume/inactive
+  // transition must NOT interrupt background playback, and
+  // PlayerService().dispose() (full AudioPlayer teardown) is intentionally
+  // never called from here, matching the existing method split in
+  // player_service.dart.
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.detached) {
+      PlayerService().handleAppDetached();
+    }
   }
 
   @override
