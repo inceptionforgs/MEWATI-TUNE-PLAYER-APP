@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:just_audio/just_audio.dart';
 import 'package:provider/provider.dart';
@@ -26,6 +28,10 @@ class _CustomEqualizerSectionState extends State<CustomEqualizerSection> {
 
   bool _loading = true;
   bool _supported = true;
+  // NEW: distinguishes "device genuinely has no AndroidEqualizer" from
+  // "the native call just never responded" so the message shown below
+  // is accurate either way.
+  bool _timedOut = false;
   AndroidEqualizerParameters? _params;
   List<double> _bandGains = [];
   double _bassBoost = 0.0;
@@ -45,7 +51,24 @@ class _CustomEqualizerSectionState extends State<CustomEqualizerSection> {
       return;
     }
 
-    final params = await _equalizerService.getBandParameters();
+    // NEW: getBandParameters() awaits just_audio's native
+    // `equalizer.parameters` getter, which only resolves once the
+    // AndroidEqualizer is actually attached to a live AudioPipeline. If
+    // that never happens (no player loaded yet on this device, or the
+    // native effect fails to attach), the Future never completes and the
+    // spinner in build() below spins forever. A hard timeout guarantees
+    // this screen always settles into either the sliders or the
+    // "not available" message.
+    AndroidEqualizerParameters? params;
+    try {
+      params = await _equalizerService.getBandParameters().timeout(
+        const Duration(seconds: 4),
+      );
+    } on TimeoutException {
+      params = null;
+      _timedOut = true;
+    }
+
     if (params == null) {
       if (!mounted) return;
       setState(() {
@@ -124,7 +147,12 @@ class _CustomEqualizerSectionState extends State<CustomEqualizerSection> {
       return Padding(
         padding: const EdgeInsets.all(16),
         child: Text(
-          'Custom Equalizer is only available on Android devices.',
+          _timedOut
+              // CHANGED: previously always said "only available on Android
+              // devices" even when running ON Android and the real problem
+              // was the native call timing out.
+              ? 'Custom Equalizer could not be loaded on this device. Try playing a song first, then reopen this screen.'
+              : 'Custom Equalizer is only available on Android devices.',
           style: TextStyle(color: t.textSecondary),
         ),
       );
