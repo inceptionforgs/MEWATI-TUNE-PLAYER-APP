@@ -21,14 +21,27 @@ class SongsScreen extends StatefulWidget {
 
 class _SongsScreenState extends State<SongsScreen> {
   final ScrollController _scrollController = ScrollController();
+  SongsProvider? _songsProvider;
 
   @override
   void initState() {
     super.initState();
     Future.microtask(() {
+      if (!mounted) return;
       final songsProvider = Provider.of<SongsProvider>(context, listen: false);
+      _songsProvider = songsProvider;
+      // Fixed (Serial 7): re-load like data whenever the song list changes
+      // (first load, load-more, cache fallback) — covers every case, not
+      // just the very first load.
+      songsProvider.addListener(_onSongsChanged);
+
       if (songsProvider.allSongs.isEmpty) {
-        songsProvider.loadSongs();
+        songsProvider.loadSongs().then((_) {
+          if (!mounted) return;
+          _loadLikesForCurrentSongs();
+        });
+      } else {
+        _loadLikesForCurrentSongs();
       }
       // Removed duplicate loadFavorites() – FavoritesScreen (mounted in IndexedStack) already handles it.
     });
@@ -36,8 +49,21 @@ class _SongsScreenState extends State<SongsScreen> {
     _scrollController.addListener(_onScroll);
   }
 
+  void _onSongsChanged() {
+    if (!mounted) return;
+    _loadLikesForCurrentSongs();
+  }
+
+  void _loadLikesForCurrentSongs() {
+    final songsProvider = Provider.of<SongsProvider>(context, listen: false);
+    if (songsProvider.allSongs.isEmpty) return;
+    Provider.of<LikesProvider>(context, listen: false)
+        .loadLikesData(songsProvider.allSongs);
+  }
+
   @override
   void dispose() {
+    _songsProvider?.removeListener(_onSongsChanged);
     _scrollController.dispose();
     super.dispose();
   }
