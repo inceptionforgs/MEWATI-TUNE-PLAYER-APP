@@ -1,5 +1,8 @@
+// File: lib/services/downloads_service.dart
+
 import 'dart:async';
 import 'dart:io';
+import 'package:flutter/foundation.dart' show kDebugMode, debugPrint;
 import 'package:background_downloader/background_downloader.dart';
 import 'package:path_provider/path_provider.dart';
 import '../models/song.dart';
@@ -114,7 +117,9 @@ class DownloadsService {
       try {
         await deleteSong(song.id, audioUrl: song.audioUrl);
       } catch (cleanupError) {
-        print('Failed to clean up partial download for ${song.id}: $cleanupError');
+        if (kDebugMode) {
+          debugPrint('Failed to clean up partial download for ${song.id}: $cleanupError');
+        }
       }
       throw Exception('Download failed: ${e.toString()}');
     }
