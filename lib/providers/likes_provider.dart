@@ -5,7 +5,13 @@ import '../models/song.dart';
 import '../services/like_service.dart';
 
 class LikesProvider extends ChangeNotifier {
-  final LikeService _likeService = LikeService();
+  final LikeService _likeService;
+
+  // Fixed (Serial 17): LikeService is now optionally injectable so tests
+  // can pass a fake implementation instead of the real Supabase-backed
+  // singleton. Default behavior (no argument) is unchanged.
+  LikesProvider({LikeService? likeService})
+      : _likeService = likeService ?? LikeService();
 
   final Set<String> _likedSongIds = {};
   final Map<String, int> _likeCounts = {};
