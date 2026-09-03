@@ -1,3 +1,5 @@
+// File: lib/providers/downloads_provider.dart
+
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/song.dart';
@@ -99,6 +101,12 @@ class DownloadsProvider with ChangeNotifier {
         song,
         onProgress: (progress, total) {
           _downloadProgress[song.id] = progress;
+          // Granular per-song progress lives on progressNotifier, which
+          // SongRow (File 21) should consume via ValueListenableBuilder so
+          // only that row rebuilds. Deliberately NOT calling notifyListeners()
+          // here on every tick — doing so would defeat the point of having
+          // progressNotifier at all (whole list would rebuild ~every 100ms
+          // during a download, same battery/perf problem as P5-1).
           progressNotifier.value = Map.unmodifiable(_downloadProgress);
         },
       );
@@ -113,6 +121,7 @@ class DownloadsProvider with ChangeNotifier {
       progressNotifier.value = Map.unmodifiable(_downloadProgress);
       notifyListeners();
       debugPrint("Download Error: $e");
+      rethrow; // let the calling screen show a SnackBar (P5-9 error-handling path)
     }
   }
 
@@ -124,11 +133,29 @@ class DownloadsProvider with ChangeNotifier {
     notifyListeners();
   }
 
-  Future<void> removeDownload(String songId, {String? audioUrl}) async {
-    await _downloadsService.deleteSong(songId, audioUrl: audioUrl);
-    _downloadedSongIds.remove(songId);
-    await _saveCache();
-    notifyListeners();
+  /// Fixed: `audioUrl` is now REQUIRED, not optional. Previously many call
+  /// sites called `removeDownload(songId)` with no audioUrl, and
+  /// `getLocalSongPath` silently defaulted to `.m4a` — so an mp3 file's
+  /// actual bytes were never deleted from disk, only the id was dropped
+  /// from the cache. Making this required forces every call site to pass
+  /// the real audioUrl so the correct extension/path is resolved.
+  ///
+  /// Also fixed: if the underlying file delete fails, the id is now KEPT
+  /// in `_downloadedSongIds` (previously it was dropped unconditionally,
+  /// causing silent data loss where the app "forgets" a file it never
+  /// actually deleted). Returns true on success, false on failure so the
+  /// calling screen can show a SnackBar.
+  Future<bool> removeDownload(String songId, {required String audioUrl}) async {
+    try {
+      await _downloadsService.deleteSong(songId, audioUrl: audioUrl);
+      _downloadedSongIds.remove(songId);
+      await _saveCache();
+      notifyListeners();
+      return true;
+    } catch (e) {
+      debugPrint('Failed to remove download for $songId: $e');
+      return false;
+    }
   }
 
   @override
