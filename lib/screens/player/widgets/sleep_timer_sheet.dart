@@ -1,17 +1,18 @@
+// File: lib/screens/player/widgets/sleep_timer_sheet.dart
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../../core/constants/app_strings.dart';
+import '../../../core/extensions/duration_extensions.dart';
 import '../../../providers/sleep_timer_provider.dart';
 import '../../../providers/theme_provider.dart';
 
 class SleepTimerSheet extends StatelessWidget {
   const SleepTimerSheet({Key? key}) : super(key: key);
 
-  String _formatDuration(Duration duration) {
-    final minutes = duration.inMinutes.remainder(60).toString().padLeft(2, '0');
-    final seconds = duration.inSeconds.remainder(60).toString().padLeft(2, '0');
-    return '$minutes:$seconds';
-  }
+  // Fixed: was `inMinutes.remainder(60)`, which drops the hour count once
+  // remaining time passes 60 minutes. asCompact handles h:mm:ss correctly.
+  String _formatDuration(Duration duration) => duration.asCompact;
 
   @override
   Widget build(BuildContext context) {
@@ -30,7 +31,6 @@ class SleepTimerSheet extends StatelessWidget {
     };
 
     // Use provider's totalDuration (original selected) for accurate highlighting.
-    // Ensure SleepTimerProvider exposes totalDuration (to be delivered in provider file).
     final activeDuration = sleepTimerProvider.totalDuration;
 
     return Container(
