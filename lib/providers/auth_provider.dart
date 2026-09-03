@@ -1,6 +1,8 @@
+// FILE: lib/providers/auth_provider.dart
 import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../core/utils/error_handler.dart';
 import '../models/profile.dart';
 import '../services/auth_service.dart';
 
@@ -57,7 +59,9 @@ class AuthProvider extends ChangeNotifier {
           await Future.delayed(Duration(milliseconds: 300 * (attempt + 1)));
           try {
             await _authService.signInAnonymously();
-          } catch (_) {}
+          } catch (e) {
+            debugPrint('Retry signInAnonymously attempt $attempt failed: $e');
+          }
           profile = await _authService.fetchProfile();
         }
       }
@@ -66,7 +70,7 @@ class AuthProvider extends ChangeNotifier {
       onSessionReady?.call();
     } catch (e) {
       _profile = null;
-      _errorMessage = 'Failed to start session: ${e.toString()}';
+      _errorMessage = 'Failed to start session: ${ErrorHandler.getMessage(e)}';
     } finally {
       _isLoading = false;
       notifyListeners();
@@ -82,7 +86,7 @@ class AuthProvider extends ChangeNotifier {
       await _authService.signOut();
       _profile = null;
     } catch (e) {
-      _errorMessage = e.toString();
+      _errorMessage = ErrorHandler.getMessage(e);
     } finally {
       _isLoading = false;
       notifyListeners();
