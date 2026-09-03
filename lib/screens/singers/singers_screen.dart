@@ -126,6 +126,8 @@ class _SingersScreenState extends State<SingersScreen> {
                         imageUrl: singer.photoUrl!,
                         fit: BoxFit.cover,
                         cacheManager: AppCacheManager.instance, // <-- added
+                        memCacheWidth: 160,
+                        memCacheHeight: 160,
                         placeholder: (context, url) => Center(
                           child: Text(
                             initial,
