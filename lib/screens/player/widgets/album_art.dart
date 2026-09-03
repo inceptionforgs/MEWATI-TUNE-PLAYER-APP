@@ -19,10 +19,8 @@ class AlbumArt extends StatelessWidget {
       height: 230,
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(20),
-        // Fixed: was a hardcoded gradient (Color(0xFF2A170D), Color(0xFF120C08))
-        // that never changed with the active theme. Now derived from theme
-        // tokens so Deep Black / Apple Green / Walkman Orange all render a
-        // consistent placeholder gradient instead of a leftover fixed one.
+        // Theme-derived gradient (fixed in File 42) instead of a hardcoded
+        // pair of colors that never changed with the active theme.
         gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
@@ -46,7 +44,13 @@ class AlbumArt extends StatelessWidget {
               child: CachedNetworkImage(
                 imageUrl: song.coverImageUrl!,
                 fit: BoxFit.cover,
-                cacheManager: AppCacheManager.instance, // <-- added
+                cacheManager: AppCacheManager.instance,
+                // Fixed (P5-7): cap decoded bitmap size in memory. Without
+                // this, a large source image (e.g. a 3000x3000 cover) gets
+                // decoded at full resolution just to be shown at 230x230,
+                // wasting memory per song as the user scrolls/plays.
+                memCacheWidth: 512,
+                memCacheHeight: 512,
                 placeholder: (context, url) =>
                     Icon(Icons.music_note, color: t.textPrimary, size: 64),
                 errorWidget: (context, url, error) =>
