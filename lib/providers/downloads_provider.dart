@@ -1,5 +1,6 @@
 // File: lib/providers/downloads_provider.dart
 
+import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/song.dart';
@@ -12,11 +13,18 @@ class DownloadsProvider with ChangeNotifier {
   final Map<String, double> _downloadProgress = {};
   static const String _prefsKey = 'downloaded_song_ids';
 
+  // Full Song data per downloaded id, persisted as JSON — needed so the
+  // Downloads tab (File 37) can list every downloaded song regardless of
+  // whether it's in SongsProvider's currently-loaded (paginated) page.
+  final Map<String, Song> _downloadedSongsData = {};
+  static const String _songsPrefsKey = 'downloaded_songs_json';
+
   final ValueNotifier<Map<String, double>> progressNotifier =
       ValueNotifier<Map<String, double>>({});
 
   Set<String> get downloadedSongIds => _downloadedSongIds;
   Map<String, double> get downloadProgress => _downloadProgress;
+  List<Song> get downloadedSongsList => _downloadedSongsData.values.toList();
 
   bool isDownloaded(String songId) => _downloadedSongIds.contains(songId);
   bool isDownloading(String songId) => _downloadProgress.containsKey(songId);
@@ -24,16 +32,37 @@ class DownloadsProvider with ChangeNotifier {
 
   Future<void> initialize() async {
     final prefs = await SharedPreferences.getInstance();
+
     final cached = prefs.getStringList(_prefsKey) ?? [];
     _downloadedSongIds
       ..clear()
       ..addAll(cached);
+
+    final cachedSongsJson = prefs.getStringList(_songsPrefsKey) ?? [];
+    _downloadedSongsData.clear();
+    for (final jsonStr in cachedSongsJson) {
+      try {
+        final song = Song.fromJson(jsonDecode(jsonStr) as Map<String, dynamic>);
+        _downloadedSongsData[song.id] = song;
+      } catch (e) {
+        debugPrint('Failed to decode cached downloaded song: $e');
+      }
+    }
+
     notifyListeners();
   }
 
   Future<void> _saveCache() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setStringList(_prefsKey, _downloadedSongIds.toList());
+  }
+
+  Future<void> _saveSongsCache() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setStringList(
+      _songsPrefsKey,
+      _downloadedSongsData.values.map((s) => jsonEncode(s.toJson())).toList(),
+    );
   }
 
   Future<void> checkExistingDownloads(List<Song> allSongs) async {
@@ -62,11 +91,13 @@ class DownloadsProvider with ChangeNotifier {
     for (int i = 0; i < toCheck.length; i++) {
       if (results[i]) {
         _downloadedSongIds.add(toCheck[i].id);
+        _downloadedSongsData[toCheck[i].id] = toCheck[i];
       }
     }
 
     await _verifyCachedFiles(allSongs);
     await _saveCache();
+    await _saveSongsCache();
     notifyListeners();
   }
 
@@ -80,6 +111,7 @@ class DownloadsProvider with ChangeNotifier {
           );
           if (!exists) {
             _downloadedSongIds.remove(song.id);
+            _downloadedSongsData.remove(song.id);
           }
         } catch (e) {
           debugPrint('Cache verification failed for ${song.id}: $e');
@@ -87,6 +119,7 @@ class DownloadsProvider with ChangeNotifier {
       }
     }
     await _saveCache();
+    await _saveSongsCache();
   }
 
   Future<void> downloadSong(Song song) async {
@@ -114,7 +147,9 @@ class DownloadsProvider with ChangeNotifier {
       _downloadProgress.remove(song.id);
       progressNotifier.value = Map.unmodifiable(_downloadProgress);
       _downloadedSongIds.add(song.id);
+      _downloadedSongsData[song.id] = song;
       await _saveCache();
+      await _saveSongsCache();
       notifyListeners();
     } catch (e) {
       _downloadProgress.remove(song.id);
@@ -141,15 +176,17 @@ class DownloadsProvider with ChangeNotifier {
   /// the real audioUrl so the correct extension/path is resolved.
   ///
   /// Also fixed: if the underlying file delete fails, the id is now KEPT
-  /// in `_downloadedSongIds` (previously it was dropped unconditionally,
-  /// causing silent data loss where the app "forgets" a file it never
-  /// actually deleted). Returns true on success, false on failure so the
-  /// calling screen can show a SnackBar.
+  /// in `_downloadedSongIds` / `_downloadedSongsData` (previously it was
+  /// dropped unconditionally, causing silent data loss where the app
+  /// "forgets" a file it never actually deleted). Returns true on success,
+  /// false on failure so the calling screen can show a SnackBar.
   Future<bool> removeDownload(String songId, {required String audioUrl}) async {
     try {
       await _downloadsService.deleteSong(songId, audioUrl: audioUrl);
       _downloadedSongIds.remove(songId);
+      _downloadedSongsData.remove(songId);
       await _saveCache();
+      await _saveSongsCache();
       notifyListeners();
       return true;
     } catch (e) {
