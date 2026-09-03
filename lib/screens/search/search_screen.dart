@@ -7,7 +7,6 @@ import '../../core/widgets/error_widget.dart';
 import '../../models/song.dart';
 import '../../models/singer.dart';
 import '../../providers/songs_provider.dart';
-import '../../providers/singers_provider.dart';
 import '../../providers/likes_provider.dart';
 import '../../providers/theme_provider.dart';
 import '../../services/singers_service.dart';
