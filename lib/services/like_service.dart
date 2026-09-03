@@ -36,6 +36,28 @@ class LikeService {
     }
   }
 
+  /// Fixed (Serial 4): LikesProvider.loadLikesData() calls this to batch-check
+  /// liked status for many songs in ONE request, instead of one query per song.
+  /// Returns the subset of [songIds] that the current user has liked.
+  Future<Set<String>> getLikedSongIds(List<String> songIds) async {
+    final userId = _supabase.auth.currentUser?.id;
+    if (userId == null || songIds.isEmpty) return {};
+
+    try {
+      final response = await _supabase
+          .from('likes')
+          .select('song_id')
+          .eq('user_id', userId)
+          .inFilter('song_id', songIds);
+
+      return (response as List)
+          .map((row) => row['song_id'] as String)
+          .toSet();
+    } catch (e) {
+      return {};
+    }
+  }
+
   /// Toggles the current user's like on [songId] via the single
   /// `toggle_like` RPC (SECURITY DEFINER, requires auth.uid()).
   /// The RPC does the likes insert/delete AND the songs.like_count
