@@ -6,7 +6,6 @@ import 'package:just_audio/just_audio.dart';
 import '../../providers/player_provider.dart';
 import '../../providers/theme_provider.dart';
 import '../../routes/route_names.dart';
-import '../../app.dart';
 import '../extensions/duration_extensions.dart';
 
 class MiniPlayerBar extends StatelessWidget {
@@ -65,13 +64,7 @@ class MiniPlayerBar extends StatelessWidget {
         children: [
           // Header row (tap to open now playing)
           GestureDetector(
-            // CHANGED: was Navigator.of(context) — this widget sits
-            // outside the app's Navigator subtree (it's a sibling in
-            // app.dart's Stack, not a descendant), so that call found
-            // no Navigator and silently did nothing. Using the shared
-            // key reaches the real Navigator directly.
-            onTap: () => MewatiTunePlayerApp.navigatorKey.currentState
-                ?.pushNamed(RouteNames.nowPlaying),
+            onTap: () => Navigator.of(context).pushNamed(RouteNames.nowPlaying),
             child: Row(
               children: [
                 Expanded(
@@ -161,11 +154,8 @@ class MiniPlayerBar extends StatelessWidget {
                     color: t.textPrimary.withOpacity(0.85),
                   ),
                   tooltip: 'Drive Mode',
-                  // CHANGED: was Navigator.of(context) — same root
-                  // cause as the header tap above, this is why the Drive
-                  // Mode icon looked like it did nothing when tapped.
-                  onPressed: () => MewatiTunePlayerApp.navigatorKey
-                      .currentState?.pushNamed(RouteNames.driveMode),
+                  onPressed: () =>
+                      Navigator.of(context).pushNamed(RouteNames.driveMode),
                 ),
               ),
               Row(
@@ -316,28 +306,43 @@ class _MiniPlayerSliderState extends State<_MiniPlayerSlider> {
 
             return Column(
               children: [
-                SliderTheme(
-                  data: SliderTheme.of(context).copyWith(
-                    trackHeight: 3,
-                    thumbShape:
-                        const RoundSliderThumbShape(enabledThumbRadius: 7),
-                    overlayShape: SliderComponentShape.noOverlay,
-                    activeTrackColor: widget.activeTrackColor,
-                    inactiveTrackColor: widget.inactiveTrackColor,
-                    thumbColor: widget.thumbColor,
-                  ),
-                  child: Slider(
-                    value: pct,
-                    onChanged: (v) {
-                      setState(() => _dragValue = v);
-                    },
-                    onChangeEnd: (v) {
-                      final newPos = Duration(
-                        milliseconds: (v * duration.inMilliseconds).round(),
-                      );
-                      widget.onSeek(newPos);
-                      setState(() => _dragValue = null);
-                    },
+                // FIX: Slider's RenderObject expands to fill maxHeight
+                // whenever it receives a *bounded* (but not tight) height
+                // constraint — which is exactly what happens here, since
+                // MiniPlayerBar sits inside a Positioned(left/right/bottom)
+                // in app.dart with no `top`/height given. That makes the
+                // Stack hand this whole subtree a bounded maxHeight equal
+                // to the full screen height, and the Slider claims all of
+                // it (even though visually only the thin track/thumb show).
+                // Wrapping it in a fixed-height SizedBox gives it a tight
+                // constraint instead, so it can never expand like this
+                // again regardless of what unbounded/bounded context it's
+                // placed in later.
+                SizedBox(
+                  height: 36,
+                  child: SliderTheme(
+                    data: SliderTheme.of(context).copyWith(
+                      trackHeight: 3,
+                      thumbShape:
+                          const RoundSliderThumbShape(enabledThumbRadius: 7),
+                      overlayShape: SliderComponentShape.noOverlay,
+                      activeTrackColor: widget.activeTrackColor,
+                      inactiveTrackColor: widget.inactiveTrackColor,
+                      thumbColor: widget.thumbColor,
+                    ),
+                    child: Slider(
+                      value: pct,
+                      onChanged: (v) {
+                        setState(() => _dragValue = v);
+                      },
+                      onChangeEnd: (v) {
+                        final newPos = Duration(
+                          milliseconds: (v * duration.inMilliseconds).round(),
+                        );
+                        widget.onSeek(newPos);
+                        setState(() => _dragValue = null);
+                      },
+                    ),
                   ),
                 ),
                 const SizedBox(height: 4),
