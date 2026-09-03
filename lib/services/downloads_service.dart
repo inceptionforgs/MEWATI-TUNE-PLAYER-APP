@@ -64,7 +64,7 @@ class DownloadsService {
       if (event is TaskProgressUpdate) {
         final callback = _progressCallbacks[event.task.taskId];
         if (callback != null) {
-          callback(event.progress, event.expectedFileSize ?? 0);
+          callback(event.progress, event.expectedFileSize);
         }
       }
     });
