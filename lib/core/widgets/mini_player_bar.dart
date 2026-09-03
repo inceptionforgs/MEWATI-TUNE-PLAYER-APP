@@ -20,6 +20,13 @@ class MiniPlayerBar extends StatelessWidget {
     final song = context.select<PlayerProvider, dynamic>((p) => p.currentSong);
     final hasSong = song != null;
     final isPlaying = context.select<PlayerProvider, bool>((p) => p.isPlaying);
+    // Fixed (Item 7): loading spinner tied to PlayerProvider.isLoading,
+    // shown in place of the mini-player's play/pause icon while a playlist
+    // is loading; and errorMessage surfaced as a small inline banner with
+    // a retry action.
+    final isLoading = context.select<PlayerProvider, bool>((p) => p.isLoading);
+    final errorMessage =
+        context.select<PlayerProvider, String?>((p) => p.errorMessage);
     final loopMode = context.select<PlayerProvider, LoopMode>((p) => p.loopMode);
     final currentQueueIndex =
         context.select<PlayerProvider, int>((p) => p.currentQueueIndex);
@@ -88,6 +95,40 @@ class MiniPlayerBar extends StatelessWidget {
               ],
             ),
           ),
+          // Fixed (Item 7): inline error banner with retry, shown when
+          // PlayerProvider.errorMessage is set (e.g. playback failed).
+          if (errorMessage != null) ...[
+            const SizedBox(height: 8),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+              decoration: BoxDecoration(
+                color: Colors.red.withOpacity(0.12),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.error_outline, color: Colors.redAccent, size: 18),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      errorMessage,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(color: Colors.redAccent, fontSize: 12),
+                    ),
+                  ),
+                  TextButton(
+                    onPressed: () {
+                      playerProvider.clearError();
+                      playerProvider.togglePlayPause();
+                    },
+                    child: const Text('Retry', style: TextStyle(fontSize: 12)),
+                  ),
+                ],
+              ),
+            ),
+          ],
           const SizedBox(height: 10),
           // Slider and time section (not tappable to navigate)
           _MiniPlayerSlider(
@@ -127,14 +168,32 @@ class MiniPlayerBar extends StatelessWidget {
                     iconColor: t.textPrimary,
                   ),
                   const SizedBox(width: 16),
-                  _circleButton(
-                    icon: isPlaying ? Icons.pause : Icons.play_arrow,
-                    size: 58,
-                    iconSize: 26,
-                    onTap: () => playerProvider.togglePlayPause(),
-                    borderColor: t.textPrimary,
-                    iconColor: t.textPrimary,
-                  ),
+                  // Fixed (Item 7): show a spinner instead of the
+                  // play/pause icon while PlayerProvider.isLoading.
+                  isLoading
+                      ? Semantics(
+                          label: 'Loading',
+                          child: SizedBox(
+                            width: 58,
+                            height: 58,
+                            child: Padding(
+                              padding: const EdgeInsets.all(16),
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2.5,
+                                valueColor:
+                                    AlwaysStoppedAnimation<Color>(t.textPrimary),
+                              ),
+                            ),
+                          ),
+                        )
+                      : _circleButton(
+                          icon: isPlaying ? Icons.pause : Icons.play_arrow,
+                          size: 58,
+                          iconSize: 26,
+                          onTap: () => playerProvider.togglePlayPause(),
+                          borderColor: t.textPrimary,
+                          iconColor: t.textPrimary,
+                        ),
                   const SizedBox(width: 16),
                   _circleButton(
                     icon: Icons.skip_next,
