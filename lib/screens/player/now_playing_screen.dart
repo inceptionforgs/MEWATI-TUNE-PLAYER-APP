@@ -1,5 +1,3 @@
-// File: lib/screens/player/now_playing_screen.dart
-
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../core/widgets/app_drawer.dart';
@@ -40,6 +38,11 @@ class _NowPlayingScreenState extends State<NowPlayingScreen> {
     // Use context.select to avoid rebuilding whole screen on every position tick.
     final hasSong = context.select<PlayerProvider, bool>((p) => p.hasSong);
     final song = context.select<PlayerProvider, dynamic>((p) => p.currentSong);
+    // Fixed (Item 7): surface PlayerProvider.errorMessage as a banner with
+    // a retry action, since playback/seek/next/previous failures set it
+    // but nothing displayed it before.
+    final errorMessage =
+        context.select<PlayerProvider, String?>((p) => p.errorMessage);
 
     if (!hasSong || song == null) {
       return Scaffold(
@@ -135,6 +138,65 @@ class _NowPlayingScreenState extends State<NowPlayingScreen> {
                       ),
                     ),
                     const SizedBox(height: 16),
+                    // Fixed (Item 7): error banner + retry, shown when
+                    // PlayerProvider.errorMessage is set.
+                    if (errorMessage != null)
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 10),
+                        child: Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                          decoration: BoxDecoration(
+                            color: Colors.red.withOpacity(0.12),
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                children: [
+                                  const Icon(Icons.error_outline,
+                                      color: Colors.redAccent, size: 18),
+                                  const SizedBox(width: 8),
+                                  Expanded(
+                                    child: Text(
+                                      'Unable to play this song',
+                                      style: TextStyle(
+                                        color: Colors.redAccent,
+                                        fontSize: 13,
+                                        fontWeight: FontWeight.w700,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                errorMessage,
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(
+                                  color: t.textPrimary.withOpacity(0.75),
+                                  fontSize: 12,
+                                ),
+                              ),
+                              Align(
+                                alignment: Alignment.centerRight,
+                                child: TextButton.icon(
+                                  onPressed: () {
+                                    final playerProvider =
+                                        context.read<PlayerProvider>();
+                                    playerProvider.clearError();
+                                    playerProvider.togglePlayPause();
+                                  },
+                                  icon: const Icon(Icons.refresh, size: 16),
+                                  label: const Text('Retry'),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
                     NowPlayingActions(
                       song: song,
                       onTimerTap: _openSleepTimerSheet,
