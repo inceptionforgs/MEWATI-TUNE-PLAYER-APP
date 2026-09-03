@@ -1,5 +1,8 @@
+// File: lib/screens/player/widgets/seek_bar.dart
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import '../../../core/extensions/duration_extensions.dart';
 import '../../../providers/player_provider.dart';
 import '../../../providers/theme_provider.dart';
 
@@ -12,11 +15,6 @@ class SeekBar extends StatefulWidget {
 
 class _SeekBarState extends State<SeekBar> {
   double? _dragValue;
-
-  String _fmt(Duration d) {
-    String two(int n) => n.toString().padLeft(2, '0');
-    return '${two(d.inMinutes.remainder(60))}:${two(d.inSeconds.remainder(60))}';
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -64,7 +62,7 @@ class _SeekBarState extends State<SeekBar> {
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     Text(
-                      _fmt(position),
+                      position.asCompact,
                       style: TextStyle(
                         color: t.textPrimary.withOpacity(0.75),
                         fontSize: 12,
@@ -72,7 +70,7 @@ class _SeekBarState extends State<SeekBar> {
                       ),
                     ),
                     Text(
-                      _fmt(duration),
+                      duration.asCompact,
                       style: TextStyle(
                         color: t.textPrimary.withOpacity(0.75),
                         fontSize: 12,
