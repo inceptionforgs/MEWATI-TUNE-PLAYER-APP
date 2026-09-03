@@ -9,6 +9,7 @@ class _FakeTheme {
   final Color surface = Colors.grey;
   final Color textPrimary = Colors.white;
   final Color accent = Colors.deepOrange;
+  final Color background = Colors.black;
 }
 
 Widget _wrap(Widget child) => MaterialApp(home: Scaffold(body: child));
