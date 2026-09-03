@@ -66,7 +66,14 @@ class FakeDownloadsService implements DownloadsService {
   @override
   Future<void> cancelDownload(String songId) async {
     cancelCallCount++;
-    _pendingDownloads.remove(songId);
+    // Fixed: complete the pending completer before dropping it, so a
+    // downloadSong() call that's currently awaiting `pending.future`
+    // (see above) actually resolves instead of hanging forever. Previously
+    // this only removed the completer from the map without completing it,
+    // which caused an in-flight downloadSong() to await a completer no one
+    // could ever complete (the test's own completePendingDownload() found
+    // nothing left to complete, since it had already been removed here).
+    _pendingDownloads.remove(songId)?.complete();
     existingFiles.remove(songId);
   }
 
