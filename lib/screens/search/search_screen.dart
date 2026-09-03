@@ -102,9 +102,13 @@ class _SearchScreenState extends State<SearchScreen> {
         _isLoading = false;
       });
 
-      // Load likes for the found songs
+      // Load likes for the found songs.
+      // Fixed: loadLikesData requires List<Song>, not List<String> — was
+      // passing .map((s) => s.id).toList() (same class of compile-blocking
+      // type-mismatch bug already fixed elsewhere for trending/singer
+      // profile/downloads screens).
       final likesProvider = Provider.of<LikesProvider>(context, listen: false);
-      likesProvider.loadLikesData(_songResults.map((s) => s.id).toList());
+      likesProvider.loadLikesData(_songResults);
     } catch (e) {
       if (!mounted || gen != _searchGeneration) return;
       setState(() {
