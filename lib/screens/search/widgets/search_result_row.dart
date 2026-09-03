@@ -67,7 +67,8 @@ class SearchResultRow extends StatelessWidget {
         onToggleFavorite: () => favoritesProvider.toggleFavorite(song),
         onDownload: () => downloadsProvider.downloadSong(song),
         onCancelDownload: () => downloadsProvider.cancelDownload(song.id),
-        onRemoveDownload: () => downloadsProvider.removeDownload(song.id),
+        onRemoveDownload: () =>
+            downloadsProvider.removeDownload(song.id, audioUrl: song.audioUrl),
         onToggleLike: () => likesProvider.toggleLike(song.id),
       ),
     );
