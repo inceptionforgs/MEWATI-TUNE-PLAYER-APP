@@ -1,3 +1,4 @@
+// FILE: lib/screens/player/widgets/now_playing_actions.dart
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../../models/song.dart';
@@ -19,6 +20,32 @@ class NowPlayingActions extends StatelessWidget {
     required this.onTimerTap,
     required this.onEqualizerTap,
   }) : super(key: key);
+
+  static void _showFailureSnackBar(BuildContext context, String message) {
+    if (!context.mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(message), backgroundColor: Colors.grey),
+    );
+  }
+
+  static Future<void> _toggleFavorite(
+      BuildContext context, FavoritesProvider favoritesProvider, Song song) async {
+    await favoritesProvider.toggleFavorite(song);
+    if (!context.mounted) return;
+    if (favoritesProvider.errorMessage != null) {
+      _showFailureSnackBar(context, 'Something went wrong. Please try again.');
+      favoritesProvider.clearError();
+    }
+  }
+
+  static Future<void> _toggleLike(
+      BuildContext context, LikesProvider likesProvider, String songId) async {
+    await likesProvider.toggleLike(songId);
+    if (!context.mounted) return;
+    if (likesProvider.errorMessage != null) {
+      _showFailureSnackBar(context, 'Something went wrong. Please try again.');
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -50,7 +77,7 @@ class NowPlayingActions extends StatelessWidget {
                 color: isLiked ? t.accent : t.textPrimary.withOpacity(0.75),
                 size: 22,
               ),
-              onPressed: () => likesProvider.toggleLike(song.id),
+              onPressed: () => _toggleLike(context, likesProvider, song.id),
             ),
             Text(
               formatCount(likeCount),
@@ -69,13 +96,22 @@ class NowPlayingActions extends StatelessWidget {
             color: isFav ? Colors.redAccent : t.textPrimary.withOpacity(0.75),
             size: 22,
           ),
-          onPressed: () => favoritesProvider.toggleFavorite(song),
+          onPressed: () => _toggleFavorite(context, favoritesProvider, song),
         ),
         const SizedBox(width: 18),
         if (isDownloaded)
           IconButton(
             icon: const Icon(Icons.check_circle, color: Color(0xFF4CD964), size: 22),
-            onPressed: () => downloadsProvider.removeDownload(song.id, audioUrl: song.audioUrl),
+            onPressed: () async {
+              final success = await downloadsProvider.removeDownload(
+                song.id,
+                audioUrl: song.audioUrl,
+              );
+              if (!context.mounted) return;
+              if (!success) {
+                _showFailureSnackBar(context, 'Failed to remove download');
+              }
+            },
           )
         else if (isDownloading)
           SizedBox(
@@ -100,7 +136,14 @@ class NowPlayingActions extends StatelessWidget {
           IconButton(
             icon: Icon(Icons.download_outlined,
                 color: t.textPrimary.withOpacity(0.75), size: 22),
-            onPressed: () => downloadsProvider.downloadSong(song),
+            onPressed: () async {
+              try {
+                await downloadsProvider.downloadSong(song);
+              } catch (e) {
+                if (!context.mounted) return;
+                _showFailureSnackBar(context, 'Download failed. Please try again.');
+              }
+            },
           ),
         const SizedBox(width: 18),
         IconButton(
