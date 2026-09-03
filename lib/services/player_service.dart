@@ -36,6 +36,15 @@ class PlayerService {
   // instead of leaking for the app's lifetime.
   StreamSubscription<int?>? _internalIndexSubscription;
 
+  // Play-count tracking is now reactive, driven off currentIndexStream,
+  // instead of being called directly right after seek/play calls (which
+  // could read a stale _currentIndex/currentSong before the stream had
+  // actually updated it). See _handleIndexChanged / _startPlayCountTracking.
+  String? _playCountTrackedSongId;
+  Timer? _playCountTimer;
+  final Set<String> _playCountedSongIds = {};
+  static const Duration _playCountThreshold = Duration(seconds: 25);
+
   // Readiness gate so play() never races JustAudioBackground.init().
   // main.dart (File 5) must call PlayerService.markReady() once init
   // has actually finished.
@@ -68,6 +77,7 @@ class PlayerService {
     _internalIndexSubscription = _player.currentIndexStream.listen((index) {
       if (index != null && index >= 0 && index < _playlist.length) {
         _currentIndex = index;
+        _handleIndexChanged(_playlist[index]);
       }
     });
     _initEqualizer();
@@ -174,10 +184,41 @@ class PlayerService {
         debugPrint('PlayerService.play error: $e');
       }));
 
-      _trackPlayCount(_playlist[_currentIndex]);
+      // Play-count tracking for the initial song is now handled reactively
+      // by the currentIndexStream listener (_handleIndexChanged), which
+      // fires once setAudioSource actually reports the current index —
+      // avoids counting a play before the index stream has caught up.
     } catch (e) {
       throw Exception('Failed to play playlist: ${e.toString()}');
     }
+  }
+
+  /// Called whenever currentIndexStream emits a valid index. Only acts
+  /// when the song has actually changed (avoids restarting the timer or
+  /// double-counting if the stream fires again for the same song/index).
+  void _handleIndexChanged(Song song) {
+    if (song.id == _playCountTrackedSongId) return;
+    _playCountTrackedSongId = song.id;
+    _startPlayCountTracking(song);
+  }
+
+  /// Waits ~25s (within the 20-30s window) then, if we're still on the
+  /// same song and the player is actively playing (not in an error
+  /// state), counts one play for it. Counted at most once per song per
+  /// app session.
+  void _startPlayCountTracking(Song song) {
+    _playCountTimer?.cancel();
+    if (_playCountedSongIds.contains(song.id)) return;
+
+    final trackedSongId = song.id;
+    _playCountTimer = Timer(_playCountThreshold, () {
+      if (_playCountTrackedSongId != trackedSongId) return;
+      final state = _player.playerState;
+      if (state.playing && state.processingState != ProcessingState.error) {
+        _playCountedSongIds.add(trackedSongId);
+        _trackPlayCount(song);
+      }
+    });
   }
 
   void _trackPlayCount(Song song) {
@@ -218,9 +259,8 @@ class PlayerService {
   Future<void> next() async {
     if (_playlist.isEmpty) return;
     await _player.seekToNext();
-    if (_player.playing) {
-      _trackPlayCount(currentSong ?? _playlist[_currentIndex]);
-    }
+    // Play-count tracking is handled reactively by _handleIndexChanged
+    // once currentIndexStream actually reports the new index.
   }
 
   Future<void> previous() async {
@@ -230,9 +270,8 @@ class PlayerService {
       return;
     }
     await _player.seekToPrevious();
-    if (_player.playing) {
-      _trackPlayCount(currentSong ?? _playlist[_currentIndex]);
-    }
+    // Play-count tracking is handled reactively by _handleIndexChanged
+    // once currentIndexStream actually reports the new index.
   }
 
   void toggleShuffle() {
@@ -298,6 +337,7 @@ class PlayerService {
   /// Do NOT call this on a normal route pop or screen dispose.
   void dispose() {
     _fadeTimer?.cancel();
+    _playCountTimer?.cancel();
     _internalIndexSubscription?.cancel();
     _player.dispose();
   }
