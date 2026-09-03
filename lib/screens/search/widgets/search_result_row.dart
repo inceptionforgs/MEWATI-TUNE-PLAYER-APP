@@ -7,7 +7,6 @@ import '../../../providers/player_provider.dart';
 import '../../../providers/favorites_provider.dart';
 import '../../../providers/downloads_provider.dart';
 import '../../../providers/likes_provider.dart';
-import '../../../providers/theme_provider.dart';
 
 class SearchResultRow extends StatelessWidget {
   final Song song;
