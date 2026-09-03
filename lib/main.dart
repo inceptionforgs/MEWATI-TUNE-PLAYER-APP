@@ -58,8 +58,16 @@ Future<void> _initializeApp(DownloadsProvider downloadsProvider) async {
       androidNotificationOngoing: true,
     );
 
-    // Initialize Supabase.
-    await SupabaseService().initialize();
+    // Initialize Supabase (bounded — a hung network call (dead/slow
+    // internet, paused Supabase project, DNS issues) must not freeze the
+    // app on the native launch icon forever; a plain try/catch does not
+    // help here because a hang is not an exception).
+    await SupabaseService().initialize().timeout(
+      const Duration(seconds: 10),
+      onTimeout: () {
+        throw Exception('Supabase initialization timed out.');
+      },
+    );
 
     // Initialize local cache (SharedPreferences).
     await LocalCacheService().initialize();
