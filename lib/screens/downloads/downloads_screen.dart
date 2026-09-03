@@ -81,8 +81,19 @@ class _DownloadsScreenState extends State<DownloadsScreen> {
     }
   }
 
-  void _downloadSong(Song song) {
-    Provider.of<DownloadsProvider>(context, listen: false).downloadSong(song);
+  Future<void> _downloadSong(Song song) async {
+    // Fixed (Item 11): await the download and show a SnackBar on failure,
+    // mirroring the pattern used above for favorite/like toggle errors.
+    // downloadSong() rethrows on failure specifically so callers can do
+    // this — previously this call was fire-and-forget and errors were
+    // silently dropped.
+    try {
+      await Provider.of<DownloadsProvider>(context, listen: false)
+          .downloadSong(song);
+    } catch (e) {
+      if (!mounted) return;
+      _showFailureSnackBar('Failed to download song. Please try again.');
+    }
   }
 
   void _cancelDownload(String songId) {
@@ -185,35 +196,47 @@ class _DownloadsScreenState extends State<DownloadsScreen> {
         final song = downloadedSongs[index];
         final isNow = currentSongId == song.id;
         final isFav = favoritesProvider.isFavoriteSync(song.id);
-        final isDownloading = downloadsProvider.isDownloading(song.id);
-        final progress = downloadsProvider.getProgress(song.id);
         final isLiked = likesProvider.isLikedSync(song.id);
         final likeCount = likesProvider.likeCounts.containsKey(song.id)
             ? likesProvider.getLikeCountSync(song.id)
             : song.likeCount;
 
-        return SongRow(
-          t: t,
-          data: SongRowData(
-            song: song,
-            isNow: isNow,
-            isPlaying: isPlaying,
-            isFav: isFav,
-            isDownloaded: true,
-            isDownloading: isDownloading,
-            progress: progress,
-            subtitle: song.singerName ?? 'Unknown Artist',
-            isLiked: isLiked,
-            likeCount: likeCount,
-          ),
-          actions: SongRowActions(
-            onTap: () => _playSong(downloadedSongs, index),
-            onToggleFavorite: () => _toggleFavorite(song),
-            onDownload: () => _downloadSong(song),
-            onCancelDownload: () => _cancelDownload(song.id),
-            onRemoveDownload: () => _removeDownload(song),
-            onToggleLike: () => _toggleLike(song.id),
-          ),
+        // Fixed (Item 10): consume downloadsProvider.progressNotifier via
+        // ValueListenableBuilder so this row's progress actually animates
+        // during a download — progressNotifier deliberately never calls
+        // notifyListeners(), so reading getProgress()/isDownloading()
+        // directly in itemBuilder (outside this builder) was stale until
+        // some unrelated rebuild happened to occur.
+        return ValueListenableBuilder<Map<String, double>>(
+          valueListenable: downloadsProvider.progressNotifier,
+          builder: (context, progressMap, _) {
+            final isDownloading = progressMap.containsKey(song.id);
+            final progress = progressMap[song.id] ?? 0.0;
+
+            return SongRow(
+              t: t,
+              data: SongRowData(
+                song: song,
+                isNow: isNow,
+                isPlaying: isPlaying,
+                isFav: isFav,
+                isDownloaded: true,
+                isDownloading: isDownloading,
+                progress: progress,
+                subtitle: song.singerName ?? 'Unknown Artist',
+                isLiked: isLiked,
+                likeCount: likeCount,
+              ),
+              actions: SongRowActions(
+                onTap: () => _playSong(downloadedSongs, index),
+                onToggleFavorite: () => _toggleFavorite(song),
+                onDownload: () => _downloadSong(song),
+                onCancelDownload: () => _cancelDownload(song.id),
+                onRemoveDownload: () => _removeDownload(song),
+                onToggleLike: () => _toggleLike(song.id),
+              ),
+            );
+          },
         );
       },
     );
