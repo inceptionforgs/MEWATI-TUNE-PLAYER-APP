@@ -1,3 +1,4 @@
+// FILE: lib/screens/search/widgets/search_result_row.dart
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../../core/widgets/song_row.dart';
@@ -21,6 +22,32 @@ class SearchResultRow extends StatelessWidget {
     required this.allResults,
     required this.index,
   }) : super(key: key);
+
+  static void _showFailureSnackBar(BuildContext context, String message) {
+    if (!context.mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(message), backgroundColor: Colors.grey),
+    );
+  }
+
+  static Future<void> _toggleFavorite(
+      BuildContext context, FavoritesProvider favoritesProvider, Song song) async {
+    await favoritesProvider.toggleFavorite(song);
+    if (!context.mounted) return;
+    if (favoritesProvider.errorMessage != null) {
+      _showFailureSnackBar(context, 'Something went wrong. Please try again.');
+      favoritesProvider.clearError();
+    }
+  }
+
+  static Future<void> _toggleLike(
+      BuildContext context, LikesProvider likesProvider, String songId) async {
+    await likesProvider.toggleLike(songId);
+    if (!context.mounted) return;
+    if (likesProvider.errorMessage != null) {
+      _showFailureSnackBar(context, 'Something went wrong. Please try again.');
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -64,12 +91,12 @@ class SearchResultRow extends StatelessWidget {
               );
           Navigator.of(context).pop();
         },
-        onToggleFavorite: () => favoritesProvider.toggleFavorite(song),
+        onToggleFavorite: () => _toggleFavorite(context, favoritesProvider, song),
         onDownload: () => downloadsProvider.downloadSong(song),
         onCancelDownload: () => downloadsProvider.cancelDownload(song.id),
         onRemoveDownload: () =>
             downloadsProvider.removeDownload(song.id, audioUrl: song.audioUrl),
-        onToggleLike: () => likesProvider.toggleLike(song.id),
+        onToggleLike: () => _toggleLike(context, likesProvider, song.id),
       ),
     );
   }
