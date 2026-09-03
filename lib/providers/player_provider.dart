@@ -14,6 +14,15 @@ class PlayerProvider extends ChangeNotifier {
   bool _isLoading = false;
   String? _errorMessage;
 
+  // Fixed (Serial 2): lightweight position/duration notifiers so widgets
+  // like mini_player_bar can rebuild via ValueListenableBuilder instead of
+  // context.watch/select on the whole provider. These are updated on every
+  // stream tick WITHOUT calling notifyListeners() themselves.
+  final ValueNotifier<Duration> positionNotifier =
+      ValueNotifier<Duration>(Duration.zero);
+  final ValueNotifier<Duration> durationNotifier =
+      ValueNotifier<Duration>(Duration.zero);
+
   StreamSubscription<PlayerState>? _playerStateSubscription;
   StreamSubscription<Duration>? _positionSubscription;
   StreamSubscription<Duration?>? _durationSubscription;
@@ -51,13 +60,20 @@ class PlayerProvider extends ChangeNotifier {
       notifyListeners();
     });
 
+    // Note: notifyListeners() is kept here (not stripped) because
+    // drive_mode_screen.dart still reads playerProvider.position via
+    // context.watch and needs it to update every tick. mini_player_bar.dart
+    // no longer depends on this notifyListeners() call — it listens to
+    // positionNotifier directly below.
     _positionSubscription = _playerService.positionStream.listen((Duration pos) {
       _position = pos;
+      positionNotifier.value = pos;
       notifyListeners();
     });
 
     _durationSubscription = _playerService.durationStream.listen((Duration? dur) {
       _duration = dur;
+      durationNotifier.value = dur ?? Duration.zero;
       notifyListeners();
     });
 
@@ -74,23 +90,10 @@ class PlayerProvider extends ChangeNotifier {
     });
   }
 
-  Future<void> playSong(Song song) async {
-    _isLoading = true;
-    _errorMessage = null;
-    notifyListeners();
-
-    try {
-      await _playerService.playSong(song);
-      // After playback starts, get the actual current song from the service
-      // (in case the service filtered or adjusted the playlist).
-      _currentSong = _playerService.currentSong;
-    } catch (e) {
-      _errorMessage = 'Playback failed: ${e.toString()}';
-    } finally {
-      _isLoading = false;
-      notifyListeners();
-    }
-  }
+  // Fixed (Serial 2): PlayerService.playSong(Song) was deleted from
+  // PlayerService (only setPlaylist remains). This method had no callers
+  // anywhere else in the codebase, so it is removed entirely rather than
+  // reimplemented. Use setPlaylist(songs: [song], startIndex: 0) instead.
 
   Future<void> setPlaylist({required List<Song> songs, required int startIndex}) async {
     _isLoading = true;
@@ -187,6 +190,8 @@ class PlayerProvider extends ChangeNotifier {
     _positionSubscription?.cancel();
     _durationSubscription?.cancel();
     _currentIndexSubscription?.cancel();
+    positionNotifier.dispose();
+    durationNotifier.dispose();
     super.dispose();
   }
 }
