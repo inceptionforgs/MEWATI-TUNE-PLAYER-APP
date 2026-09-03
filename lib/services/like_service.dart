@@ -75,7 +75,7 @@ class LikeService {
     try {
       final result = await _supabase.rpc(
         'toggle_like',
-        params: {'song_id_input': songId},
+        params: {'p_song_id': songId},
       );
       if (result is int) return result;
       if (result is num) return result.toInt();
