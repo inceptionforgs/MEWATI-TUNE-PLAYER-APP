@@ -55,7 +55,7 @@ class SongsService {
           .maybeSingle();
 
       if (response == null) return null;
-      return Song.fromJson(response as Map<String, dynamic>);
+      return Song.fromJson(response);
     } catch (e) {
       throw Exception('Failed to load song: ${e.toString()}');
     }
