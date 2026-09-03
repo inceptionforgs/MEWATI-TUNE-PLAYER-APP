@@ -305,19 +305,30 @@ class _MiniPlayerSliderState extends State<_MiniPlayerSlider> {
             final pct = _dragValue ?? actualPct;
 
             return Column(
+              // FIX #2 (invisible seek bar): without this, this inner
+              // Column defaulted to MainAxisSize.max, so — sitting inside
+              // the same bounded-height chain coming from app.dart's
+              // Positioned(bottom: 0, no top) — it expanded to fill the
+              // entire available (screen-sized) height instead of just
+              // wrapping its own content (Slider + time row). Its
+              // children then laid out from its own top edge, which ended
+              // up pushed off-screen above y=0, since the oversized
+              // MiniPlayerBar was anchored only at the bottom. That's why
+              // the seek bar/time labels were invisible even though the
+              // controls row (the last child, near the bottom anchor)
+              // still showed fine.
+              mainAxisSize: MainAxisSize.min,
               children: [
-                // FIX: Slider's RenderObject expands to fill maxHeight
-                // whenever it receives a *bounded* (but not tight) height
-                // constraint — which is exactly what happens here, since
-                // MiniPlayerBar sits inside a Positioned(left/right/bottom)
-                // in app.dart with no `top`/height given. That makes the
-                // Stack hand this whole subtree a bounded maxHeight equal
-                // to the full screen height, and the Slider claims all of
-                // it (even though visually only the thin track/thumb show).
+                // FIX #1 (full-screen mini player): Slider's RenderObject
+                // expands to fill maxHeight whenever it receives a
+                // *bounded* (but not tight) height constraint — which is
+                // exactly what happened here, since MiniPlayerBar sits
+                // inside a Positioned(left/right/bottom) in app.dart with
+                // no top/height given, handing this whole subtree a
+                // bounded maxHeight equal to the full screen height.
                 // Wrapping it in a fixed-height SizedBox gives it a tight
-                // constraint instead, so it can never expand like this
-                // again regardless of what unbounded/bounded context it's
-                // placed in later.
+                // constraint instead, so it can't expand like that again
+                // regardless of the surrounding context.
                 SizedBox(
                   height: 36,
                   child: SliderTheme(
