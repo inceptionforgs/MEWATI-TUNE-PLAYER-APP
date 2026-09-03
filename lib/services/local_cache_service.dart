@@ -1,6 +1,8 @@
+// File: lib/services/local_cache_service.dart
+
 import 'dart:convert';
-import 'package:flutter/foundation.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+import 'dart:io';
+import 'package:path_provider/path_provider.dart';
 import '../models/song.dart';
 import '../models/singer.dart';
 
@@ -13,26 +15,41 @@ class LocalCacheService {
   factory LocalCacheService() => _instance;
   LocalCacheService._internal();
 
-  SharedPreferences? _prefs;
+  Directory? _cacheDir;
 
+  static const String _songsFileName = 'cached_songs.json';
+  static const String _singersFileName = 'cached_singers.json';
+
+  // Fixed (P5-5): the catalog used to be dumped into SharedPreferences as
+  // one big string (~1-2MB), which risks a crash on iOS as it grows.
+  // SharedPreferences is now reserved for small flags/ids elsewhere in the
+  // app (e.g. DownloadsProvider's id list) — bulk catalog data lives in
+  // plain JSON files under the app's documents directory instead.
   Future<void> initialize() async {
-    _prefs = await SharedPreferences.getInstance();
+    final docsDir = await getApplicationDocumentsDirectory();
+    final cacheDir = Directory('${docsDir.path}/local_cache');
+    if (!await cacheDir.exists()) {
+      await cacheDir.create(recursive: true);
+    }
+    _cacheDir = cacheDir;
   }
 
   Future<void> cacheSongs(List<Song> songs) async {
-    final prefs = _prefs;
-    if (prefs == null) throw Exception('LocalCacheService not initialized');
+    final dir = _cacheDir;
+    if (dir == null) throw Exception('LocalCacheService not initialized');
     final jsonString =
         await compute(_encodeSongs, songs.map((s) => s.toJson()).toList());
-    await prefs.setString('cached_songs', jsonString);
+    final file = File('${dir.path}/$_songsFileName');
+    await file.writeAsString(jsonString);
   }
 
   Future<List<Song>?> getCachedSongs() async {
-    final prefs = _prefs;
-    if (prefs == null) return null;
-    final jsonString = prefs.getString('cached_songs');
-    if (jsonString == null) return null;
+    final dir = _cacheDir;
+    if (dir == null) return null;
+    final file = File('${dir.path}/$_songsFileName');
+    if (!await file.exists()) return null;
     try {
+      final jsonString = await file.readAsString();
       final list = await compute(_decodeList, jsonString);
       return list
           .map((e) => Song.fromJson(e as Map<String, dynamic>))
@@ -43,19 +60,21 @@ class LocalCacheService {
   }
 
   Future<void> cacheSingers(List<Singer> singers) async {
-    final prefs = _prefs;
-    if (prefs == null) throw Exception('LocalCacheService not initialized');
+    final dir = _cacheDir;
+    if (dir == null) throw Exception('LocalCacheService not initialized');
     final jsonString = await compute(
         _encodeSingers, singers.map((s) => s.toJson()).toList());
-    await prefs.setString('cached_singers', jsonString);
+    final file = File('${dir.path}/$_singersFileName');
+    await file.writeAsString(jsonString);
   }
 
   Future<List<Singer>?> getCachedSingers() async {
-    final prefs = _prefs;
-    if (prefs == null) return null;
-    final jsonString = prefs.getString('cached_singers');
-    if (jsonString == null) return null;
+    final dir = _cacheDir;
+    if (dir == null) return null;
+    final file = File('${dir.path}/$_singersFileName');
+    if (!await file.exists()) return null;
     try {
+      final jsonString = await file.readAsString();
       final list = await compute(_decodeList, jsonString);
       return list
           .map((e) => Singer.fromJson(e as Map<String, dynamic>))
@@ -66,9 +85,11 @@ class LocalCacheService {
   }
 
   Future<void> clearCache() async {
-    final prefs = _prefs;
-    if (prefs == null) return;
-    await prefs.remove('cached_songs');
-    await prefs.remove('cached_singers');
+    final dir = _cacheDir;
+    if (dir == null) return;
+    final songsFile = File('${dir.path}/$_songsFileName');
+    final singersFile = File('${dir.path}/$_singersFileName');
+    if (await songsFile.exists()) await songsFile.delete();
+    if (await singersFile.exists()) await singersFile.delete();
   }
 }
