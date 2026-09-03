@@ -70,7 +70,7 @@ class _TrendingScreenState extends State<TrendingScreen> {
       });
 
       final likesProvider = Provider.of<LikesProvider>(context, listen: false);
-      likesProvider.loadLikesData(_trendingSongs.map((s) => s.id).toList());
+      likesProvider.loadLikesData(_trendingSongs);
     } catch (e) {
       if (!mounted) return;
       setState(() {
@@ -110,7 +110,11 @@ class _TrendingScreenState extends State<TrendingScreen> {
       });
 
       final likesProvider = Provider.of<LikesProvider>(context, listen: false);
-      likesProvider.loadLikesData(_trendingSongs.map((s) => s.id).toList());
+      // Fixed (Serial 5): only the newly loaded page is sent here, not the
+      // full accumulated _trendingSongs list — otherwise every load-more
+      // re-checks like status for songs already checked, defeating the
+      // point of the batched-fetch fix in LikeService.getLikedSongIds.
+      likesProvider.loadLikesData(nextPage);
     } catch (e) {
       if (!mounted) return;
       setState(() => _loadMoreError = e.toString());
