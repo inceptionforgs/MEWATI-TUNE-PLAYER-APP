@@ -1,9 +1,14 @@
 import 'package:flutter/material.dart';
 import '../models/singer.dart';
+import '../models/song.dart';
 import '../screens/splash/splash_screen.dart';
 import '../screens/home/home_screen.dart';
 import '../screens/singers/singer_profile_screen.dart';
 import '../screens/player/now_playing_screen.dart';
+import '../screens/feedback/feedback_screen.dart';
+import '../screens/settings/advance_settings_screen.dart';
+import '../screens/drive_mode/drive_mode_screen.dart';
+import '../screens/search/search_screen.dart';
 import 'route_names.dart';
 
 class AppRouter {
@@ -34,6 +39,28 @@ class AppRouter {
       case RouteNames.nowPlaying:
         return MaterialPageRoute(
           builder: (_) => const NowPlayingScreen(),
+          settings: settings,
+        );
+      case RouteNames.feedback:
+        final args = settings.arguments;
+        final song = args is Song ? args : null;
+        return MaterialPageRoute(
+          builder: (_) => FeedbackScreen(song: song),
+          settings: settings,
+        );
+      case RouteNames.advanceSettings:
+        return MaterialPageRoute(
+          builder: (_) => const AdvanceSettingsScreen(),
+          settings: settings,
+        );
+      case RouteNames.driveMode:
+        return MaterialPageRoute(
+          builder: (_) => const DriveModeScreen(),
+          settings: settings,
+        );
+      case RouteNames.search:
+        return MaterialPageRoute(
+          builder: (_) => const SearchScreen(),
           settings: settings,
         );
       default:
