@@ -1,5 +1,4 @@
-// File: lib/screens/downloads/downloads_screen.dart
-
+// FILE: lib/screens/downloads/downloads_screen.dart
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../core/widgets/song_row.dart';
@@ -39,9 +38,11 @@ class _DownloadsScreenState extends State<DownloadsScreen> {
         await downloadsProvider.checkExistingDownloads(songsProvider.allSongs);
       }
 
-      likesProvider.loadLikesData(
-        downloadsProvider.downloadedSongsList.map((s) => s.id).toList(),
-      );
+      // Fixed: loadLikesData requires List<Song>, not List<String> — was
+      // passing .map((s) => s.id).toList() (same class of compile-blocking
+      // type-mismatch bug already fixed elsewhere for trending/singer
+      // profile screens).
+      likesProvider.loadLikesData(downloadsProvider.downloadedSongsList);
     });
   }
 
@@ -52,8 +53,31 @@ class _DownloadsScreenState extends State<DownloadsScreen> {
     );
   }
 
-  void _toggleFavorite(Song song) {
-    Provider.of<FavoritesProvider>(context, listen: false).toggleFavorite(song);
+  void _showFailureSnackBar(String message) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(message), backgroundColor: Colors.grey),
+    );
+  }
+
+  Future<void> _toggleFavorite(Song song) async {
+    final favoritesProvider =
+        Provider.of<FavoritesProvider>(context, listen: false);
+    await favoritesProvider.toggleFavorite(song);
+    if (!mounted) return;
+    if (favoritesProvider.errorMessage != null) {
+      _showFailureSnackBar('Something went wrong. Please try again.');
+      favoritesProvider.clearError();
+    }
+  }
+
+  Future<void> _toggleLike(String songId) async {
+    final likesProvider = Provider.of<LikesProvider>(context, listen: false);
+    await likesProvider.toggleLike(songId);
+    if (!mounted) return;
+    if (likesProvider.errorMessage != null) {
+      _showFailureSnackBar('Something went wrong. Please try again.');
+    }
   }
 
   void _downloadSong(Song song) {
@@ -182,7 +206,7 @@ class _DownloadsScreenState extends State<DownloadsScreen> {
             onDownload: () => _downloadSong(song),
             onCancelDownload: () => _cancelDownload(song.id),
             onRemoveDownload: () => _removeDownload(song),
-            onToggleLike: () => likesProvider.toggleLike(song.id),
+            onToggleLike: () => _toggleLike(song.id),
           ),
         );
       },
