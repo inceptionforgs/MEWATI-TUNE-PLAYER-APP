@@ -102,10 +102,13 @@ class SongRow extends StatelessWidget {
                 decoration: BoxDecoration(
                   borderRadius: BorderRadius.circular(12),
                   border: Border.all(color: t.textPrimary.withOpacity(0.24), width: 2),
-                  gradient: const LinearGradient(
+                  gradient: LinearGradient(
                     begin: Alignment.topLeft,
                     end: Alignment.bottomRight,
-                    colors: [Color(0xFF2A170D), Color(0xFF120C08)],
+                    // Fixed (Item 12): theme-derived gradient (was a
+                    // hardcoded pair of colors that never changed with the
+                    // active theme), same approach as album_art.dart.
+                    colors: [t.surface, t.background],
                   ),
                 ),
                 child: (song.coverImageUrl != null && song.coverImageUrl!.isNotEmpty)
