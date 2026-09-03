@@ -5,6 +5,7 @@ import 'core/constants/app_theme.dart';
 import 'core/constants/app_dimensions.dart';
 import 'core/widgets/debug_panel.dart';
 import 'core/widgets/mini_player_bar.dart';
+import 'services/downloads_service.dart';
 import 'services/player_service.dart';
 import 'providers/auth_provider.dart';
 import 'providers/player_provider.dart';
@@ -117,11 +118,15 @@ class _MewatiTunePlayerAppState extends State<MewatiTunePlayerApp>
   // transition must NOT interrupt background playback, and
   // PlayerService().dispose() (full AudioPlayer teardown) is intentionally
   // never called from here, matching the existing method split in
-  // player_service.dart.
+  // player_service.dart. DownloadsService().dispose() is also called here
+  // now (Item 15) so its internal FileDownloader().updates subscription is
+  // actually cancelled on app termination, instead of leaking for the
+  // app's lifetime.
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.detached) {
       PlayerService().handleAppDetached();
+      DownloadsService().dispose();
     }
   }
 
