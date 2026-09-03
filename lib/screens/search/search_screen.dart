@@ -1,3 +1,4 @@
+// FILE: lib/screens/search/search_screen.dart
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../core/constants/app_themes.dart';
@@ -11,6 +12,14 @@ import '../../providers/theme_provider.dart';
 import '../../services/singers_service.dart';
 import '../singers/singer_profile_screen.dart';
 import 'widgets/search_result_row.dart';
+
+enum _SearchItemType { singerHeader, singerRow, songHeader, songRow }
+
+class _SearchListItem {
+  final _SearchItemType type;
+  final int index;
+  const _SearchListItem(this.type, [this.index = 0]);
+}
 
 class SearchScreen extends StatefulWidget {
   const SearchScreen({Key? key}) : super(key: key);
@@ -112,6 +121,22 @@ class _SearchScreenState extends State<SearchScreen> {
     final t = context.watch<ThemeProvider>().theme;
     final hasResults = _songResults.isNotEmpty || _singerResults.isNotEmpty;
 
+    // Flatten singer/song headers + rows into a single item list for
+    // ListView.builder so mixed section headers and rows are built lazily.
+    final items = <_SearchListItem>[];
+    if (_singerResults.isNotEmpty) {
+      items.add(const _SearchListItem(_SearchItemType.singerHeader));
+      for (var i = 0; i < _singerResults.length; i++) {
+        items.add(_SearchListItem(_SearchItemType.singerRow, i));
+      }
+    }
+    if (_songResults.isNotEmpty) {
+      items.add(const _SearchListItem(_SearchItemType.songHeader));
+      for (var i = 0; i < _songResults.length; i++) {
+        items.add(_SearchListItem(_SearchItemType.songRow, i));
+      }
+    }
+
     return Scaffold(
       backgroundColor: t.background,
       body: SafeArea(
@@ -203,49 +228,50 @@ class _SearchScreenState extends State<SearchScreen> {
                         ],
                       ),
                     )
-                  : ListView(
+                  : ListView.builder(
                       padding: const EdgeInsets.only(bottom: 16),
-                      children: [
-                        if (_singerResults.isNotEmpty) ...[
-                          Padding(
-                            padding: const EdgeInsets.fromLTRB(19, 18, 19, 9),
-                            child: Text(
-                              'SINGERS (${_singerResults.length})',
-                              style: TextStyle(
-                                color: t.textPrimary,
-                                fontSize: 13,
-                                fontWeight: FontWeight.w900,
-                                letterSpacing: 1.35,
-                              ),
-                            ),
-                          ),
-                          ..._singerResults.map(
-                            (singer) => _buildSingerResultRow(singer, t),
-                          ),
-                        ],
-                        if (_songResults.isNotEmpty) ...[
-                          Padding(
-                            padding: const EdgeInsets.fromLTRB(19, 18, 19, 9),
-                            child: Text(
-                              'SONGS (${_songResults.length})',
-                              style: TextStyle(
-                                color: t.textPrimary,
-                                fontSize: 13,
-                                fontWeight: FontWeight.w900,
-                                letterSpacing: 1.35,
-                              ),
-                            ),
-                          ),
-                          ..._songResults.asMap().entries.map(
-                                (e) => SearchResultRow(
-                                  song: e.value,
-                                  t: t,
-                                  allResults: _songResults,
-                                  index: e.key,
+                      itemCount: items.length,
+                      itemBuilder: (context, i) {
+                        final item = items[i];
+                        switch (item.type) {
+                          case _SearchItemType.singerHeader:
+                            return Padding(
+                              padding: const EdgeInsets.fromLTRB(19, 18, 19, 9),
+                              child: Text(
+                                'SINGERS (${_singerResults.length})',
+                                style: TextStyle(
+                                  color: t.textPrimary,
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w900,
+                                  letterSpacing: 1.35,
                                 ),
                               ),
-                        ],
-                      ],
+                            );
+                          case _SearchItemType.singerRow:
+                            return _buildSingerResultRow(
+                                _singerResults[item.index], t);
+                          case _SearchItemType.songHeader:
+                            return Padding(
+                              padding: const EdgeInsets.fromLTRB(19, 18, 19, 9),
+                              child: Text(
+                                'SONGS (${_songResults.length})',
+                                style: TextStyle(
+                                  color: t.textPrimary,
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w900,
+                                  letterSpacing: 1.35,
+                                ),
+                              ),
+                            );
+                          case _SearchItemType.songRow:
+                            return SearchResultRow(
+                              song: _songResults[item.index],
+                              t: t,
+                              allResults: _songResults,
+                              index: item.index,
+                            );
+                        }
+                      },
                     ),
             ),
           ],
