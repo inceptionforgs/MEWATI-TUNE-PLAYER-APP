@@ -83,7 +83,7 @@ class _SingerProfileScreenState extends State<SingerProfileScreen> {
         .cancelDownload(songId);
   }
 
-  void _removeDownload(String songId, {String? audioUrl}) {
+  void _removeDownload(String songId, {required String audioUrl}) {
     Provider.of<DownloadsProvider>(context, listen: false)
         .removeDownload(songId, audioUrl: audioUrl);
   }
