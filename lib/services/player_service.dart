@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart';
 import 'package:just_audio/just_audio.dart';
 import 'package:just_audio_background/just_audio_background.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../core/utils/queue_builder.dart';
 import '../models/song.dart';
 import 'downloads_service.dart';
 import 'equalizer_service.dart';
@@ -43,8 +44,9 @@ class PlayerService {
 
   // Cap on how many AudioSource children we ever load into a single
   // ConcatenatingAudioSource at once, to avoid OOM on large libraries.
-  // Window is centered on the requested start index.
-  static const int _maxQueueWindow = 60;
+  // Window is centered on the requested start index. Kept in sync with
+  // QueueBuilder.maxQueueWindow (Serial 17).
+  static const int _maxQueueWindow = QueueBuilder.maxQueueWindow;
 
   Stream<PlayerState> get playerStateStream => _player.playerStateStream;
   Stream<Duration> get positionStream => _player.positionStream;
@@ -96,18 +98,14 @@ class PlayerService {
       final downloadedIds =
           prefs.getStringList('downloaded_song_ids')?.toSet() ?? <String>{};
 
-      // Downloaded-file check now runs FIRST and actually verifies the
-      // file on disk (existsSync + length > 0) instead of trusting the
-      // id list blindly. A song is only skipped if it has NEITHER a
-      // valid local file NOR a valid remote URL — previously a good
-      // downloaded song could be dropped just because its remote URL
-      // happened to be bad, since the URL check ran first.
-      final validSongs = <Song>[];
+      // Downloaded-file check runs first and actually verifies the file
+      // on disk (existsSync + length > 0) instead of trusting the id list
+      // blindly. Only songs with a VERIFIED local file are passed to
+      // QueueBuilder as "locally available" — everything else is judged
+      // purely on its remote URL there.
       final localPaths = <String, String>{}; // song.id -> verified local path
 
       for (final song in songs) {
-        bool hasValidLocalFile = false;
-
         if (downloadedIds.contains(song.id)) {
           final candidatePath = await _downloadsService.getLocalSongPath(
             song.id,
@@ -115,7 +113,6 @@ class PlayerService {
           );
           final file = File(candidatePath);
           if (file.existsSync() && file.lengthSync() > 0) {
-            hasValidLocalFile = true;
             localPaths[song.id] = candidatePath;
           } else {
             // Stale/corrupt download id — drop it silently here and fall
@@ -124,52 +121,30 @@ class PlayerService {
                 'PlayerService: downloaded file missing/corrupt for "${song.title}", falling back to stream.');
           }
         }
-
-        final uri = Uri.tryParse(song.audioUrl);
-        final hasValidRemote = uri != null && uri.host.isNotEmpty;
-
-        if (!hasValidLocalFile && !hasValidRemote) {
-          debugPrint('PlayerService: skipping song with no valid source: ${song.title}');
-          continue;
-        }
-
-        validSongs.add(song);
       }
 
-      if (validSongs.isEmpty) {
-        throw Exception('No playable songs found (missing or invalid audio URLs).');
+      // Fixed (Serial 17): validation + windowing logic moved to
+      // QueueBuilder (lib/core/utils/queue_builder.dart) so it can be unit
+      // tested without a real AudioPlayer/SharedPreferences/file system.
+      // Behavior is unchanged from the original inline version.
+      late final BuiltQueue built;
+      try {
+        built = QueueBuilder.build(
+          songs: songs,
+          startIndex: startIndex,
+          locallyAvailableSongIds: localPaths.keys.toSet(),
+          windowSize: _maxQueueWindow,
+        );
+      } on StateError {
+        throw Exception(
+            'No playable songs found (missing or invalid audio URLs).');
       }
 
-      // Do not touch: startIndex is still remapped via indexWhere on song
-      // id after filtering, same pattern as before.
-      int adjustedStart = 0;
-      if (startIndex >= 0 && startIndex < songs.length) {
-        final requested = songs[startIndex];
-        final found = validSongs.indexWhere((s) => s.id == requested.id);
-        if (found != -1) {
-          adjustedStart = found;
-        }
-      }
-
-      // Cap the queue to a window around the current index instead of
-      // loading the entire (possibly huge) library into one
-      // ConcatenatingAudioSource, which risks OOM on large libraries.
-      List<Song> queueSongs = validSongs;
-      int queueStartIndex = adjustedStart;
-      if (validSongs.length > _maxQueueWindow) {
-        final half = _maxQueueWindow ~/ 2;
-        int lo = (adjustedStart - half).clamp(0, validSongs.length - 1);
-        int hi = (lo + _maxQueueWindow).clamp(0, validSongs.length);
-        lo = (hi - _maxQueueWindow).clamp(0, validSongs.length);
-        queueSongs = validSongs.sublist(lo, hi);
-        queueStartIndex = adjustedStart - lo;
-      }
-
-      _playlist = queueSongs;
-      _currentIndex = queueStartIndex;
+      _playlist = built.songs;
+      _currentIndex = built.startIndex;
 
       final audioSources = <AudioSource>[];
-      for (final song in queueSongs) {
+      for (final song in _playlist) {
         final mediaItem = MediaItem(
           id: song.id,
           title: song.title,
@@ -192,7 +167,7 @@ class PlayerService {
       }
 
       final playlistSource = ConcatenatingAudioSource(children: audioSources);
-      await _player.setAudioSource(playlistSource, initialIndex: queueStartIndex);
+      await _player.setAudioSource(playlistSource, initialIndex: _currentIndex);
       await _player.setShuffleModeEnabled(_shuffleMode);
 
       unawaited(_player.play().catchError((e) {
@@ -219,10 +194,6 @@ class PlayerService {
       debugPrint("Equalizer init (player) Error: $e");
     }
   }
-
-  // Dead code removed. Nothing outside this class called playSong(Song)
-  // anymore — every screen already builds a real queue via
-  // setPlaylist(songs:, startIndex:).
 
   Future<void> togglePlayPause() async {
     if (_player.playing) {
