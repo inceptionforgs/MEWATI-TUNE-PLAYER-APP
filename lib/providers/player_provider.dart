@@ -1,6 +1,8 @@
+// FILE: lib/providers/player_provider.dart
 import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:just_audio/just_audio.dart';
+import '../core/utils/error_handler.dart';
 import '../models/song.dart';
 import '../services/player_service.dart';
 
@@ -106,7 +108,7 @@ class PlayerProvider extends ChangeNotifier {
       // because the service may filter out unplayable songs and adjust the index.
       _currentSong = _playerService.currentSong;
     } catch (e) {
-      _errorMessage = 'Playback failed: ${e.toString()}';
+      _errorMessage = 'Playback failed: ${ErrorHandler.getMessage(e)}';
     } finally {
       _isLoading = false;
       notifyListeners();
@@ -118,7 +120,7 @@ class PlayerProvider extends ChangeNotifier {
     try {
       await _playerService.togglePlayPause();
     } catch (e) {
-      _errorMessage = e.toString();
+      _errorMessage = ErrorHandler.getMessage(e);
       notifyListeners();
     }
   }
@@ -128,7 +130,7 @@ class PlayerProvider extends ChangeNotifier {
     try {
       await _playerService.seek(position);
     } catch (e) {
-      _errorMessage = e.toString();
+      _errorMessage = ErrorHandler.getMessage(e);
       notifyListeners();
     }
   }
@@ -143,7 +145,7 @@ class PlayerProvider extends ChangeNotifier {
       }
       notifyListeners();
     } catch (e) {
-      _errorMessage = e.toString();
+      _errorMessage = ErrorHandler.getMessage(e);
       notifyListeners();
     }
   }
@@ -158,7 +160,7 @@ class PlayerProvider extends ChangeNotifier {
       }
       notifyListeners();
     } catch (e) {
-      _errorMessage = e.toString();
+      _errorMessage = ErrorHandler.getMessage(e);
       notifyListeners();
     }
   }
@@ -174,7 +176,7 @@ class PlayerProvider extends ChangeNotifier {
       await _playerService.setLoopMode(mode);
       notifyListeners();
     } catch (e) {
-      _errorMessage = e.toString();
+      _errorMessage = ErrorHandler.getMessage(e);
       notifyListeners();
     }
   }
