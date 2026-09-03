@@ -7,7 +7,14 @@ import '../models/song.dart';
 import '../services/downloads_service.dart';
 
 class DownloadsProvider with ChangeNotifier {
-  final DownloadsService _downloadsService = DownloadsService();
+  final DownloadsService _downloadsService;
+
+  // Fixed (Serial 17): DownloadsService is now optionally injectable so
+  // tests can pass a fake implementation instead of the real
+  // file-system/background_downloader-backed singleton. Default behavior
+  // (no argument) is unchanged.
+  DownloadsProvider({DownloadsService? downloadsService})
+      : _downloadsService = downloadsService ?? DownloadsService();
 
   final Set<String> _downloadedSongIds = {};
   final Map<String, double> _downloadProgress = {};
