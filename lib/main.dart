@@ -1,4 +1,3 @@
-// FILE: lib/main.dart
 import 'dart:async';
 
 import 'package:flutter/material.dart';
@@ -24,11 +23,16 @@ Future<void> main() async {
   // screen (android/app/src/main/res/drawable/launch_background.xml) stays
   // on screen the whole time, so the app is never shown half-initialized.
   //
+  // Every individual step inside _initializeApp is now independently
+  // try/catch + timeout guarded, so a hang in any single plugin
+  // (JustAudioBackground, Supabase, SharedPreferences, Sentry, etc.)
+  // cannot block runApp() from ever being called.
+  //
   // Auth restoration itself is intentionally NOT awaited here: it's owned
-  // by SplashScreen (lib/screens/splash/splash_screen.dart, File 15), which
-  // awaits authProvider.loadCurrentUser() with its own timeout and
-  // Retry/Continue Offline UI. Awaiting it a second time here would just
-  // race/duplicate that network call for no benefit.
+  // by SplashScreen (lib/screens/splash/splash_screen.dart), which awaits
+  // authProvider.loadCurrentUser() with its own timeout and Retry/Continue
+  // Offline UI. Awaiting it a second time here would just race/duplicate
+  // that network call for no benefit.
   await _initializeApp(downloadsProvider);
 
   runApp(
@@ -42,8 +46,8 @@ Future<void> main() async {
 Future<void> _initializeApp(DownloadsProvider downloadsProvider) async {
   try {
     // Load environment variables (optional). Supabase/Sentry config no
-    // longer read from dotenv (see File 14) — this stays only in case
-    // other, non-critical parts of the app still want an optional .env.
+    // longer read from dotenv — this stays only in case other,
+    // non-critical parts of the app still want an optional .env.
     try {
       await dotenv.load(fileName: ".env");
     } catch (e) {
@@ -52,39 +56,65 @@ Future<void> _initializeApp(DownloadsProvider downloadsProvider) async {
     }
 
     // Initialize just_audio background support (needed for playback).
-    await JustAudioBackground.init(
-      androidNotificationChannelId: 'com.mewatitune.player.channel.audio',
-      androidNotificationChannelName: 'Mewati Tune Player Playback',
-      androidNotificationOngoing: true,
-    );
+    // Bounded — a stuck platform-channel call here must not freeze the
+    // app on the launch icon forever.
+    try {
+      await JustAudioBackground.init(
+        androidNotificationChannelId: 'com.mewatitune.player.channel.audio',
+        androidNotificationChannelName: 'Mewati Tune Player Playback',
+        androidNotificationOngoing: true,
+      ).timeout(const Duration(seconds: 8));
+    } catch (e) {
+      debugPrint('JustAudioBackground.init failed/timed out: $e');
+      // Non-fatal at boot — playback will just lack the lock-screen
+      // notification if this failed; it must not block startup.
+    }
 
     // Initialize Supabase (bounded — a hung network call (dead/slow
     // internet, paused Supabase project, DNS issues) must not freeze the
     // app on the native launch icon forever; a plain try/catch does not
     // help here because a hang is not an exception).
-    await SupabaseService().initialize().timeout(
-      const Duration(seconds: 10),
-      onTimeout: () {
-        throw Exception('Supabase initialization timed out.');
-      },
-    );
+    try {
+      await SupabaseService().initialize().timeout(
+        const Duration(seconds: 10),
+        onTimeout: () {
+          throw Exception('Supabase initialization timed out.');
+        },
+      );
+    } catch (e) {
+      debugPrint('Supabase init failed/timed out: $e');
+    }
 
-    // Initialize local cache (SharedPreferences).
-    await LocalCacheService().initialize();
+    // Initialize local cache (SharedPreferences). Bounded.
+    try {
+      await LocalCacheService()
+          .initialize()
+          .timeout(const Duration(seconds: 5));
+    } catch (e) {
+      debugPrint('LocalCacheService.initialize failed/timed out: $e');
+    }
 
-    // Initialize downloads provider (reads cached downloaded IDs).
-    await downloadsProvider.initialize();
+    // Initialize downloads provider (reads cached downloaded IDs). Bounded.
+    try {
+      await downloadsProvider.initialize().timeout(const Duration(seconds: 5));
+    } catch (e) {
+      debugPrint('DownloadsProvider.initialize failed/timed out: $e');
+    }
 
     // Initialize Sentry only if a DSN was injected via --dart-define
     // (Environment.sentryDsn — same no-hardcoded-fallback pattern as
-    // SupabaseConfig, see File 14).
+    // SupabaseConfig). Bounded, and never allowed to block/crash boot.
     if (Environment.sentryDsn.isNotEmpty) {
-      await SentryFlutter.init(
-        (options) {
-          options.dsn = Environment.sentryDsn;
-          options.tracesSampleRate = Environment.sentryTracesSampleRate;
-        },
-      );
+      try {
+        await SentryFlutter.init(
+          (options) {
+            options.dsn = Environment.sentryDsn;
+            options.tracesSampleRate = Environment.sentryTracesSampleRate;
+          },
+        ).timeout(const Duration(seconds: 5));
+      } catch (e) {
+        debugPrint('SentryFlutter.init failed/timed out: $e');
+      }
     }
 
     // Notification permission (Android 13+ POST_NOTIFICATIONS) is no longer
