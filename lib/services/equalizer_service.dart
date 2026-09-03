@@ -21,19 +21,21 @@ class EqualizerService {
   factory EqualizerService() => _instance;
   EqualizerService._internal();
 
-  // NOTE: just_audio's AndroidEqualizer/AndroidLoudnessEnhancer only exist
-  // on Android, and only support per-band gain (EQ) + a single loudness
-  // ("bass boost") target gain. There is no Surround Sound or Mono Audio
-  // control available through just_audio on any platform, so those two
-  // controls were intentionally left out of Advance Settings — there is
-  // nothing real to wire them to, and a fake toggle would be exactly the
-  // kind of client-only "looks like it works" gate this project avoids
-  // elsewhere (see File 40).
   AndroidEqualizer? _equalizer;
   AndroidLoudnessEnhancer? _loudnessEnhancer;
 
   AndroidEqualizer? get equalizer => _equalizer;
   AndroidLoudnessEnhancer? get loudnessEnhancer => _loudnessEnhancer;
+
+  /// Lazily creates the Android effect instances (safe to call before
+  /// [init]) and returns them for [AudioPipeline.androidAudioEffects].
+  /// Empty on non-Android platforms.
+  List<AndroidAudioEffect> get androidAudioEffects {
+    if (!Platform.isAndroid) return const [];
+    _equalizer ??= AndroidEqualizer();
+    _loudnessEnhancer ??= AndroidLoudnessEnhancer();
+    return [_equalizer!, _loudnessEnhancer!];
+  }
 
   bool _isInitialized = false;
   bool get isSupported => Platform.isAndroid;
@@ -50,10 +52,8 @@ class EqualizerService {
       return;
     }
     try {
-      // Construct these lazily, only on Android — building them on other
-      // platforms is what used to risk crashing playback on init.
-      _equalizer = AndroidEqualizer();
-      _loudnessEnhancer = AndroidLoudnessEnhancer();
+      _equalizer ??= AndroidEqualizer();
+      _loudnessEnhancer ??= AndroidLoudnessEnhancer();
       await _equalizer!.setEnabled(true);
       await _loudnessEnhancer!.setEnabled(true);
       _isInitialized = true;
@@ -65,7 +65,7 @@ class EqualizerService {
   Future<void> applyPreset(String preset) async {
     if (!_isInitialized) {
       await init();
-      if (!_isInitialized) return; // platform unsupported or init failed
+      if (!_isInitialized) return;
     }
 
     if (preset == 'custom') {
@@ -147,13 +147,6 @@ class EqualizerService {
     }
   }
 
-  // ---------------------------------------------------------------------
-  // Custom 5-band EQ + bass boost (Advance Settings, File 31)
-  // ---------------------------------------------------------------------
-
-  /// Returns the live band parameters (frequency + min/max/current gain)
-  /// so the UI can build sliders that match the device's actual equalizer.
-  /// Returns null if unsupported/not yet initialized.
   Future<AndroidEqualizerParameters?> getBandParameters() async {
     if (!_isInitialized) {
       await init();
@@ -167,9 +160,6 @@ class EqualizerService {
     }
   }
 
-  /// Sets a single band's gain (dB) immediately, live, without touching the
-  /// others. The caller is responsible for calling [persistCustomEq] once
-  /// the user is done adjusting (e.g. debounced), not on every frame.
   Future<void> setBandGain(int bandIndex, double gainDb) async {
     final params = await getBandParameters();
     if (params == null || bandIndex < 0 || bandIndex >= params.bands.length) {
@@ -183,8 +173,6 @@ class EqualizerService {
     }
   }
 
-  /// Bass boost is a single loudness-enhancer target gain, separate from
-  /// the 5 EQ bands, clamped to [0, maxBassBoostDb].
   Future<void> setBassBoost(double gainDb) async {
     if (!_isInitialized) {
       await init();
@@ -198,9 +186,6 @@ class EqualizerService {
     }
   }
 
-  /// Persists the current custom band gains + bass boost to
-  /// SharedPreferences, so they can be re-applied on next launch when the
-  /// saved preset is 'custom'.
   Future<void> persistCustomEq({
     required List<double> bandGains,
     required double bassBoostDb,
@@ -255,10 +240,6 @@ class EqualizerService {
     }
   }
 
-  /// Resets custom EQ to flat (0 dB every band) + 0 bass boost, both live
-  /// and in storage. Does not change which preset is selected — the caller
-  /// (Advance Settings screen) decides whether to also switch the saved
-  /// preset back to 'normal'.
   Future<void> resetCustomEq() async {
     final params = await getBandParameters();
     if (params != null) {
