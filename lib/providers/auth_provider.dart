@@ -7,7 +7,7 @@ import '../models/profile.dart';
 import '../services/auth_service.dart';
 
 class AuthProvider extends ChangeNotifier {
-  final AuthService _authService = AuthService();
+  final AuthService _authService;
 
   Profile? _profile;
   bool _isLoading = false;
@@ -27,7 +27,11 @@ class AuthProvider extends ChangeNotifier {
   // not whether the profile row happened to load successfully.
   bool get isLoggedIn => _authService.getCurrentUser() != null;
 
-  AuthProvider() {
+  // Fixed (Serial 17): AuthService is now optionally injectable so tests
+  // can pass a fake implementation instead of the real Supabase-backed
+  // singleton. Default behavior (no argument) is unchanged.
+  AuthProvider({AuthService? authService})
+      : _authService = authService ?? AuthService() {
     _authStateSub = _authService.authStateChanges.listen((state) {
       final signedIn = state.session != null;
       if (signedIn) {
