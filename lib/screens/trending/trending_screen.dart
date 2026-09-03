@@ -141,9 +141,9 @@ class _TrendingScreenState extends State<TrendingScreen> {
         .cancelDownload(songId);
   }
 
-  void _removeDownload(String songId) {
+  void _removeDownload(String songId, {required String audioUrl}) {
     Provider.of<DownloadsProvider>(context, listen: false)
-        .removeDownload(songId);
+        .removeDownload(songId, audioUrl: audioUrl);
   }
 
   @override
@@ -240,7 +240,7 @@ class _TrendingScreenState extends State<TrendingScreen> {
             onToggleFavorite: () => _toggleFavorite(song),
             onDownload: () => _downloadSong(song),
             onCancelDownload: () => _cancelDownload(song.id),
-            onRemoveDownload: () => _removeDownload(song.id),
+            onRemoveDownload: () => _removeDownload(song.id, audioUrl: song.audioUrl),
             onToggleLike: () => likesProvider.toggleLike(song.id),
           ),
         );
