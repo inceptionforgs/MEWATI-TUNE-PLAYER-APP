@@ -49,8 +49,13 @@ class PlayerProvider extends ChangeNotifier {
   /// PlayerService's playlist state anywhere.
   List<Song> get queue => _playerService.playlist;
 
-  PlayerProvider() {
-    _init();
+  // Fixed (Serial 17): added an `autoInit` test seam. When false, the
+  // constructor skips subscribing to PlayerService's real audio streams —
+  // used by widget tests that need a PlayerProvider in the widget tree
+  // (e.g. via Provider) without exercising real playback plumbing.
+  // Default (no argument) behavior is completely unchanged.
+  PlayerProvider({bool autoInit = true}) {
+    if (autoInit) _init();
   }
 
   void _init() {
@@ -91,11 +96,6 @@ class PlayerProvider extends ChangeNotifier {
       }
     });
   }
-
-  // Fixed (Serial 2): PlayerService.playSong(Song) was deleted from
-  // PlayerService (only setPlaylist remains). This method had no callers
-  // anywhere else in the codebase, so it is removed entirely rather than
-  // reimplemented. Use setPlaylist(songs: [song], startIndex: 0) instead.
 
   Future<void> setPlaylist({required List<Song> songs, required int startIndex}) async {
     _isLoading = true;
