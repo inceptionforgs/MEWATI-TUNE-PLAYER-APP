@@ -1,3 +1,5 @@
+// File: lib/screens/drive_mode/drive_mode_screen.dart
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:wakelock_plus/wakelock_plus.dart';
@@ -73,11 +75,18 @@ class _DriveModeScreenState extends State<DriveModeScreen> {
   @override
   Widget build(BuildContext context) {
     final t = context.watch<ThemeProvider>().theme;
-    final playerProvider = context.watch<PlayerProvider>();
-    final song = playerProvider.currentSong;
-    final queue = playerProvider.queue;
-    final position = playerProvider.position;
-    final duration = playerProvider.duration ?? Duration.zero;
+    // Fixed (Item 9): read the provider for method calls only — do NOT
+    // context.watch the whole provider here, since PlayerProvider calls
+    // notifyListeners() on every ~200ms position tick, which was causing
+    // this entire screen to rebuild that often. Fields that change
+    // infrequently (song, queue, isPlaying) use context.select so this
+    // widget only rebuilds when that specific field changes; position and
+    // duration are read via their ValueNotifiers further down so only the
+    // seek-bar section rebuilds on every tick.
+    final playerProvider = context.read<PlayerProvider>();
+    final song = context.select<PlayerProvider, Song?>((p) => p.currentSong);
+    final queue = context.select<PlayerProvider, List<Song>>((p) => p.queue);
+    final isPlaying = context.select<PlayerProvider, bool>((p) => p.isPlaying);
 
     return PopScope(
       canPop: false,
@@ -155,47 +164,60 @@ class _DriveModeScreenState extends State<DriveModeScreen> {
 
               const SizedBox(height: 20),
 
-              // Thick seek bar.
+              // Thick seek bar. Wrapped in ValueListenableBuilders on
+              // positionNotifier/durationNotifier (Item 9) so only this
+              // section rebuilds on every position tick, not the whole
+              // screen.
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 24),
-                child: Column(
-                  children: [
-                    SliderTheme(
-                      data: SliderTheme.of(context).copyWith(
-                        trackHeight: 14,
-                        thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 14),
-                        overlayShape: const RoundSliderOverlayShape(overlayRadius: 24),
-                        activeTrackColor: t.accent,
-                        inactiveTrackColor: Colors.white24,
-                        thumbColor: Colors.white,
-                      ),
-                      child: Slider(
-                        value: duration.inMilliseconds > 0
-                            ? position.inMilliseconds
-                                .clamp(0, duration.inMilliseconds)
-                                .toDouble()
-                            : 0.0,
-                        max: duration.inMilliseconds > 0
-                            ? duration.inMilliseconds.toDouble()
-                            : 1.0,
-                        onChanged: (value) {
-                          playerProvider.seek(Duration(milliseconds: value.round()));
-                        },
-                      ),
-                    ),
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 8),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Text(_formatDuration(position),
-                              style: const TextStyle(color: Colors.white70, fontSize: 16)),
-                          Text(_formatDuration(duration),
-                              style: const TextStyle(color: Colors.white70, fontSize: 16)),
-                        ],
-                      ),
-                    ),
-                  ],
+                child: ValueListenableBuilder<Duration>(
+                  valueListenable: playerProvider.durationNotifier,
+                  builder: (context, duration, _) {
+                    return ValueListenableBuilder<Duration>(
+                      valueListenable: playerProvider.positionNotifier,
+                      builder: (context, position, __) {
+                        return Column(
+                          children: [
+                            SliderTheme(
+                              data: SliderTheme.of(context).copyWith(
+                                trackHeight: 14,
+                                thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 14),
+                                overlayShape: const RoundSliderOverlayShape(overlayRadius: 24),
+                                activeTrackColor: t.accent,
+                                inactiveTrackColor: Colors.white24,
+                                thumbColor: Colors.white,
+                              ),
+                              child: Slider(
+                                value: duration.inMilliseconds > 0
+                                    ? position.inMilliseconds
+                                        .clamp(0, duration.inMilliseconds)
+                                        .toDouble()
+                                    : 0.0,
+                                max: duration.inMilliseconds > 0
+                                    ? duration.inMilliseconds.toDouble()
+                                    : 1.0,
+                                onChanged: (value) {
+                                  playerProvider.seek(Duration(milliseconds: value.round()));
+                                },
+                              ),
+                            ),
+                            Padding(
+                              padding: const EdgeInsets.symmetric(horizontal: 8),
+                              child: Row(
+                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                children: [
+                                  Text(_formatDuration(position),
+                                      style: const TextStyle(color: Colors.white70, fontSize: 16)),
+                                  Text(_formatDuration(duration),
+                                      style: const TextStyle(color: Colors.white70, fontSize: 16)),
+                                ],
+                              ),
+                            ),
+                          ],
+                        );
+                      },
+                    );
+                  },
                 ),
               ),
 
@@ -212,7 +234,7 @@ class _DriveModeScreenState extends State<DriveModeScreen> {
                     onTap: playerProvider.previous,
                   ),
                   _DriveModeButton(
-                    icon: playerProvider.isPlaying ? Icons.pause_circle_filled : Icons.play_circle_filled,
+                    icon: isPlaying ? Icons.pause_circle_filled : Icons.play_circle_filled,
                     size: 108,
                     color: t.accent,
                     onTap: playerProvider.togglePlayPause,
