@@ -1,6 +1,5 @@
 // File: lib/core/widgets/debug_panel.dart
 
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
