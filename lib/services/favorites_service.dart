@@ -1,5 +1,6 @@
+// File: lib/services/favorites_service.dart
+
 import 'package:supabase_flutter/supabase_flutter.dart';
-import '../models/favorite.dart';
 import '../models/song.dart';
 import 'supabase_service.dart';
 
