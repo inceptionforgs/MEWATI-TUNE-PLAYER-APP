@@ -1,3 +1,5 @@
+// File: lib/core/extensions/duration_extensions.dart
+
 extension DurationExtensions on Duration {
   String get asMinutesSeconds {
     final m = inMinutes.remainder(60).toString().padLeft(2, '0');
