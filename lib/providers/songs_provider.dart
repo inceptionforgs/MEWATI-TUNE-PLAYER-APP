@@ -1,3 +1,5 @@
+// File: lib/providers/songs_provider.dart
+
 import 'package:flutter/foundation.dart';
 import '../models/song.dart';
 import '../services/songs_service.dart';
@@ -47,6 +49,10 @@ class SongsProvider extends ChangeNotifier {
       _currentPage = 0;
       _hasMore = firstPage.length >= _pageSize;
 
+      // Cache only here, on the first successful load. Previously
+      // loadMoreSongs() also called cacheSongs() on every extra page,
+      // rewriting the entire cached blob each time — wasteful once the
+      // library has hundreds/thousands of songs loaded via pagination.
       await _cacheService.cacheSongs(_allSongs);
     } catch (e) {
       final cached = await _cacheService.getCachedSongs();
@@ -91,7 +97,10 @@ class SongsProvider extends ChangeNotifier {
         _currentPage++;
         _hasMore = nextPage.length >= _pageSize;
 
-        await _cacheService.cacheSongs(_allSongs);
+        // Fixed (P5-6): no longer re-caches the entire accumulated list on
+        // every "load more" page. The offline cache reflects the first
+        // page only (from loadSongs()) — an acceptable tradeoff since the
+        // cache exists purely as an offline fallback, not a live mirror.
       }
     } catch (e) {
       _errorMessage = e.toString();
