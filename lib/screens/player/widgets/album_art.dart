@@ -1,3 +1,5 @@
+// File: lib/screens/player/widgets/album_art.dart
+
 import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import '../../../core/constants/app_themes.dart';
@@ -17,10 +19,14 @@ class AlbumArt extends StatelessWidget {
       height: 230,
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(20),
-        gradient: const LinearGradient(
+        // Fixed: was a hardcoded gradient (Color(0xFF2A170D), Color(0xFF120C08))
+        // that never changed with the active theme. Now derived from theme
+        // tokens so Deep Black / Apple Green / Walkman Orange all render a
+        // consistent placeholder gradient instead of a leftover fixed one.
+        gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: [Color(0xFF2A170D), Color(0xFF120C08)],
+          colors: [t.surface, t.background],
         ),
         border: Border.all(
           color: t.textPrimary.withOpacity(0.28),
