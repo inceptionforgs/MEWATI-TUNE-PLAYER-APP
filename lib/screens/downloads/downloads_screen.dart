@@ -101,6 +101,40 @@ class _DownloadsScreenState extends State<DownloadsScreen> {
         .cancelDownload(songId);
   }
 
+  // NEW: confirmation gate before anything gets deleted. Shows an
+  // AlertDialog (styled with the active theme, same pattern as
+  // DriveModeScreen._confirmExit) and only calls _removeDownload if the
+  // user explicitly taps "Delete". Cancel / dismiss (tap outside, back
+  // button) leaves the download untouched.
+  Future<void> _confirmAndRemoveDownload(Song song) async {
+    final t = Provider.of<ThemeProvider>(context, listen: false).theme;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        backgroundColor: t.surface,
+        title: Text('Delete download?', style: TextStyle(color: t.textPrimary)),
+        content: Text(
+          'This will remove "${song.title}" from your downloads.',
+          style: TextStyle(color: t.textSecondary),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: Text('Cancel', style: TextStyle(color: t.textSecondary)),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            child: const Text('Delete', style: TextStyle(color: Color(0xFFE53935))),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true) {
+      await _removeDownload(song);
+    }
+  }
+
   // Fixed: audioUrl is now required (File 36) so the correct file/extension
   // actually gets deleted from disk, and the result is checked to show the
   // right SnackBar instead of assuming success via try/catch on a void call.
@@ -232,7 +266,9 @@ class _DownloadsScreenState extends State<DownloadsScreen> {
                 onToggleFavorite: () => _toggleFavorite(song),
                 onDownload: () => _downloadSong(song),
                 onCancelDownload: () => _cancelDownload(song.id),
-                onRemoveDownload: () => _removeDownload(song),
+                // CHANGED: was `() => _removeDownload(song)` — now routes
+                // through the confirmation dialog first.
+                onRemoveDownload: () => _confirmAndRemoveDownload(song),
                 onToggleLike: () => _toggleLike(song.id),
               ),
             );
