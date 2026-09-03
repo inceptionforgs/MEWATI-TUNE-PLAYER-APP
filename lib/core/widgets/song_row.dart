@@ -1,3 +1,4 @@
+// FILE: lib/core/widgets/song_row.dart
 import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import '../utils/formatters.dart';
@@ -92,41 +93,45 @@ class SongRow extends StatelessWidget {
         ),
         child: Row(
           children: [
-            Container(
-              width: 52,
-              height: 52,
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: t.textPrimary.withOpacity(0.24), width: 2),
-                gradient: const LinearGradient(
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                  colors: [Color(0xFF2A170D), Color(0xFF120C08)],
+            Semantics(
+              label: isNow && isPlaying ? 'Pause' : 'Play',
+              button: true,
+              child: Container(
+                width: 52,
+                height: 52,
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: t.textPrimary.withOpacity(0.24), width: 2),
+                  gradient: const LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [Color(0xFF2A170D), Color(0xFF120C08)],
+                  ),
                 ),
-              ),
-              child: (song.coverImageUrl != null && song.coverImageUrl!.isNotEmpty)
-                  ? ClipRRect(
-                      borderRadius: BorderRadius.circular(10),
-                      child: CachedNetworkImage(
-                        imageUrl: song.coverImageUrl!,
-                        fit: BoxFit.cover,
-                        cacheManager: AppCacheManager.instance,
-                        memCacheWidth: 128,
-                        memCacheHeight: 128,
-                        placeholder: (context, url) => Icon(
-                          isNow && isPlaying ? Icons.pause : Icons.play_arrow,
-                          color: t.textPrimary,
+                child: (song.coverImageUrl != null && song.coverImageUrl!.isNotEmpty)
+                    ? ClipRRect(
+                        borderRadius: BorderRadius.circular(10),
+                        child: CachedNetworkImage(
+                          imageUrl: song.coverImageUrl!,
+                          fit: BoxFit.cover,
+                          cacheManager: AppCacheManager.instance,
+                          memCacheWidth: 128,
+                          memCacheHeight: 128,
+                          placeholder: (context, url) => Icon(
+                            isNow && isPlaying ? Icons.pause : Icons.play_arrow,
+                            color: t.textPrimary,
+                          ),
+                          errorWidget: (context, url, error) => Icon(
+                            isNow && isPlaying ? Icons.pause : Icons.play_arrow,
+                            color: t.textPrimary,
+                          ),
                         ),
-                        errorWidget: (context, url, error) => Icon(
-                          isNow && isPlaying ? Icons.pause : Icons.play_arrow,
-                          color: t.textPrimary,
-                        ),
+                      )
+                    : Icon(
+                        isNow && isPlaying ? Icons.pause : Icons.play_arrow,
+                        color: t.textPrimary,
                       ),
-                    )
-                  : Icon(
-                      isNow && isPlaying ? Icons.pause : Icons.play_arrow,
-                      color: t.textPrimary,
-                    ),
+              ),
             ),
             const SizedBox(width: 12),
             Expanded(
@@ -182,15 +187,19 @@ class SongRow extends StatelessWidget {
             Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                IconButton(
-                  icon: Icon(
-                    isLiked ? Icons.thumb_up : Icons.thumb_up_outlined,
-                    color: isLiked ? t.accent : t.textPrimary.withOpacity(0.75),
-                    size: 20,
+                Semantics(
+                  label: isLiked ? 'Unlike song' : 'Like song',
+                  button: true,
+                  child: IconButton(
+                    icon: Icon(
+                      isLiked ? Icons.thumb_up : Icons.thumb_up_outlined,
+                      color: isLiked ? t.accent : t.textPrimary.withOpacity(0.75),
+                      size: 20,
+                    ),
+                    onPressed: actions.onToggleLike,
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(minWidth: 48, minHeight: 48),
                   ),
-                  onPressed: actions.onToggleLike,
-                  padding: EdgeInsets.zero,
-                  constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
                 ),
                 Text(
                   formatCount(likeCount),
@@ -202,47 +211,63 @@ class SongRow extends StatelessWidget {
                 ),
               ],
             ),
-            IconButton(
-              icon: Icon(
-                isFav ? Icons.favorite : Icons.favorite_border,
-                color: isFav ? Colors.redAccent : t.textPrimary.withOpacity(0.75),
+            Semantics(
+              label: isFav ? 'Remove from favorites' : 'Add to favorites',
+              button: true,
+              child: IconButton(
+                icon: Icon(
+                  isFav ? Icons.favorite : Icons.favorite_border,
+                  color: isFav ? Colors.redAccent : t.textPrimary.withOpacity(0.75),
+                ),
+                onPressed: actions.onToggleFavorite,
               ),
-              onPressed: actions.onToggleFavorite,
             ),
             if (isDownloaded)
-              IconButton(
-                icon: const Icon(Icons.check_circle, color: Color(0xFF4CD964)),
-                onPressed: actions.onRemoveDownload,
+              Semantics(
+                label: 'Remove download',
+                button: true,
+                child: IconButton(
+                  icon: const Icon(Icons.check_circle, color: Color(0xFF4CD964)),
+                  onPressed: actions.onRemoveDownload,
+                ),
               )
             else if (isDownloading)
-              GestureDetector(
-                onTap: actions.onCancelDownload,
-                child: SizedBox(
-                  width: 36,
-                  height: 36,
-                  child: Stack(
-                    alignment: Alignment.center,
-                    children: [
-                      CircularProgressIndicator(
-                        value: progress,
-                        strokeWidth: 2.5,
-                        color: t.textPrimary,
-                      ),
-                      Text(
-                        '${(progress * 100).round()}',
-                        style: TextStyle(fontSize: 8.5, color: t.textPrimary),
-                      ),
-                    ],
+              Semantics(
+                label: 'Cancel download',
+                button: true,
+                child: GestureDetector(
+                  onTap: actions.onCancelDownload,
+                  child: SizedBox(
+                    width: 36,
+                    height: 36,
+                    child: Stack(
+                      alignment: Alignment.center,
+                      children: [
+                        CircularProgressIndicator(
+                          value: progress,
+                          strokeWidth: 2.5,
+                          color: t.textPrimary,
+                        ),
+                        Text(
+                          '${(progress * 100).round()}',
+                          style: TextStyle(fontSize: 8.5, color: t.textPrimary),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
               )
             else
-              IconButton(
-                icon: Icon(
-                  Icons.download_outlined,
-                  color: t.textPrimary.withOpacity(0.75),
+              Semantics(
+                label: 'Download song',
+                button: true,
+                child: IconButton(
+                  icon: Icon(
+                    Icons.download_outlined,
+                    color: t.textPrimary.withOpacity(0.75),
+                  ),
+                  onPressed: actions.onDownload,
                 ),
-                onPressed: actions.onDownload,
               ),
           ],
         ),
