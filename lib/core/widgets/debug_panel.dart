@@ -1,6 +1,10 @@
+// File: lib/core/widgets/debug_panel.dart
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:provider/provider.dart';
+import '../../providers/theme_provider.dart';
 import '../../services/debug_log_service.dart';
 
 class DebugPanel extends StatefulWidget {
@@ -17,6 +21,7 @@ class _DebugPanelState extends State<DebugPanel> {
 
   @override
   Widget build(BuildContext context) {
+    final t = context.watch<ThemeProvider>().theme;
     return Positioned(
       left: _position.dx,
       top: _position.dy,
@@ -26,51 +31,51 @@ class _DebugPanelState extends State<DebugPanel> {
             _position += details.delta;
           });
         },
-        child: _expanded ? _buildExpandedPanel() : _buildCollapsedButton(),
+        child: _expanded ? _buildExpandedPanel(t) : _buildCollapsedButton(t),
       ),
     );
   }
 
-  Widget _buildCollapsedButton() {
+  Widget _buildCollapsedButton(AppThemeData t) {
     return FloatingActionButton(
       mini: true,
-      backgroundColor: Colors.black87,
+      backgroundColor: t.surface,
       onPressed: () => setState(() => _expanded = true),
-      child: const Icon(Icons.bug_report, color: Colors.white, size: 20),
+      child: Icon(Icons.bug_report, color: t.textPrimary, size: 20),
     );
   }
 
-  Widget _buildExpandedPanel() {
+  Widget _buildExpandedPanel(AppThemeData t) {
     return Container(
       width: 300,
       height: 400,
       decoration: BoxDecoration(
-        color: Colors.black.withOpacity(0.9),
+        color: t.surface.withOpacity(0.95),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.white24),
+        border: Border.all(color: t.textPrimary.withOpacity(0.24)),
       ),
       child: Column(
         children: [
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-            decoration: const BoxDecoration(
+            decoration: BoxDecoration(
               border: Border(
-                bottom: BorderSide(color: Colors.white24),
+                bottom: BorderSide(color: t.textPrimary.withOpacity(0.24)),
               ),
             ),
             child: Row(
               children: [
-                const Text(
+                Text(
                   'DEBUG LOGS',
                   style: TextStyle(
-                    color: Colors.white,
+                    color: t.textPrimary,
                     fontWeight: FontWeight.bold,
                     fontSize: 12,
                   ),
                 ),
                 const Spacer(),
                 IconButton(
-                  icon: const Icon(Icons.copy, color: Colors.white, size: 18),
+                  icon: Icon(Icons.copy, color: t.textPrimary, size: 18),
                   onPressed: () {
                     Clipboard.setData(
                       ClipboardData(text: _logService.getAllLogsAsString()),
@@ -81,14 +86,14 @@ class _DebugPanelState extends State<DebugPanel> {
                   },
                 ),
                 IconButton(
-                  icon: const Icon(Icons.delete, color: Colors.white, size: 18),
+                  icon: Icon(Icons.delete, color: t.textPrimary, size: 18),
                   onPressed: () {
                     _logService.clear();
                     setState(() {});
                   },
                 ),
                 IconButton(
-                  icon: const Icon(Icons.close, color: Colors.white, size: 18),
+                  icon: Icon(Icons.close, color: t.textPrimary, size: 18),
                   onPressed: () => setState(() => _expanded = false),
                 ),
               ],
@@ -103,10 +108,13 @@ class _DebugPanelState extends State<DebugPanel> {
                   itemCount: logs.length,
                   itemBuilder: (context, index) {
                     final log = logs[index];
+                    // Log-level colors are semantic (info/warning/error),
+                    // not theme mismatches — kept as-is per the list's
+                    // "semantic green/red is fine" allowance.
                     Color color;
                     switch (log.level) {
                       case LogLevel.info:
-                        color = Colors.white70;
+                        color = t.textPrimary.withOpacity(0.7);
                         break;
                       case LogLevel.warning:
                         color = Colors.orangeAccent;
