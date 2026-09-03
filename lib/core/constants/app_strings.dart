@@ -47,4 +47,8 @@ class AppStrings {
   static const String like = 'Like';
   static const String unlike = 'Unlike';
   static const String likes = 'Likes';
+
+  static const String appVersion = 'Version: 1.0.0 (Walkman Ed.)';
+  static const String feedbackDrawerLabel = 'Feedback / Suggest a Song';
+  static const String advanceSettingsDrawerLabel = 'Advance Settings';
 }
