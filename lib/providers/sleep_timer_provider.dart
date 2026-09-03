@@ -23,8 +23,8 @@ class SleepTimerProvider extends ChangeNotifier {
         notifyListeners();
       },
       onComplete: () {
-        _remaining = Duration.zero;
-        _totalDuration = Duration.zero;
+        _remaining = null;
+        _totalDuration = null;
         _isFading = false;
         notifyListeners();
       },
