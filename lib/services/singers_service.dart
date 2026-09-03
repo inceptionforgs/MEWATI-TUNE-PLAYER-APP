@@ -1,13 +1,13 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../core/utils/like_pattern_escaper.dart';
 import '../models/singer.dart';
 import 'supabase_service.dart';
 
 class SingersService {
   SupabaseClient get _supabase => SupabaseService().client;
 
-  String _escapeLikePattern(String input) {
-    return input.replaceAll('\\', '\\\\').replaceAll('%', '\\%').replaceAll('_', '\\_');
-  }
+  // Fixed (Serial 17): now delegates to the shared escapeLikePattern
+  // utility instead of a private duplicate. Behavior unchanged.
 
   Future<List<Singer>> fetchAllSingers() async {
     try {
@@ -59,7 +59,7 @@ class SingersService {
     try {
       if (query.trim().isEmpty) return [];
 
-      final safeQuery = _escapeLikePattern(query.trim());
+      final safeQuery = escapeLikePattern(query.trim());
 
       final response = await _supabase
           .from('singers_with_song_count')
