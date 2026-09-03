@@ -1,3 +1,5 @@
+// File: lib/app.dart
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
@@ -57,12 +59,6 @@ class MewatiTunePlayerApp extends StatefulWidget {
   final AuthProvider? authProvider;
   final DownloadsProvider? downloadsProvider;
 
-  // NEW: static so MiniPlayerBar (a sibling of the Navigator, not a
-  // descendant — see the note on the removed instance field below) can
-  // reach it directly instead of via `Navigator.of(context)`.
-  static final GlobalKey<NavigatorState> navigatorKey =
-      GlobalKey<NavigatorState>();
-
   const MewatiTunePlayerApp({
     Key? key,
     this.authProvider,
@@ -75,15 +71,7 @@ class MewatiTunePlayerApp extends StatefulWidget {
 
 class _MewatiTunePlayerAppState extends State<MewatiTunePlayerApp>
     with WidgetsBindingObserver {
-  final GlobalKey<NavigatorState> _navigatorKey =
-      MewatiTunePlayerApp.navigatorKey;
-  // CHANGED: was a private instance field (`_navigatorKey`). MiniPlayerBar
-  // is rendered as a SIBLING of the app's routed content inside the Stack
-  // below (see `builder:`), not as its descendant — so `Navigator.of(context)`
-  // called from inside MiniPlayerBar can never find this Navigator and the
-  // header-tap / Drive Mode taps there silently do nothing. Exposing this
-  // key as static lets MiniPlayerBar navigate via
-  // `MewatiTunePlayerApp.navigatorKey.currentState` instead.
+  final GlobalKey<NavigatorState> _navigatorKey = GlobalKey<NavigatorState>();
   final ValueNotifier<String?> _currentRouteName = ValueNotifier<String?>(null);
   late final _MiniPlayerRouteObserver _routeObserver;
 
@@ -202,7 +190,20 @@ class _MewatiTunePlayerAppState extends State<MewatiTunePlayerApp>
                           left: 0,
                           right: 0,
                           bottom: 0,
-                          child: const MiniPlayerBar(),
+                          // FIX: previously the mini-player sat flush at
+                          // Stack's bottom: 0, which ignores the device's
+                          // bottom system-UI inset entirely. On phones with
+                          // 3-button (non-gesture) Android navigation, that
+                          // inset is non-zero, so the mini-player rendered
+                          // underneath/overlapping the nav buttons. SafeArea
+                          // here adds exactly that inset as bottom padding
+                          // (top: false since this Positioned is already
+                          // anchored to the bottom, not the top, of the
+                          // screen).
+                          child: SafeArea(
+                            top: false,
+                            child: const MiniPlayerBar(),
+                          ),
                         ),
                       // Debug-only overlay: never shown to real end users.
                       if (kDebugMode) const DebugPanel(),
