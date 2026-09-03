@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart';
 import 'package:just_audio/just_audio.dart';
 import 'package:just_audio_background/just_audio_background.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../config/media_config.dart';
 import '../core/utils/queue_builder.dart';
 import '../models/song.dart';
 import 'downloads_service.dart';
@@ -133,6 +134,27 @@ class PlayerService {
         }
       }
 
+      // Host allowlist: a song is only eligible to stream remotely if its
+      // audioUrl's host matches the project's CDN allowlist. Songs with a
+      // verified local file (above) bypass this, since they don't hit the
+      // network at all. Anything else that fails the check is dropped
+      // here — the same "skip, don't fail the whole playlist" treatment
+      // used for corrupt local files above.
+      final eligibleSongs = songs.where((song) {
+        if (localPaths.containsKey(song.id)) return true;
+        final allowed = MediaConfig.isAllowedAudioUrl(song.audioUrl);
+        if (!allowed) {
+          debugPrint(
+              'PlayerService: rejecting "${song.title}" — audio URL host not in CDN allowlist.');
+        }
+        return allowed;
+      }).toList();
+
+      if (eligibleSongs.isEmpty) {
+        throw Exception(
+            'No playable songs found (missing or invalid audio URLs).');
+      }
+
       // Fixed (Serial 17): validation + windowing logic moved to
       // QueueBuilder (lib/core/utils/queue_builder.dart) so it can be unit
       // tested without a real AudioPlayer/SharedPreferences/file system.
@@ -140,7 +162,7 @@ class PlayerService {
       late final BuiltQueue built;
       try {
         built = QueueBuilder.build(
-          songs: songs,
+          songs: eligibleSongs,
           startIndex: startIndex,
           locallyAvailableSongIds: localPaths.keys.toSet(),
           windowSize: _maxQueueWindow,
