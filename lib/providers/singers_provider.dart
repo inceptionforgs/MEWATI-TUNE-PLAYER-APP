@@ -1,3 +1,5 @@
+// File: lib/providers/singers_provider.dart
+
 import 'package:flutter/foundation.dart';
 import '../models/singer.dart';
 import '../services/singers_service.dart';
@@ -45,6 +47,8 @@ class SingersProvider extends ChangeNotifier {
       _currentPage = 0;
       _hasMore = firstPage.length >= _pageSize;
 
+      // Cache only here, on the first successful load — see File 47's
+      // matching fix in songs_provider.dart for the same reasoning.
       await _cacheService.cacheSingers(_allSingers);
     } catch (e) {
       final cached = await _cacheService.getCachedSingers();
@@ -89,7 +93,8 @@ class SingersProvider extends ChangeNotifier {
         _currentPage++;
         _hasMore = nextPage.length >= _pageSize;
 
-        await _cacheService.cacheSingers(_allSingers);
+        // Fixed (P5-6): no longer re-caches the entire accumulated list on
+        // every "load more" page.
       }
     } catch (e) {
       _errorMessage = e.toString();
