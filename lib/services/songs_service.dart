@@ -1,36 +1,21 @@
-import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../core/utils/like_pattern_escaper.dart';
 import '../models/song.dart';
 import 'supabase_service.dart';
 
 class SongsService {
   SupabaseClient get _supabase => SupabaseService().client;
 
-  // Helper to map response rows to Song objects, skipping any invalid row.
-  // A row is skipped (not thrown) if it has no id, or if audioUrl is
-  // empty/invalid — one bad row must never break the whole list.
-  List<Song> _mapSongs(List<dynamic> response) {
-    final songs = <Song>[];
-    for (final item in response) {
-      try {
-        final map = item as Map<String, dynamic>;
-        final id = map['id'] as String? ?? '';
-        final audioUrl = map['audio_url'] as String? ?? '';
-        if (id.isEmpty || audioUrl.trim().isEmpty) {
-          debugPrint('SongsService: skipping row with missing id/audioUrl: $map');
-          continue;
-        }
-        songs.add(Song.fromJson(map));
-      } catch (e) {
-        debugPrint('SongsService: skipping invalid song row: $e');
-      }
-    }
-    return songs;
-  }
+  // Fixed (Serial 17): row validation/skip logic moved to
+  // Song.mapValidRows so it can be unit tested directly. Behavior
+  // unchanged — a row with a missing id or empty/invalid audioUrl is
+  // still skipped, never thrown.
+  List<Song> _mapSongs(List<dynamic> response) => Song.mapValidRows(response);
 
-  String _escapeLikePattern(String input) {
-    return input.replaceAll('\\', '\\\\').replaceAll('%', '\\%').replaceAll('_', '\\_');
-  }
+  // Fixed (Serial 17): now delegates to the shared escapeLikePattern
+  // utility (lib/core/utils/like_pattern_escaper.dart) instead of a
+  // private duplicate that could never be unit tested on its own.
+  // Behavior unchanged.
 
   Future<List<Song>> fetchSongsPage({required int offset, required int limit}) async {
     try {
@@ -79,7 +64,7 @@ class SongsService {
     try {
       if (query.trim().isEmpty) return [];
 
-      final safeQuery = _escapeLikePattern(query.trim());
+      final safeQuery = escapeLikePattern(query.trim());
 
       final response = await _supabase
           .from('songs')
