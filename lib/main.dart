@@ -1,3 +1,4 @@
+// FILE: lib/main.dart
 import 'dart:async';
 
 import 'package:flutter/material.dart';
@@ -46,7 +47,10 @@ Future<void> _initializeApp(DownloadsProvider downloadsProvider) async {
     // other, non-critical parts of the app still want an optional .env.
     try {
       await dotenv.load(fileName: ".env");
-    } catch (_) {}
+    } catch (e) {
+      // Optional file — app must keep booting without it. Logged only.
+      debugPrint('Optional .env not loaded: $e');
+    }
 
     // Initialize just_audio background support (needed for playback).
     await JustAudioBackground.init(
