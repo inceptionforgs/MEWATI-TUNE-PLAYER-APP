@@ -72,6 +72,16 @@ class _MewatiTunePlayerAppState extends State<MewatiTunePlayerApp>
   final ValueNotifier<String?> _currentRouteName = ValueNotifier<String?>(null);
   late final _MiniPlayerRouteObserver _routeObserver;
 
+  // Built as instances here (instead of inline inside MultiProvider's
+  // `create:` closures) so AuthProvider.onSessionReady can be wired to
+  // FavoritesProvider/LikesProvider below — previously onSessionReady was
+  // never assigned anywhere, so those providers never reloaded when a
+  // session became ready (e.g. after anonymous sign-in completes).
+  late final AuthProvider _authProvider;
+  late final FavoritesProvider _favoritesProvider;
+  late final LikesProvider _likesProvider;
+  late final DownloadsProvider _downloadsProvider;
+
   @override
   void initState() {
     super.initState();
@@ -79,6 +89,19 @@ class _MewatiTunePlayerAppState extends State<MewatiTunePlayerApp>
       (name) => _currentRouteName.value = name,
     );
     WidgetsBinding.instance.addObserver(this);
+
+    _authProvider = widget.authProvider ?? AuthProvider();
+    _favoritesProvider = FavoritesProvider();
+    _likesProvider = LikesProvider();
+    _downloadsProvider = widget.downloadsProvider ?? DownloadsProvider();
+
+    // Reload favorites and invalidate the likes cache whenever a session
+    // becomes ready, so both providers reflect the now-active session
+    // instead of staying stuck empty (or stale from a previous session).
+    _authProvider.onSessionReady = () {
+      _favoritesProvider.loadFavorites();
+      _likesProvider.clear();
+    };
   }
 
   @override
@@ -106,17 +129,17 @@ class _MewatiTunePlayerAppState extends State<MewatiTunePlayerApp>
   Widget build(BuildContext context) {
     return MultiProvider(
       providers: [
-        ChangeNotifierProvider<AuthProvider>(
-          create: (_) => widget.authProvider ?? AuthProvider(),
-        ),
-        ChangeNotifierProvider<DownloadsProvider>(
-          create: (_) => widget.downloadsProvider ?? DownloadsProvider(),
+        ChangeNotifierProvider<AuthProvider>.value(value: _authProvider),
+        ChangeNotifierProvider<DownloadsProvider>.value(
+          value: _downloadsProvider,
         ),
         ChangeNotifierProvider(create: (_) => PlayerProvider()),
         ChangeNotifierProvider(create: (_) => SongsProvider()),
         ChangeNotifierProvider(create: (_) => SingersProvider()),
-        ChangeNotifierProvider(create: (_) => FavoritesProvider()),
-        ChangeNotifierProvider(create: (_) => LikesProvider()),
+        ChangeNotifierProvider<FavoritesProvider>.value(
+          value: _favoritesProvider,
+        ),
+        ChangeNotifierProvider<LikesProvider>.value(value: _likesProvider),
         ChangeNotifierProvider(create: (_) => SleepTimerProvider()),
         ChangeNotifierProvider(create: (_) => ThemeProvider()),
       ],
