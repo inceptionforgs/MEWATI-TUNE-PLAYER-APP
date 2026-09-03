@@ -190,16 +190,16 @@ class _MewatiTunePlayerAppState extends State<MewatiTunePlayerApp>
                           left: 0,
                           right: 0,
                           bottom: 0,
-                          // FIX: previously the mini-player sat flush at
-                          // Stack's bottom: 0, which ignores the device's
-                          // bottom system-UI inset entirely. On phones with
-                          // 3-button (non-gesture) Android navigation, that
-                          // inset is non-zero, so the mini-player rendered
-                          // underneath/overlapping the nav buttons. SafeArea
-                          // here adds exactly that inset as bottom padding
-                          // (top: false since this Positioned is already
-                          // anchored to the bottom, not the top, of the
-                          // screen).
+                          // FIX (nav-bar overlap): previously the
+                          // mini-player sat flush at Stack's bottom: 0,
+                          // ignoring the device's bottom system-UI inset
+                          // entirely. On phones with 3-button (non-gesture)
+                          // Android navigation, that inset is non-zero, so
+                          // the mini-player rendered underneath/overlapping
+                          // the nav buttons. SafeArea adds exactly that
+                          // inset as bottom padding (top: false since this
+                          // Positioned is already anchored to the bottom,
+                          // not the top, of the screen).
                           child: SafeArea(
                             top: false,
                             child: const MiniPlayerBar(),
