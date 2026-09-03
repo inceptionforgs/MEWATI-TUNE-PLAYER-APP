@@ -1,8 +1,11 @@
+// File: lib/core/widgets/mini_player_bar.dart
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:just_audio/just_audio.dart';
 import '../../providers/player_provider.dart';
 import '../../providers/theme_provider.dart';
+import '../extensions/duration_extensions.dart';
 
 class MiniPlayerBar extends StatelessWidget {
   const MiniPlayerBar({Key? key}) : super(key: key);
@@ -16,7 +19,6 @@ class MiniPlayerBar extends StatelessWidget {
     final song = context.select<PlayerProvider, dynamic>((p) => p.currentSong);
     final hasSong = song != null;
     final isPlaying = context.select<PlayerProvider, bool>((p) => p.isPlaying);
-    final shuffleMode = context.select<PlayerProvider, bool>((p) => p.shuffleMode);
     final loopMode = context.select<PlayerProvider, LoopMode>((p) => p.loopMode);
     final currentQueueIndex =
         context.select<PlayerProvider, int>((p) => p.currentQueueIndex);
@@ -100,12 +102,19 @@ class MiniPlayerBar extends StatelessWidget {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              IconButton(
-                icon: Icon(
-                  Icons.shuffle,
-                  color: shuffleMode ? t.accent : t.textPrimary.withOpacity(0.85),
+              // [F2] Shuffle removed, replaced with Drive Mode in the same slot.
+              Semantics(
+                label: 'Drive Mode',
+                button: true,
+                child: IconButton(
+                  icon: Icon(
+                    Icons.drive_eta,
+                    color: t.textPrimary.withOpacity(0.85),
+                  ),
+                  tooltip: 'Drive Mode',
+                  onPressed: () =>
+                      Navigator.of(context).pushNamed('/drive-mode'),
                 ),
-                onPressed: () => playerProvider.toggleShuffle(),
               ),
               Row(
                 children: [
@@ -210,73 +219,82 @@ class _MiniPlayerSlider extends StatefulWidget {
 class _MiniPlayerSliderState extends State<_MiniPlayerSlider> {
   double? _dragValue;
 
-  String _fmt(Duration d) {
-    final m = d.inMinutes.remainder(60).toString().padLeft(1, '0');
-    final s = d.inSeconds.remainder(60).toString().padLeft(2, '0');
-    return '$m:$s';
-  }
+  // Fixed: was `inMinutes.remainder(60)`, which silently dropped the hour
+  // count (e.g. 65 min -> showed "5:xx" / effectively "00:xx" once combined
+  // with drag state). DurationExtensions.asCompact correctly shows
+  // h:mm:ss once past 60 minutes, and m:ss below that.
+  String _fmt(Duration d) => d.asCompact;
 
   @override
   Widget build(BuildContext context) {
-    // Use context.select to only rebuild on position/duration changes
-    final duration = context.select<PlayerProvider, Duration>(
-      (p) => p.duration ?? Duration.zero,
-    );
-    final position = context.select<PlayerProvider, Duration>(
-      (p) => p.position,
-    );
+    // Position/duration now come from PlayerProvider's ValueNotifiers
+    // (added in File 24's fix) instead of context.select, so only this
+    // slider rebuilds on every position tick — not the whole mini-player.
+    final playerProvider = context.read<PlayerProvider>();
 
-    final actualPct = duration.inMilliseconds == 0
-        ? 0.0
-        : (position.inMilliseconds / duration.inMilliseconds).clamp(0.0, 1.0);
-    final pct = _dragValue ?? actualPct;
+    return ValueListenableBuilder<Duration>(
+      valueListenable: playerProvider.durationNotifier,
+      builder: (context, duration, _) {
+        return ValueListenableBuilder<Duration>(
+          valueListenable: playerProvider.positionNotifier,
+          builder: (context, position, __) {
+            final actualPct = duration.inMilliseconds == 0
+                ? 0.0
+                : (position.inMilliseconds / duration.inMilliseconds)
+                    .clamp(0.0, 1.0);
+            final pct = _dragValue ?? actualPct;
 
-    return Column(
-      children: [
-        SliderTheme(
-          data: SliderTheme.of(context).copyWith(
-            trackHeight: 3,
-            thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 7),
-            overlayShape: SliderComponentShape.noOverlay,
-            activeTrackColor: widget.activeTrackColor,
-            inactiveTrackColor: widget.inactiveTrackColor,
-            thumbColor: widget.thumbColor,
-          ),
-          child: Slider(
-            value: pct,
-            onChanged: (v) {
-              setState(() => _dragValue = v);
-            },
-            onChangeEnd: (v) {
-              final newPos = Duration(
-                milliseconds: (v * duration.inMilliseconds).round(),
-              );
-              widget.onSeek(newPos);
-              setState(() => _dragValue = null);
-            },
-          ),
-        ),
-        const SizedBox(height: 4),
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Text(
-              _fmt(position),
-              style: TextStyle(
-                color: widget.secondaryTextColor,
-                fontSize: 13,
-              ),
-            ),
-            Text(
-              _fmt(duration),
-              style: TextStyle(
-                color: widget.secondaryTextColor,
-                fontSize: 13,
-              ),
-            ),
-          ],
-        ),
-      ],
+            return Column(
+              children: [
+                SliderTheme(
+                  data: SliderTheme.of(context).copyWith(
+                    trackHeight: 3,
+                    thumbShape:
+                        const RoundSliderThumbShape(enabledThumbRadius: 7),
+                    overlayShape: SliderComponentShape.noOverlay,
+                    activeTrackColor: widget.activeTrackColor,
+                    inactiveTrackColor: widget.inactiveTrackColor,
+                    thumbColor: widget.thumbColor,
+                  ),
+                  child: Slider(
+                    value: pct,
+                    onChanged: (v) {
+                      setState(() => _dragValue = v);
+                    },
+                    onChangeEnd: (v) {
+                      final newPos = Duration(
+                        milliseconds: (v * duration.inMilliseconds).round(),
+                      );
+                      widget.onSeek(newPos);
+                      setState(() => _dragValue = null);
+                    },
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      _fmt(position),
+                      style: TextStyle(
+                        color: widget.secondaryTextColor,
+                        fontSize: 13,
+                      ),
+                    ),
+                    Text(
+                      _fmt(duration),
+                      style: TextStyle(
+                        color: widget.secondaryTextColor,
+                        fontSize: 13,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            );
+          },
+        );
+      },
     );
   }
 }
