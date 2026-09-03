@@ -11,7 +11,11 @@ class AppDrawer extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final themeProvider = context.read<ThemeProvider>();
+    final themeProvider = context.watch<ThemeProvider>();
+    // CHANGED: was context.read<ThemeProvider>() — that meant this
+    // widget never rebuilt when theme/eq preset changed elsewhere, so
+    // the selected radio circle here stayed stale until some other
+    // rebuild happened to touch this drawer.
     // Fix: watch, not read — drawer was stuck on "Guest" after login
     // because it never rebuilt when auth state changed.
     final authProvider = context.watch<AuthProvider>();
@@ -324,3 +328,4 @@ class _DrawerActionRow extends StatelessWidget {
     );
   }
 }
+
