@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
+import '../constants/app_themes.dart';
 import '../../providers/theme_provider.dart';
 import '../../services/debug_log_service.dart';
 
@@ -108,9 +109,6 @@ class _DebugPanelState extends State<DebugPanel> {
                   itemCount: logs.length,
                   itemBuilder: (context, index) {
                     final log = logs[index];
-                    // Log-level colors are semantic (info/warning/error),
-                    // not theme mismatches — kept as-is per the list's
-                    // "semantic green/red is fine" allowance.
                     Color color;
                     switch (log.level) {
                       case LogLevel.info:
