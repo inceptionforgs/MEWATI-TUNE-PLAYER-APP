@@ -111,7 +111,7 @@ class SongsService {
     try {
       await _supabase.rpc(
         'increment_play_count',
-        params: {'song_id_input': songId},
+        params: {'p_song_id': songId},
       );
     } catch (e) {
       // Non-critical operation — silently ignore errors.
