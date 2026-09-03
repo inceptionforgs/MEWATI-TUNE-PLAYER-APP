@@ -49,7 +49,7 @@ class SingersService {
           .maybeSingle();
 
       if (response == null) return null;
-      return Singer.fromJson(response as Map<String, dynamic>);
+      return Singer.fromJson(response);
     } catch (e) {
       throw Exception('Failed to load singer: ${e.toString()}');
     }
