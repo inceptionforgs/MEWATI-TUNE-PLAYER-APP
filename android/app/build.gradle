@@ -33,10 +33,13 @@ android {
     signingConfigs {
         release {
             // Load keystore properties from local file (not committed to VCS).
-            // A release build must NEVER silently fall back to the debug
-            // keystore — if key.properties is missing, fail loudly instead.
+            // TRIAL MODE: if key.properties is missing, fall back to the debug
+            // keystore so CI/local builds still produce an installable APK.
+            // NOTE: an APK signed this way is NOT accepted by Google Play —
+            // only use for sideloading/testing during the trial.
             def keystorePropertiesFile = rootProject.file("key.properties")
-            if (keystorePropertiesFile.exists()) {
+            def hasKeystore = keystorePropertiesFile.exists()
+            if (hasKeystore) {
                 def keystoreProperties = new Properties()
                 keystoreProperties.load(new FileInputStream(keystorePropertiesFile))
                 storeFile file(keystoreProperties['storeFile'])
@@ -49,27 +52,11 @@ android {
 
     buildTypes {
         release {
-            signingConfig signingConfigs.release
+            signingConfig rootProject.file("key.properties").exists() ? signingConfigs.release : signingConfigs.debug
             minifyEnabled true
             shrinkResources true
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
         }
-    }
-}
-
-// Fail the build (instead of silently signing with the debug keystore) if a
-// release/bundleRelease task is requested without android/key.properties present.
-gradle.taskGraph.whenReady { taskGraph ->
-    def requestingRelease = taskGraph.allTasks.any { task ->
-        task.name.toLowerCase().contains("release")
-    }
-    if (requestingRelease && !rootProject.file("key.properties").exists()) {
-        throw new GradleException(
-            "Missing android/key.properties. Release builds must be signed with the " +
-            "real release keystore — refusing to fall back to the debug keystore. " +
-            "Create key.properties with storeFile/storePassword/keyAlias/keyPassword " +
-            "before building a release APK/AAB."
-        )
     }
 }
 
