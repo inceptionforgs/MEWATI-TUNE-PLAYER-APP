@@ -31,24 +31,28 @@ class _MiniPlayerRouteObserver extends NavigatorObserver {
   @override
   void didPush(Route<dynamic> route, Route<dynamic>? previousRoute) {
     super.didPush(route, previousRoute);
+    debugPrint('🔵 Route PUSHED: ${route.settings.name}');
     onRouteChanged(route.settings.name);
   }
 
   @override
   void didPop(Route<dynamic> route, Route<dynamic>? previousRoute) {
     super.didPop(route, previousRoute);
+    debugPrint('🔴 Route POPPED: ${route.settings.name} -> Back to: ${previousRoute?.settings.name}');
     onRouteChanged(previousRoute?.settings.name);
   }
 
   @override
   void didRemove(Route<dynamic> route, Route<dynamic>? previousRoute) {
     super.didRemove(route, previousRoute);
+    debugPrint('🟡 Route REMOVED: ${route.settings.name}');
     onRouteChanged(previousRoute?.settings.name);
   }
 
   @override
   void didReplace({Route<dynamic>? newRoute, Route<dynamic>? oldRoute}) {
     super.didReplace(newRoute: newRoute, oldRoute: oldRoute);
+    debugPrint('🟣 Route REPLACED: ${oldRoute?.settings.name} -> ${newRoute?.settings.name}');
     onRouteChanged(newRoute?.settings.name);
   }
 }
@@ -87,7 +91,10 @@ class _MewatiTunePlayerAppState extends State<MewatiTunePlayerApp>
   void initState() {
     super.initState();
     _routeObserver = _MiniPlayerRouteObserver(
-      (name) => _currentRouteName.value = name,
+      (name) {
+        debugPrint('📍 Current route name set to: $name');
+        _currentRouteName.value = name;
+      },
     );
     WidgetsBinding.instance.addObserver(this);
 
@@ -170,6 +177,8 @@ class _MewatiTunePlayerAppState extends State<MewatiTunePlayerApp>
                   final isNowPlaying = routeName == RouteNames.nowPlaying;
                   final isSplash = routeName == RouteNames.splash;
                   final showMiniPlayer = hasSong && !isNowPlaying && !isSplash;
+
+                  debugPrint('🎯 Route: $routeName | hasSong: $hasSong | isNowPlaying: $isNowPlaying | showMiniPlayer: $showMiniPlayer');
 
                   return Stack(
                     children: [
