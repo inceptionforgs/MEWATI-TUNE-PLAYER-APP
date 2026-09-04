@@ -1,4 +1,3 @@
-// File: lib/core/widgets/mini_player/themes/mini_player_cyber_black.dart
 //
 // Cyber Black mini player: colors taken 1:1 from the HTML mockup.
 // Hardcoded on purpose (per request) instead of reading from
@@ -7,6 +6,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:just_audio/just_audio.dart';
+import 'package:provider/provider.dart';
 
 import '../../../../providers/player_provider.dart';
 import '../../../../routes/route_names.dart';
