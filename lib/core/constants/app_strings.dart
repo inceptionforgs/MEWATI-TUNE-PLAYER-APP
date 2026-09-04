@@ -1,6 +1,8 @@
+// File: lib/core/constants/app_strings.dart
+
 class AppStrings {
   static const String appTagline = 'Mewati music ka ghar';
-  static const String appName = 'Mewati Tune Player';
+  static const String appName = 'Mewati Song Player';
 
   static const String login = 'Login';
   static const String signup = 'Sign Up';
@@ -48,7 +50,7 @@ class AppStrings {
   static const String unlike = 'Unlike';
   static const String likes = 'Likes';
 
-  static const String appVersion = 'Version: 1.0.0 (Walkman Ed.)';
+  static const String appVersion = 'Version: 3.1.0 (Walkman Ed.)';
   static const String feedbackDrawerLabel = 'Feedback / Suggest a Song';
   static const String advanceSettingsDrawerLabel = 'Advance Settings';
 }
