@@ -1,4 +1,3 @@
-// File: lib/core/widgets/mini_player/themes/mini_player_default.dart
 //
 // Fallback mini player used by every theme that doesn't have its own
 // dedicated file. This is the original design, unchanged — only moved
@@ -6,6 +5,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:just_audio/just_audio.dart';
+import 'package:provider/provider.dart';
 
 import '../../../../providers/player_provider.dart';
 import '../../../../routes/route_names.dart';
