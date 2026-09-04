@@ -76,7 +76,8 @@ class MiniPlayerCyberBlack extends StatelessWidget {
                     fontWeight: FontWeight.w600,
                   ),
                 ),
-                if (subtitleParts.isNotEmpty) ...[\n                  const SizedBox(height: 4),
+                if (subtitleParts.isNotEmpty) ...[
+                  const SizedBox(height: 4),
                   Text(
                     subtitleParts.join('  •  '),
                     maxLines: 1,
@@ -91,7 +92,8 @@ class MiniPlayerCyberBlack extends StatelessWidget {
               ],
             ),
           ),
-          if (errorMessage != null) ...[\n            const SizedBox(height: 10),
+          if (errorMessage != null) ...[
+            const SizedBox(height: 10),
             Container(
               width: double.infinity,
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
@@ -258,7 +260,7 @@ class _CyberBlackSlider extends StatefulWidget {
   const _CyberBlackSlider({required this.onSeek});
 
   @override
-  State<_CyberBlackSliderState> createState() => _CyberBlackSliderState();
+  State<_CyberBlackSlider> createState() => _CyberBlackSliderState();
 }
 
 class _CyberBlackSliderState extends State<_CyberBlackSlider> {
