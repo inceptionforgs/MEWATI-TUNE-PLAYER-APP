@@ -1,89 +1,39 @@
 // File: lib/screens/player/widgets/seek_bar.dart
+//
+// Dispatcher — picks the right per-theme seek bar based on the active
+// theme, so every screen that does `import 'widgets/seek_bar.dart'` and
+// uses `SeekBar()` keeps working exactly as before, unchanged.
+//
+// Right now all three themes render the same look (see seek_bar/ folder —
+// pure file separation for now); this is where each theme's own seek-bar
+// styling gets plugged in later without touching this dispatcher.
 
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import '../../../core/extensions/duration_extensions.dart';
-import '../../../providers/player_provider.dart';
+import '../../../core/constants/app_themes.dart';
 import '../../../providers/theme_provider.dart';
+import 'seek_bar/cyber_black_seek_bar.dart';
+import 'seek_bar/silver_chrome_seek_bar.dart';
+import 'seek_bar/walkman_orange_seek_bar.dart';
 
-class SeekBar extends StatefulWidget {
+class SeekBar extends StatelessWidget {
   const SeekBar({Key? key}) : super(key: key);
 
   @override
-  State<SeekBar> createState() => _SeekBarState();
-}
-
-class _SeekBarState extends State<SeekBar> {
-  double? _dragValue;
-
-  @override
   Widget build(BuildContext context) {
-    final playerProvider = context.read<PlayerProvider>();
-    final t = context.watch<ThemeProvider>().theme;
+    final themeId = context.watch<ThemeProvider>().theme.id;
 
-    return ValueListenableBuilder<Duration?>(
-      valueListenable: playerProvider.durationNotifier,
-      builder: (context, durationValue, _) {
-        final duration = durationValue ?? Duration.zero;
-        return ValueListenableBuilder<Duration>(
-          valueListenable: playerProvider.positionNotifier,
-          builder: (context, position, __) {
-            final actualPct = duration.inMilliseconds == 0
-                ? 0.0
-                : (position.inMilliseconds / duration.inMilliseconds).clamp(0.0, 1.0);
-            final pct = _dragValue ?? actualPct;
-
-            return Column(
-              children: [
-                SliderTheme(
-                  data: SliderTheme.of(context).copyWith(
-                    trackHeight: 4,
-                    thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 7.5),
-                    overlayShape: SliderComponentShape.noOverlay,
-                    activeTrackColor: t.textPrimary,
-                    inactiveTrackColor: t.textPrimary.withOpacity(0.28),
-                    thumbColor: t.textPrimary,
-                  ),
-                  child: Slider(
-                    value: pct,
-                    onChanged: (v) {
-                      setState(() => _dragValue = v);
-                    },
-                    onChangeEnd: (v) {
-                      final newPos = Duration(
-                        milliseconds: (v * duration.inMilliseconds).round(),
-                      );
-                      playerProvider.seek(newPos);
-                      setState(() => _dragValue = null);
-                    },
-                  ),
-                ),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(
-                      position.asCompact,
-                      style: TextStyle(
-                        color: t.textPrimary.withOpacity(0.75),
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                    Text(
-                      duration.asCompact,
-                      style: TextStyle(
-                        color: t.textPrimary.withOpacity(0.75),
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            );
-          },
-        );
-      },
-    );
+    switch (themeId) {
+      case AppThemeId.cyberBlack:
+        return const CyberBlackSeekBar();
+      case AppThemeId.silverChrome:
+        return const SilverChromeSeekBar();
+      case AppThemeId.walkmanOrange:
+      case AppThemeId.custom:
+        // Custom theme is colour-only today (see custom_theme_builder.dart)
+        // so it keeps using the default structural seek bar, exactly like
+        // before this split.
+        return const WalkmanOrangeSeekBar();
+    }
   }
 }
