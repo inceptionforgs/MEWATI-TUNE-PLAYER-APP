@@ -107,7 +107,7 @@ class MiniPlayerCyberBlack extends StatelessWidget {
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(
-                      errorMessage!,
+                      errorMessage,
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                       style: const TextStyle(color: Colors.redAccent, fontSize: 12),
