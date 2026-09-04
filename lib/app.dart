@@ -1,12 +1,10 @@
-// File: lib/app.dart
-
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'core/constants/app_theme.dart';
 import 'core/constants/app_dimensions.dart';
 import 'core/widgets/debug_panel.dart';
-import 'core/widgets/mini_player_bar.dart';
+import 'core/widgets/mini_player/mini_player_bar.dart';
 import 'services/downloads_service.dart';
 import 'services/player_service.dart';
 import 'providers/auth_provider.dart';
