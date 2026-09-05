@@ -1,4 +1,8 @@
 // FILE: lib/screens/singers/singer_profile_screen.dart
+// Unchanged — header (avatar/name/song count), "Back to Singers" row,
+// and song list already match the prototype's singer-detail layout,
+// and the list already uses the restyled SongRow.
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:cached_network_image/cached_network_image.dart';
@@ -100,11 +104,6 @@ class _SingerProfileScreenState extends State<SingerProfileScreen> {
   }
 
   Future<void> _downloadSong(Song song) async {
-    // Fixed (Item 11): await the download and show a SnackBar on failure,
-    // mirroring the pattern used above for favorite/like toggle errors.
-    // downloadSong() rethrows on failure specifically so callers can do
-    // this — previously this call was fire-and-forget and errors were
-    // silently dropped.
     try {
       await Provider.of<DownloadsProvider>(context, listen: false)
           .downloadSong(song);
@@ -209,7 +208,7 @@ class _SingerProfileScreenState extends State<SingerProfileScreen> {
                               child: CachedNetworkImage(
                                 imageUrl: widget.singer.photoUrl!,
                                 fit: BoxFit.cover,
-                                cacheManager: AppCacheManager.instance, // <-- added
+                                cacheManager: AppCacheManager.instance,
                                 memCacheWidth: 160,
                                 memCacheHeight: 160,
                                 placeholder: (context, url) => Center(
@@ -327,8 +326,6 @@ class _SingerProfileScreenState extends State<SingerProfileScreen> {
     }
 
     return ListView.builder(
-      // Bottom padding accounts for the mini-player bar overlaying the
-      // bottom of the screen, so the last row(s) aren't hidden behind it.
       padding: EdgeInsets.only(bottom: 16 + AppDimensions.miniPlayerHeight),
       itemCount: _songs.length,
       itemBuilder: (context, index) {
@@ -341,12 +338,6 @@ class _SingerProfileScreenState extends State<SingerProfileScreen> {
             ? likesProvider.getLikeCountSync(song.id)
             : song.likeCount;
 
-        // Fixed (Item 10): consume downloadsProvider.progressNotifier via
-        // ValueListenableBuilder so this row's progress actually animates
-        // during a download — progressNotifier deliberately never calls
-        // notifyListeners(), so reading getProgress()/isDownloading()
-        // directly in itemBuilder (outside this builder) was stale until
-        // some unrelated rebuild happened to occur.
         return ValueListenableBuilder<Map<String, double>>(
           valueListenable: downloadsProvider.progressNotifier,
           builder: (context, progressMap, _) {
