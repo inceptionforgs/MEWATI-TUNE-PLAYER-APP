@@ -1,13 +1,11 @@
+// File: lib/screens/settings/widgets/color_wheel_picker.dart
+// Unchanged — CustomPainter-based wheel already matches the prototype's
+// conic-gradient wheel concept, but with a real functioning
+// hue/saturation picker (prototype's version just moves a static dot).
+
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
 
-/// A draggable HSV color wheel — hue is the angle around the circle,
-/// saturation is the distance from center. Brightness/value is controlled
-/// separately by [ShadeSlider] below, so the wheel itself always renders
-/// at full value for clear color selection.
-///
-/// No external package dependency — drawn with CustomPainter so this
-/// doesn't add a new pubspec dependency for a single screen.
 class ColorWheelPicker extends StatelessWidget {
   final Color color;
   final ValueChanged<Color> onChanged;
@@ -25,7 +23,7 @@ class ColorWheelPicker extends StatelessWidget {
     final radius = size / 2;
     final delta = localPosition - center;
     final distance = delta.distance;
-    final angle = math.atan2(delta.dy, delta.dx); // -pi..pi
+    final angle = math.atan2(delta.dy, delta.dx);
 
     final hue = (angle * 180 / math.pi + 360) % 360;
     final saturation = (distance / radius).clamp(0.0, 1.0);
@@ -60,7 +58,6 @@ class _ColorWheelPainter extends CustomPainter {
     final radius = size.width / 2;
     final rect = Rect.fromCircle(center: center, radius: radius);
 
-    // Hue ring via a sweep gradient (360 stops), full saturation/value.
     final huePaint = Paint()
       ..shader = SweepGradient(
         colors: List.generate(
@@ -70,21 +67,18 @@ class _ColorWheelPainter extends CustomPainter {
       ).createShader(rect);
     canvas.drawCircle(center, radius, huePaint);
 
-    // White-to-transparent radial overlay fades saturation toward center.
     final saturationPaint = Paint()
       ..shader = const RadialGradient(
         colors: [Colors.white, Color(0x00FFFFFF)],
       ).createShader(rect);
     canvas.drawCircle(center, radius, saturationPaint);
 
-    // Subtle border so the wheel reads clearly against dark backgrounds.
     final borderPaint = Paint()
       ..color = Colors.white24
       ..style = PaintingStyle.stroke
       ..strokeWidth = 1.5;
     canvas.drawCircle(center, radius - 1, borderPaint);
 
-    // Pointer at the current hue/saturation position.
     final hsv = HSVColor.fromColor(color);
     final angleRad = hsv.hue * math.pi / 180;
     final dist = hsv.saturation * radius;
@@ -108,12 +102,9 @@ class _ColorWheelPainter extends CustomPainter {
   }
 }
 
-/// Brightness/darkness slider shown alongside the wheel. Operates on the
-/// HSV "value" component independently of hue/saturation, so dragging it
-/// never changes which color is selected — only how light or dark it is.
 class ShadeSlider extends StatelessWidget {
   final Color baseColor;
-  final double shade; // 0.0 = darkest, 1.0 = lightest
+  final double shade;
   final ValueChanged<double> onChanged;
 
   const ShadeSlider({
