@@ -18,8 +18,6 @@ class _SplashScreenState extends State<SplashScreen> {
   @override
   void initState() {
     super.initState();
-    // No hardcoded delay — we navigate the moment init + auth restoration
-    // actually finish, not after an arbitrary 2 seconds.
     _startSplashAndNavigate();
   }
 
@@ -27,10 +25,6 @@ class _SplashScreenState extends State<SplashScreen> {
     final authProvider = Provider.of<AuthProvider>(context, listen: false);
 
     try {
-      // Fully await auth restoration before deciding anything — this is
-      // what was missing before: Home used to open (via the cached-catalog
-      // shortcut) while loadCurrentUser() was still running in the
-      // background, so favorites/likes loaded empty on first paint.
       await authProvider.loadCurrentUser().timeout(
         const Duration(seconds: 15),
         onTimeout: () {
@@ -53,8 +47,6 @@ class _SplashScreenState extends State<SplashScreen> {
       return;
     }
 
-    // Auth finished but didn't succeed (e.g. anonymous sign-in failed) —
-    // never open Home half-initialized. Offer Retry / Continue Offline.
     setState(() {
       _errorText = authProvider.errorMessage ??
           'Could not connect. Please check your internet.';
@@ -69,7 +61,33 @@ class _SplashScreenState extends State<SplashScreen> {
     await _startSplashAndNavigate();
   }
 
-  void _continueOffline() {
+  Future<void> _continueOffline() async {
+    final t = Provider.of<ThemeProvider>(context, listen: false).theme;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        backgroundColor: t.surface,
+        title: Text('Continue without an account?',
+            style: TextStyle(color: t.textPrimary)),
+        content: Text(
+          'Your favorites, likes, and download history won\'t be available '
+          'until you connect and sign in again.',
+          style: TextStyle(color: t.textSecondary),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: Text('Cancel', style: TextStyle(color: t.textSecondary)),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            child: Text('Continue', style: TextStyle(color: t.accent)),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true || !mounted) return;
     Navigator.of(context).pushReplacementNamed('/home');
   }
 
