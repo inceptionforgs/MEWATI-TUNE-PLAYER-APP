@@ -1,4 +1,6 @@
 // FILE: lib/screens/trending/trending_screen.dart
+// Unchanged — already uses the restyled SongRow.
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../core/constants/app_dimensions.dart';
@@ -112,10 +114,6 @@ class _TrendingScreenState extends State<TrendingScreen> {
       });
 
       final likesProvider = Provider.of<LikesProvider>(context, listen: false);
-      // Fixed (Serial 5): only the newly loaded page is sent here, not the
-      // full accumulated _trendingSongs list — otherwise every load-more
-      // re-checks like status for songs already checked, defeating the
-      // point of the batched-fetch fix in LikeService.getLikedSongIds.
       likesProvider.loadLikesData(nextPage);
     } catch (e) {
       if (!mounted) return;
@@ -162,11 +160,6 @@ class _TrendingScreenState extends State<TrendingScreen> {
   }
 
   Future<void> _downloadSong(Song song) async {
-    // Fixed (Item 11): await the download and show a SnackBar on failure,
-    // mirroring the pattern used above for favorite/like toggle errors.
-    // downloadSong() rethrows on failure specifically so callers can do
-    // this — previously this call was fire-and-forget and errors were
-    // silently dropped.
     try {
       await Provider.of<DownloadsProvider>(context, listen: false)
           .downloadSong(song);
@@ -218,8 +211,6 @@ class _TrendingScreenState extends State<TrendingScreen> {
 
     return ListView.builder(
       controller: _scrollController,
-      // Bottom padding accounts for the mini-player bar overlaying the
-      // bottom of the screen, so the last row(s) aren't hidden behind it.
       padding: EdgeInsets.only(bottom: 16 + AppDimensions.miniPlayerHeight),
       itemCount: _trendingSongs.length +
           (_isLoadingMore || _loadMoreError != null ? 1 : 0),
@@ -260,12 +251,6 @@ class _TrendingScreenState extends State<TrendingScreen> {
             ? likesProvider.getLikeCountSync(song.id)
             : song.likeCount;
 
-        // Fixed (Item 10): consume downloadsProvider.progressNotifier via
-        // ValueListenableBuilder so this row's progress actually animates
-        // during a download — progressNotifier deliberately never calls
-        // notifyListeners(), so reading getProgress()/isDownloading()
-        // directly in itemBuilder (outside this builder) was stale until
-        // some unrelated rebuild happened to occur.
         return ValueListenableBuilder<Map<String, double>>(
           valueListenable: downloadsProvider.progressNotifier,
           builder: (context, progressMap, _) {
