@@ -149,17 +149,14 @@ class MiniPlayerSilverChrome extends StatelessWidget {
                   ),
                   const SizedBox(width: 16),
                   isLoading
-                      ? Semantics(
-                          label: 'Loading',
-                          child: SizedBox(
-                            width: 58,
-                            height: 58,
-                            child: Padding(
-                              padding: const EdgeInsets.all(16),
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2.5,
-                                valueColor: AlwaysStoppedAnimation<Color>(_scButtonIcon),
-                              ),
+                      ? const SizedBox(
+                          width: 58,
+                          height: 58,
+                          child: Padding(
+                            padding: EdgeInsets.all(16),
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2.5,
+                              valueColor: AlwaysStoppedAnimation<Color>(_scButtonIcon),
                             ),
                           ),
                         )
@@ -223,9 +220,7 @@ class MiniPlayerSilverChrome extends StatelessWidget {
           gradient: LinearGradient(
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
-            colors: active
-                ? [_scButtonIcon, Colors.black]
-                : [_scMetalLight, _scMetalDark],
+            colors: [_scMetalLight, _scMetalDark],
           ),
           boxShadow: [
             BoxShadow(
@@ -234,8 +229,9 @@ class MiniPlayerSilverChrome extends StatelessWidget {
               offset: const Offset(0, 2),
             ),
           ],
+          border: active ? Border.all(color: _scButtonIcon, width: 1.5) : null,
         ),
-        child: Icon(icon, color: active ? _scMetalLight : _scButtonIcon, size: iconSize),
+        child: Icon(icon, color: _scButtonIcon, size: iconSize),
       ),
     );
   }
@@ -335,3 +331,4 @@ class _SilverChromeSliderState extends State<_SilverChromeSlider> {
     );
   }
 }
+
