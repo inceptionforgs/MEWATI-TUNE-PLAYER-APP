@@ -1,9 +1,15 @@
+// File: lib/screens/settings/widgets/color_wheel.dart
+//
+// Unchanged. NOTE: this file (the `ColorWheel` class) isn't imported
+// anywhere in the project — custom_theme_section.dart uses
+// ColorWheelPicker from color_wheel_picker.dart instead. Looks like
+// leftover/dead code from an earlier version. Regenerated as-is since
+// you asked for every file; flagging it in case you want it removed —
+// I won't delete anything without you saying so.
+
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
 
-/// A draggable circular hue/saturation color wheel. Brightness (HSV
-/// "value") is controlled separately via the shade slider next to it,
-/// per spec: "a shade/brightness slider alongside the wheel".
 class ColorWheel extends StatefulWidget {
   final double hue;
   final double saturation;
@@ -31,7 +37,7 @@ class _ColorWheelState extends State<ColorWheel> {
     final delta = localPosition - center;
     final distance = delta.distance.clamp(0.0, radius);
 
-    double angle = math.atan2(delta.dy, delta.dx); // -pi..pi
+    double angle = math.atan2(delta.dy, delta.dx);
     double hueDeg = (angle * 180 / math.pi + 360) % 360;
     double sat = (distance / radius).clamp(0.0, 1.0);
 
@@ -58,7 +64,6 @@ class _ColorWheelState extends State<ColorWheel> {
         child: Stack(
           alignment: Alignment.center,
           children: [
-            // Hue ring
             Container(
               width: widget.size,
               height: widget.size,
@@ -77,7 +82,6 @@ class _ColorWheelState extends State<ColorWheel> {
                 ),
               ),
             ),
-            // Saturation overlay: white at center -> transparent at edge
             Container(
               width: widget.size,
               height: widget.size,
@@ -89,7 +93,6 @@ class _ColorWheelState extends State<ColorWheel> {
                 ),
               ),
             ),
-            // Brightness overlay: darken the whole wheel as value drops
             Container(
               width: widget.size,
               height: widget.size,
@@ -98,7 +101,6 @@ class _ColorWheelState extends State<ColorWheel> {
                 color: Colors.black.withOpacity((1 - widget.value).clamp(0.0, 1.0)),
               ),
             ),
-            // Pointer
             Positioned(
               left: pointerOffset.dx - 10,
               top: pointerOffset.dy - 10,
