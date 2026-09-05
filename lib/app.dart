@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'core/constants/app_theme.dart';
 import 'core/constants/app_dimensions.dart';
+import 'core/constants/themes/app_theme_id.dart';
 import 'core/widgets/debug_panel.dart';
 import 'core/widgets/mini_player/mini_player_bar.dart';
 import 'services/downloads_service.dart';
@@ -19,10 +20,6 @@ import 'providers/theme_provider.dart';
 import 'routes/app_router.dart';
 import 'routes/route_names.dart';
 
-/// Tracks the currently active top-level route by name so the mini-player
-/// can decide whether to show/hide itself. Uses a real NavigatorObserver
-/// instead of RouteObserver/RouteAware (which requires a ModalRoute
-/// subscriber and isn't meant to be used this way).
 class _MiniPlayerRouteObserver extends NavigatorObserver {
   _MiniPlayerRouteObserver(this.onRouteChanged);
 
@@ -31,29 +28,34 @@ class _MiniPlayerRouteObserver extends NavigatorObserver {
   @override
   void didPush(Route<dynamic> route, Route<dynamic>? previousRoute) {
     super.didPush(route, previousRoute);
-    debugPrint('🔵 Route PUSHED: ${route.settings.name}');
     onRouteChanged(route.settings.name);
   }
 
   @override
   void didPop(Route<dynamic> route, Route<dynamic>? previousRoute) {
     super.didPop(route, previousRoute);
-    debugPrint('🔴 Route POPPED: ${route.settings.name} -> Back to: ${previousRoute?.settings.name}');
     onRouteChanged(previousRoute?.settings.name);
   }
 
   @override
   void didRemove(Route<dynamic> route, Route<dynamic>? previousRoute) {
     super.didRemove(route, previousRoute);
-    debugPrint('🟡 Route REMOVED: ${route.settings.name}');
     onRouteChanged(previousRoute?.settings.name);
   }
 
   @override
   void didReplace({Route<dynamic>? newRoute, Route<dynamic>? oldRoute}) {
     super.didReplace(newRoute: newRoute, oldRoute: oldRoute);
-    debugPrint('🟣 Route REPLACED: ${oldRoute?.settings.name} -> ${newRoute?.settings.name}');
     onRouteChanged(newRoute?.settings.name);
+  }
+}
+
+double _miniPlayerHeightFor(AppThemeId id) {
+  switch (id) {
+    case AppThemeId.cyberBlack:
+      return 244.0;
+    default:
+      return AppDimensions.miniPlayerHeight;
   }
 }
 
@@ -77,11 +79,6 @@ class _MewatiTunePlayerAppState extends State<MewatiTunePlayerApp>
   final ValueNotifier<String?> _currentRouteName = ValueNotifier<String?>(null);
   late final _MiniPlayerRouteObserver _routeObserver;
 
-  // Built as instances here (instead of inline inside MultiProvider's
-  // `create:` closures) so AuthProvider.onSessionReady can be wired to
-  // FavoritesProvider/LikesProvider below — previously onSessionReady was
-  // never assigned anywhere, so those providers never reloaded when a
-  // session became ready (e.g. after anonymous sign-in completes).
   late final AuthProvider _authProvider;
   late final FavoritesProvider _favoritesProvider;
   late final LikesProvider _likesProvider;
@@ -92,7 +89,6 @@ class _MewatiTunePlayerAppState extends State<MewatiTunePlayerApp>
     super.initState();
     _routeObserver = _MiniPlayerRouteObserver(
       (name) {
-        debugPrint('📍 Current route name set to: $name');
         _currentRouteName.value = name;
       },
     );
@@ -103,9 +99,6 @@ class _MewatiTunePlayerAppState extends State<MewatiTunePlayerApp>
     _likesProvider = LikesProvider();
     _downloadsProvider = widget.downloadsProvider ?? DownloadsProvider();
 
-    // Reload favorites and invalidate the likes cache whenever a session
-    // becomes ready, so both providers reflect the now-active session
-    // instead of staying stuck empty (or stale from a previous session).
     _authProvider.onSessionReady = () {
       _favoritesProvider.loadFavorites();
       _likesProvider.clear();
@@ -119,16 +112,6 @@ class _MewatiTunePlayerAppState extends State<MewatiTunePlayerApp>
     super.dispose();
   }
 
-  // Item 15: wire PlayerService's lifecycle handling into the app's real
-  // lifecycle. Only AppLifecycleState.detached (app process actually being
-  // torn down) calls handleAppDetached() — a normal pause/resume/inactive
-  // transition must NOT interrupt background playback, and
-  // PlayerService().dispose() (full AudioPlayer teardown) is intentionally
-  // never called from here, matching the existing method split in
-  // player_service.dart. DownloadsService().dispose() is also called here
-  // now (Item 15) so its internal FileDownloader().updates subscription is
-  // actually cancelled on app termination, instead of leaking for the
-  // app's lifetime.
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.detached) {
@@ -169,31 +152,33 @@ class _MewatiTunePlayerAppState extends State<MewatiTunePlayerApp>
               return ValueListenableBuilder<String?>(
                 valueListenable: _currentRouteName,
                 builder: (context, routeName, _) {
-                  // Watch (not read) hasSong so the mini-player reacts to
-                  // playback state changes too, not only route changes.
                   final hasSong = context.select<PlayerProvider, bool>(
                     (p) => p.hasSong,
                   );
                   final isNowPlaying = routeName == RouteNames.nowPlaying;
                   final isSplash = routeName == RouteNames.splash;
-                  // FIXED: Drive Mode has its own XXL prev/play/next + seek
-                  // controls, so the global mini-player must hide here too
-                  // (previously only nowPlaying/splash were excluded, so
-                  // Drive Mode showed two overlapping control decks).
                   final isDriveMode = routeName == RouteNames.driveMode;
-                  final showMiniPlayer =
-                      hasSong && !isNowPlaying && !isSplash && !isDriveMode;
+                  final isSearch = routeName == RouteNames.search;
+                  final isAdvanceSettings =
+                      routeName == RouteNames.advanceSettings;
+                  final isFeedback = routeName == RouteNames.feedback;
+                  final showMiniPlayer = hasSong &&
+                      !isNowPlaying &&
+                      !isSplash &&
+                      !isDriveMode &&
+                      !isSearch &&
+                      !isAdvanceSettings &&
+                      !isFeedback;
 
-                  debugPrint('🎯 Route: $routeName | hasSong: $hasSong | isNowPlaying: $isNowPlaying | showMiniPlayer: $showMiniPlayer');
+                  final miniPlayerHeight =
+                      _miniPlayerHeightFor(themeProvider.theme.id);
 
                   return Stack(
                     children: [
                       Positioned.fill(
                         child: Padding(
                           padding: EdgeInsets.only(
-                            bottom: showMiniPlayer
-                                ? AppDimensions.miniPlayerHeight
-                                : 0.0,
+                            bottom: showMiniPlayer ? miniPlayerHeight : 0.0,
                           ),
                           child: child ?? const SizedBox.shrink(),
                         ),
@@ -203,22 +188,11 @@ class _MewatiTunePlayerAppState extends State<MewatiTunePlayerApp>
                           left: 0,
                           right: 0,
                           bottom: 0,
-                          // FIX (nav-bar overlap): previously the
-                          // mini-player sat flush at Stack's bottom: 0,
-                          // ignoring the device's bottom system-UI inset
-                          // entirely. On phones with 3-button (non-gesture)
-                          // Android navigation, that inset is non-zero, so
-                          // the mini-player rendered underneath/overlapping
-                          // the nav buttons. SafeArea adds exactly that
-                          // inset as bottom padding (top: false since this
-                          // Positioned is already anchored to the bottom,
-                          // not the top, of the screen).
                           child: SafeArea(
                             top: false,
                             child: const MiniPlayerBar(),
                           ),
                         ),
-                      // Debug-only overlay: never shown to real end users.
                       if (kDebugMode) const DebugPanel(),
                     ],
                   );
