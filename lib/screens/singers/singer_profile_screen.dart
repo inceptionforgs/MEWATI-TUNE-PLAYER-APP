@@ -13,6 +13,7 @@ import '../../providers/downloads_provider.dart';
 import '../../providers/likes_provider.dart';
 import '../../providers/theme_provider.dart';
 import '../../providers/songs_provider.dart';
+import '../../routes/route_names.dart';
 import '../../services/app_cache_manager.dart';
 
 class SingerProfileScreen extends StatefulWidget {
@@ -74,6 +75,10 @@ class _SingerProfileScreenState extends State<SingerProfileScreen> {
       songs: songs,
       startIndex: index,
     );
+  }
+
+  void _openFeedback(Song song) {
+    Navigator.of(context).pushNamed(RouteNames.feedback, arguments: song);
   }
 
   void _showFailureSnackBar(String message) {
@@ -404,6 +409,7 @@ class _SingerProfileScreenState extends State<SingerProfileScreen> {
                 onCancelDownload: () => _cancelDownload(song.id),
                 onRemoveDownload: () => _confirmAndRemoveDownload(song),
                 onToggleLike: () => _toggleLike(song.id),
+                onLongPress: () => _openFeedback(song),
               ),
             );
           },
