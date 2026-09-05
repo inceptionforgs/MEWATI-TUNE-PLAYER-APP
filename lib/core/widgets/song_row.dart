@@ -1,10 +1,10 @@
 // FILE: lib/core/widgets/song_row.dart
 //
-// Restyled to match the prototype's .song-row: consistent card border
-// on every row (not just the "now playing" one), per-theme corner
-// radius, and icon order reordered to heart -> thumbs(+count) -> download
-// (was thumbs -> heart -> download). All data/action wiring
-// (SongRowData, SongRowActions, callbacks) is unchanged.
+// FIXED: previous version used Border.all(...).copyWith(left: ...),
+// which isn't valid — Border has no copyWith. Replaced with an explicit
+// Border(top:, right:, bottom:, left:) so every side is set directly.
+// Everything else (data/action wiring, layout, icon order) is unchanged
+// from the last version.
 
 import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
@@ -13,7 +13,6 @@ import '../../models/song.dart';
 import '../../services/app_cache_manager.dart';
 import '../constants/themes/app_theme_id.dart';
 
-/// Holds all visual state needed by [SongRow].
 class SongRowData {
   final Song song;
   final bool isNow;
@@ -40,7 +39,6 @@ class SongRowData {
   });
 }
 
-/// Holds all callbacks used by [SongRow].
 class SongRowActions {
   final VoidCallback onTap;
   final VoidCallback onToggleFavorite;
@@ -71,10 +69,6 @@ class SongRow extends StatelessWidget {
     required this.t,
   }) : super(key: key);
 
-  /// Card corner radius per theme — matches the prototype's
-  /// --card-radius / --thumb-radius tokens (14 default / 4 cyber-black
-  /// / 10 silver-chrome for the card; thumb uses the same value here
-  /// for simplicity since the prototype keeps them close for song rows).
   static double _radius(AppThemeId id) {
     switch (id) {
       case AppThemeId.cyberBlack:
@@ -99,6 +93,7 @@ class SongRow extends StatelessWidget {
     final isLiked = data.isLiked;
     final likeCount = data.likeCount;
     final radius = _radius(t.id as AppThemeId);
+    final defaultBorder = BorderSide(color: Colors.white.withOpacity(0.18));
 
     return InkWell(
       onTap: actions.onTap,
@@ -111,10 +106,13 @@ class SongRow extends StatelessWidget {
               ? t.surface.withOpacity(0.45)
               : Colors.black.withOpacity(0.15),
           borderRadius: BorderRadius.circular(radius),
-          border: Border.all(color: Colors.white.withOpacity(0.18)).copyWith(
+          border: Border(
+            top: defaultBorder,
+            right: defaultBorder,
+            bottom: defaultBorder,
             left: isNow
                 ? BorderSide(color: t.textPrimary, width: 4)
-                : BorderSide(color: Colors.white.withOpacity(0.18)),
+                : defaultBorder,
           ),
         ),
         child: Row(
@@ -131,9 +129,6 @@ class SongRow extends StatelessWidget {
                   gradient: LinearGradient(
                     begin: Alignment.topLeft,
                     end: Alignment.bottomRight,
-                    // Fixed (Item 12): theme-derived gradient (was a
-                    // hardcoded pair of colors that never changed with the
-                    // active theme), same approach as album_art.dart.
                     colors: [t.surface, t.background],
                   ),
                 ),
@@ -210,8 +205,6 @@ class SongRow extends StatelessWidget {
                   ),
                 ),
               ),
-            // Reordered to match the prototype: heart, then thumbs(+count),
-            // then download.
             Semantics(
               label: isFav ? 'Remove from favorites' : 'Add to favorites',
               button: true,
