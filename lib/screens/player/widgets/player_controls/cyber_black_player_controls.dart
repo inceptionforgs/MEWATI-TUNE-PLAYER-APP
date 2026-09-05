@@ -1,8 +1,3 @@
-// File: lib/screens/player/widgets/player_controls/cyber_black_player_controls.dart
-//
-// UPDATED: same Shuffle -> Drive Mode swap as the Walkman variant.
-// Still structurally identical to it otherwise (pure file separation).
-
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:just_audio/just_audio.dart';
@@ -82,6 +77,8 @@ class CyberBlackPlayerControls extends StatelessWidget {
                       color: t.textPrimary,
                       size: 28,
                     ),
+                    iconSize: 28,
+                    padding: EdgeInsets.zero,
                     onPressed: () => playerProvider.togglePlayPause(),
                   ),
           ),
