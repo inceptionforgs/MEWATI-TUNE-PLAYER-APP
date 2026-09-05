@@ -114,9 +114,43 @@ class _SingerProfileScreenState extends State<SingerProfileScreen> {
         .cancelDownload(songId);
   }
 
-  void _removeDownload(String songId, {required String audioUrl}) {
-    Provider.of<DownloadsProvider>(context, listen: false)
-        .removeDownload(songId, audioUrl: audioUrl);
+  Future<void> _confirmAndRemoveDownload(Song song) async {
+    final t = Provider.of<ThemeProvider>(context, listen: false).theme;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        backgroundColor: t.surface,
+        title: Text('Delete download?', style: TextStyle(color: t.textPrimary)),
+        content: Text(
+          'This will remove "${song.title}" from your downloads.',
+          style: TextStyle(color: t.textSecondary),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: Text('Cancel', style: TextStyle(color: t.textSecondary)),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            child: const Text('Delete', style: TextStyle(color: Color(0xFFE53935))),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true) return;
+
+    final success = await Provider.of<DownloadsProvider>(context, listen: false)
+        .removeDownload(song.id, audioUrl: song.audioUrl);
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          success ? 'Removed from downloads' : 'Failed to remove download',
+        ),
+        backgroundColor: success ? const Color(0xFFE53935) : Colors.grey,
+      ),
+    );
   }
 
   @override
@@ -163,7 +197,7 @@ class _SingerProfileScreenState extends State<SingerProfileScreen> {
                           Icon(Icons.chevron_left,
                               color: t.textPrimary, size: 22),
                           Text(
-                            'Back to Singers',
+                            'Back',
                             style: TextStyle(
                               color: t.textPrimary,
                               fontSize: 14,
@@ -244,6 +278,8 @@ class _SingerProfileScreenState extends State<SingerProfileScreen> {
                     Text(
                       widget.singer.name,
                       textAlign: TextAlign.center,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                       style: TextStyle(
                         color: t.textPrimary,
                         fontSize: 24,
@@ -252,15 +288,16 @@ class _SingerProfileScreenState extends State<SingerProfileScreen> {
                       ),
                     ),
                     const SizedBox(height: 5),
-                    Text(
-                      '${_songs.length} songs',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                        color: t.textPrimary.withOpacity(0.70),
-                        fontSize: 13,
-                        fontWeight: FontWeight.w600,
+                    if (!_isLoading && _errorMessage == null)
+                      Text(
+                        '${_songs.length} songs',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          color: t.textPrimary.withOpacity(0.70),
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                        ),
                       ),
-                    ),
                   ],
                 ),
               ),
@@ -274,6 +311,8 @@ class _SingerProfileScreenState extends State<SingerProfileScreen> {
                   alignment: Alignment.centerLeft,
                   child: Text(
                     'SONGS BY ${widget.singer.name.toUpperCase()}',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                     style: TextStyle(
                       color: t.textPrimary,
                       fontSize: 13,
@@ -359,8 +398,7 @@ class _SingerProfileScreenState extends State<SingerProfileScreen> {
                 onToggleFavorite: () => _toggleFavorite(song),
                 onDownload: () => _downloadSong(song),
                 onCancelDownload: () => _cancelDownload(song.id),
-                onRemoveDownload: () =>
-                    _removeDownload(song.id, audioUrl: song.audioUrl),
+                onRemoveDownload: () => _confirmAndRemoveDownload(song),
                 onToggleLike: () => _toggleLike(song.id),
               ),
             );
@@ -370,3 +408,4 @@ class _SingerProfileScreenState extends State<SingerProfileScreen> {
     );
   }
 }
+
