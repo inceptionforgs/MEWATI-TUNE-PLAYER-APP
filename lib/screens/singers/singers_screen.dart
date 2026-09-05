@@ -1,10 +1,16 @@
 // File: lib/screens/singers/singers_screen.dart
+//
+// UPDATED: singer row now uses per-theme corner radius + a card border
+// (was a fixed 14px radius with no border), matching the pill-card look
+// used everywhere else (drawer, song rows, sleep timer). Loading/error/
+// pagination logic unchanged.
 
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import '../../core/constants/app_dimensions.dart';
 import '../../core/constants/app_strings.dart';
+import '../../core/constants/themes/app_theme_id.dart';
 import '../../core/widgets/loading_widget.dart';
 import '../../core/widgets/error_widget.dart';
 import '../../models/singer.dart';
@@ -12,6 +18,17 @@ import '../../providers/singers_provider.dart';
 import '../../providers/theme_provider.dart';
 import '../../routes/route_names.dart';
 import '../../services/app_cache_manager.dart';
+
+double _cardRadius(AppThemeId id) {
+  switch (id) {
+    case AppThemeId.cyberBlack:
+      return 4;
+    case AppThemeId.silverChrome:
+      return 10;
+    default:
+      return 14;
+  }
+}
 
 class SingersScreen extends StatefulWidget {
   const SingersScreen({Key? key}) : super(key: key);
@@ -79,8 +96,6 @@ class _SingersScreenState extends State<SingersScreen> {
 
     return ListView.builder(
       controller: _scrollController,
-      // Bottom padding accounts for the mini-player bar overlaying the
-      // bottom of the screen, so the last row(s) aren't hidden behind it.
       padding: EdgeInsets.only(bottom: 16 + AppDimensions.miniPlayerHeight),
       itemCount: singers.length + (singersProvider.isLoadingMore ? 1 : 0),
       itemBuilder: (context, index) {
@@ -101,16 +116,18 @@ class _SingersScreenState extends State<SingersScreen> {
     final initial = singer.name.isNotEmpty
         ? singer.name[0].toUpperCase()
         : '?';
+    final radius = _cardRadius(t.id as AppThemeId);
 
     return InkWell(
       onTap: () => _openSingerProfile(singer),
-      borderRadius: BorderRadius.circular(14),
+      borderRadius: BorderRadius.circular(radius),
       child: Container(
         margin: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
         decoration: BoxDecoration(
           color: t.surface.withOpacity(0.15),
-          borderRadius: BorderRadius.circular(14),
+          borderRadius: BorderRadius.circular(radius),
+          border: Border.all(color: t.textPrimary.withOpacity(0.18)),
         ),
         child: Row(
           children: [
@@ -131,7 +148,7 @@ class _SingersScreenState extends State<SingersScreen> {
                       child: CachedNetworkImage(
                         imageUrl: singer.photoUrl!,
                         fit: BoxFit.cover,
-                        cacheManager: AppCacheManager.instance, // <-- added
+                        cacheManager: AppCacheManager.instance,
                         memCacheWidth: 160,
                         memCacheHeight: 160,
                         placeholder: (context, url) => Center(
