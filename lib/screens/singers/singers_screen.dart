@@ -1,5 +1,3 @@
-// lib/screens/singers/singers_screen.dart
-
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:cached_network_image/cached_network_image.dart';
@@ -33,6 +31,7 @@ class SingersScreen extends StatefulWidget {
 
 class _SingersScreenState extends State<SingersScreen> {
   final ScrollController _scrollController = ScrollController();
+  String? _loadMoreError;
 
   @override
   void initState() {
@@ -53,7 +52,20 @@ class _SingersScreenState extends State<SingersScreen> {
   void _onScroll() {
     if (_scrollController.position.pixels >=
         _scrollController.position.maxScrollExtent - 200) {
-      Provider.of<SingersProvider>(context, listen: false).loadMoreSingers();
+      _loadMore();
+    }
+  }
+
+  Future<void> _loadMore() async {
+    final singersProvider =
+        Provider.of<SingersProvider>(context, listen: false);
+    await singersProvider.loadMoreSingers();
+    if (!mounted) return;
+    if (singersProvider.errorMessage != null) {
+      setState(() => _loadMoreError = singersProvider.errorMessage);
+      singersProvider.clearError();
+    } else if (_loadMoreError != null) {
+      setState(() => _loadMoreError = null);
     }
   }
 
@@ -91,13 +103,36 @@ class _SingersScreenState extends State<SingersScreen> {
     return ListView.builder(
       controller: _scrollController,
       padding: EdgeInsets.only(bottom: 16),
-      itemCount: singers.length + (singersProvider.isLoadingMore ? 1 : 0),
+      itemCount: singers.length +
+          (singersProvider.isLoadingMore || _loadMoreError != null ? 1 : 0),
       itemBuilder: (context, index) {
         if (index == singers.length) {
-          return const Padding(
-            padding: EdgeInsets.symmetric(vertical: 12),
-            child: Center(child: CircularProgressIndicator()),
-          );
+          if (singersProvider.isLoadingMore) {
+            return const Padding(
+              padding: EdgeInsets.symmetric(vertical: 12),
+              child: Center(child: CircularProgressIndicator()),
+            );
+          }
+          if (_loadMoreError != null) {
+            return Padding(
+              padding: const EdgeInsets.symmetric(vertical: 12),
+              child: Column(
+                children: [
+                  Text(
+                    _loadMoreError!,
+                    textAlign: TextAlign.center,
+                    style: TextStyle(color: t.textSecondary, fontSize: 13),
+                  ),
+                  const SizedBox(height: 8),
+                  TextButton(
+                    onPressed: _loadMore,
+                    child: const Text('Retry'),
+                  ),
+                ],
+              ),
+            );
+          }
+          return const SizedBox.shrink();
         }
 
         final singer = singers[index];
