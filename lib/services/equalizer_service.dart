@@ -41,6 +41,11 @@ class EqualizerService {
   bool get isSupported => Platform.isAndroid;
 
   static const double _mewatiBassLoudnessGainDb = 2.0;
+
+  /// Sony Ericsson Mega Bass used extra "weight" on top of the EQ shelf.
+  /// LoudnessEnhancer is the closest effect this pipeline exposes.
+  static const double _megaBassLoudnessGainDb = 3.0;
+
   static const double maxBassBoostDb = 6.0;
 
   Future<void> init() async {
@@ -112,7 +117,11 @@ class EqualizerService {
         final clamped = rawGain.clamp(params.minDecibels, params.maxDecibels);
         await band.setGain(clamped);
       }
-      final requested = (mode == SoundMode.mewatiBass) ? _mewatiBassLoudnessGainDb : 0.0;
+      final requested = switch (mode) {
+        SoundMode.mewatiBass => _mewatiBassLoudnessGainDb,
+        SoundMode.beatsMode => _megaBassLoudnessGainDb,
+        _ => 0.0,
+      };
       final safeLoudness = requested.clamp(0.0, maxBassBoostDb);
       await loudnessEnhancer.setTargetGain(safeLoudness);
     } catch (e) {
@@ -133,10 +142,22 @@ class EqualizerService {
         if (hz <= 6000) return 0.0;
         return 2.5;
       case SoundMode.beatsMode:
-        if (hz <= 150) return 7.0;
-        if (hz <= 2000) return -2.5;
-        if (hz <= 8000) return 2.0;
-        return 4.0;
+        // Sony Ericsson Mega Bass-inspired loudness contour.
+        // Analog/phone MB was NOT a sub-only shelf:
+        //   • fat 60–80 Hz
+        //   • punch at ~200–250 Hz (small-speaker "felt" bass)
+        //   • slight lower-mid dip so it doesn't turn to mud
+        //   • vocals left alone (old Beats Mode cut 150–2000 Hz by -2.5)
+        //   • treble air, same trick analog MB used so bass doesn't dull the mix
+        // Typical Android 5-band centres: ~60 / 230 / 910 / 3600 / 14000 Hz.
+        if (hz <= 70) return 9.0;
+        if (hz <= 120) return 8.0;
+        if (hz <= 250) return 5.5;
+        if (hz <= 400) return 1.5;
+        if (hz <= 900) return -1.5;
+        if (hz <= 2500) return 0.0;
+        if (hz <= 6000) return 2.0;
+        return 3.5;
       case SoundMode.vocalBoost:
         if (hz >= 1000 && hz <= 4000) return 5.5;
         if (hz < 300) return -2.0;
