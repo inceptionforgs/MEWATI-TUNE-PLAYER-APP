@@ -1,4 +1,10 @@
 // FILE: lib/screens/player/widgets/now_playing_actions.dart
+//
+// Reordered icons to match the prototype's np-actions-row order:
+// heart -> thumbs(+count) -> download -> timer -> equalizer.
+// (Was: thumbs -> heart -> download -> timer -> equalizer.)
+// All provider calls/callbacks are unchanged.
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../../models/song.dart';
@@ -52,8 +58,6 @@ class NowPlayingActions extends StatelessWidget {
     final favoritesProvider = context.watch<FavoritesProvider>();
     final downloadsProvider = context.watch<DownloadsProvider>();
     final sleepTimerProvider = context.watch<SleepTimerProvider>();
-    // Now Playing screen had no like button at all — added, consistent
-    // with the File 21 fix on list rows.
     final likesProvider = context.watch<LikesProvider>();
     final t = context.watch<ThemeProvider>().theme;
 
@@ -68,13 +72,24 @@ class NowPlayingActions extends StatelessWidget {
     return Row(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
+        // Heart (favorite) — first, matching the prototype.
+        IconButton(
+          icon: Icon(
+            isFav ? Icons.favorite : Icons.favorite_border,
+            color: isFav ? Colors.redAccent : t.textPrimary.withOpacity(0.75),
+            size: 22,
+          ),
+          onPressed: () => _toggleFavorite(context, favoritesProvider, song),
+        ),
+        const SizedBox(width: 18),
+        // Thumbs up (like) + count — second.
         Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             IconButton(
               icon: Icon(
                 isLiked ? Icons.thumb_up : Icons.thumb_up_outlined,
-                color: isLiked ? t.accent : t.textPrimary.withOpacity(0.75),
+                color: isLiked ? const Color(0xFFFFD700) : t.textPrimary.withOpacity(0.75),
                 size: 22,
               ),
               onPressed: () => _toggleLike(context, likesProvider, song.id),
@@ -88,15 +103,6 @@ class NowPlayingActions extends StatelessWidget {
               ),
             ),
           ],
-        ),
-        const SizedBox(width: 18),
-        IconButton(
-          icon: Icon(
-            isFav ? Icons.favorite : Icons.favorite_border,
-            color: isFav ? Colors.redAccent : t.textPrimary.withOpacity(0.75),
-            size: 22,
-          ),
-          onPressed: () => _toggleFavorite(context, favoritesProvider, song),
         ),
         const SizedBox(width: 18),
         if (isDownloaded)
