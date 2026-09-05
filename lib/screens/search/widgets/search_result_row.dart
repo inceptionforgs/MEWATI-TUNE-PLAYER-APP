@@ -7,6 +7,7 @@ import '../../../providers/favorites_provider.dart';
 import '../../../providers/downloads_provider.dart';
 import '../../../providers/likes_provider.dart';
 import '../../../providers/theme_provider.dart';
+import '../../../routes/route_names.dart';
 
 class SearchResultRow extends StatelessWidget {
   final Song song;
@@ -154,6 +155,8 @@ class SearchResultRow extends StatelessWidget {
             onRemoveDownload: () =>
                 _confirmAndRemoveDownload(context, downloadsProvider, song),
             onToggleLike: () => _toggleLike(context, likesProvider, song.id),
+            onLongPress: () => Navigator.of(context)
+                .pushNamed(RouteNames.feedback, arguments: song),
           ),
         );
       },
