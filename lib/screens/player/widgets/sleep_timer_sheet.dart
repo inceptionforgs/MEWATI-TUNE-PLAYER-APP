@@ -1,13 +1,3 @@
-// File: lib/screens/player/widgets/sleep_timer_sheet.dart
-//
-// Restyled rows to match the pill-card look used elsewhere (drawer,
-// song rows): custom rows instead of default ListTile, per-theme corner
-// radius, active row highlighted with an accent border + glow-dot
-// (same visual language as the drawer's theme/EQ rows). Keeping the
-// real 8-option sheet (Off/5/10/15/20/30/60/120 min) as agreed —
-// SleepTimerProvider.start()/cancel() and all option values are
-// unchanged.
-
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../../core/constants/app_strings.dart';
@@ -150,7 +140,9 @@ class SleepTimerSheet extends StatelessWidget {
               Padding(
                 padding: const EdgeInsets.only(top: 12),
                 child: Text(
-                  '${AppStrings.sleepTimerSet}: ${_formatDuration(sleepTimerProvider.remaining ?? Duration.zero)}',
+                  sleepTimerProvider.isFading
+                      ? AppStrings.sleepTimerFading
+                      : '${AppStrings.sleepTimerSet}: ${_formatDuration(sleepTimerProvider.remaining ?? Duration.zero)}',
                   style: TextStyle(color: t.accent, fontSize: 13, fontWeight: FontWeight.w700),
                 ),
               ),
