@@ -1,12 +1,3 @@
-// File: lib/screens/settings/advance_settings_screen.dart
-//
-// UPDATED: custom dark header (back-circle + title, matching the
-// prototype's .as-appbar/.as-back) instead of the default Material
-// AppBar, and a background color pulled straight from the prototype
-// (#0B0B0B) instead of t.background, since the prototype keeps this
-// screen visually independent of the active theme. PopScope /
-// cancelThemePreview() logic and both tab bodies are unchanged.
-
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../providers/theme_provider.dart';
@@ -22,9 +13,6 @@ class AdvanceSettingsScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Watched so the tab bodies (which read live theme accent for their
-    // own sliders/buttons) still rebuild correctly; the chrome here is
-    // intentionally theme-independent, matching the prototype.
     context.watch<ThemeProvider>();
 
     return PopScope(
@@ -50,14 +38,18 @@ class AdvanceSettingsScreen extends StatelessWidget {
                           GestureDetector(
                             onTap: () => Navigator.of(context).pop(),
                             child: Container(
-                              width: 34,
-                              height: 34,
-                              decoration: const BoxDecoration(
-                                shape: BoxShape.circle,
-                                color: _asBackground,
-                              ),
+                              constraints: const BoxConstraints(minWidth: 48, minHeight: 48),
                               alignment: Alignment.center,
-                              child: const Icon(Icons.chevron_left, color: Colors.white, size: 22),
+                              child: Container(
+                                width: 34,
+                                height: 34,
+                                decoration: const BoxDecoration(
+                                  shape: BoxShape.circle,
+                                  color: _asBackground,
+                                ),
+                                alignment: Alignment.center,
+                                child: const Icon(Icons.chevron_left, color: Colors.white, size: 22),
+                              ),
                             ),
                           ),
                           const SizedBox(width: 12),
