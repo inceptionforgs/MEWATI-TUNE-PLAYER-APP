@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import 'package:just_audio/just_audio.dart';
 
 import '../../../../providers/player_provider.dart';
@@ -6,7 +7,6 @@ import '../../../../routes/route_names.dart';
 import '../../../extensions/duration_extensions.dart';
 import '../mini_player_data.dart';
 
-const _scBackground = Color(0xFF1A1A1A);
 const _scTextPrimary = Colors.white;
 const _scTextSecondary = Color(0xFFCCCCCC);
 const _scMetalLight = Color(0xFFE0E0E0);
@@ -49,68 +49,62 @@ class MiniPlayerSilverChrome extends StatelessWidget {
           topLeft: Radius.circular(10),
           topRight: Radius.circular(10),
         ),
-        boxShadow: [
-          BoxShadow(color: Colors.black.withOpacity(0.5), blurRadius: 25, offset: const Offset(0, -10)),
-        ],
+        border: const Border(
+          top: BorderSide(color: _scMetalLight, width: 2),
+        ),
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
           GestureDetector(
             onTap: () => Navigator.of(context).pushNamed(RouteNames.nowPlaying),
-            child: Row(
+            child: Column(
               children: [
-                Expanded(
-                  child: Text(
-                    song.title,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      color: _scTextPrimary,
-                      fontSize: 16,
-                      fontWeight: FontWeight.w700,
-                    ),
+                Text(
+                  song.title,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(
+                    color: _scTextPrimary,
+                    fontSize: 16,
+                    fontWeight: FontWeight.w700,
                   ),
                 ),
-                if (queuePosition.isNotEmpty) ...[
-                  const SizedBox(width: 8),
+                if (singerName.isNotEmpty || queuePosition.isNotEmpty) ...[
+                  const SizedBox(height: 4),
                   Text(
-                    queuePosition,
-                    style: const TextStyle(color: _scTextSecondary, fontSize: 16),
+                    [singerName, queuePosition]
+                        .where((s) => s.isNotEmpty)
+                        .join('  •  '),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(color: _scTextSecondary, fontSize: 12),
                   ),
                 ],
               ],
             ),
           ),
-          if (singerName.isNotEmpty)
-            Padding(
-              padding: const EdgeInsets.only(top: 2),
-              child: Text(
-                singerName,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(color: _scTextSecondary, fontSize: 12),
-              ),
-            ),
           if (errorMessage != null) ...[
             const SizedBox(height: 8),
             Container(
               width: double.infinity,
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
               decoration: BoxDecoration(
                 color: Colors.red.withOpacity(0.14),
                 borderRadius: BorderRadius.circular(8),
               ),
               child: Row(
                 children: [
-                  const Icon(Icons.error_outline, color: Colors.redAccent, size: 18),
-                  const SizedBox(width: 8),
+                  const Icon(Icons.error_outline, color: Colors.redAccent, size: 16),
+                  const SizedBox(width: 6),
                   Expanded(
                     child: Text(
                       errorMessage,
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(color: Colors.redAccent, fontSize: 12),
+                      style: const TextStyle(color: Colors.redAccent, fontSize: 11),
                     ),
                   ),
                   TextButton(
@@ -118,58 +112,59 @@ class MiniPlayerSilverChrome extends StatelessWidget {
                       playerProvider.clearError();
                       playerProvider.togglePlayPause();
                     },
-                    child: const Text('Retry', style: TextStyle(fontSize: 12)),
+                    child: const Text('Retry', style: TextStyle(fontSize: 11)),
                   ),
                 ],
               ),
             ),
           ],
-          const SizedBox(height: 10),
+          const SizedBox(height: 14),
           _SilverChromeSlider(onSeek: (d) => playerProvider.seek(d)),
-          const SizedBox(height: 4),
+          const SizedBox(height: 16),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Semantics(
                 label: 'Drive Mode',
                 button: true,
-                child: _scMetalButton(
-                  icon: Icons.drive_eta,
-                  size: 38,
-                  iconSize: 20,
-                  onTap: () => Navigator.of(context).pushNamed(RouteNames.driveMode),
+                child: IconButton(
+                  icon: const Icon(Icons.drive_eta, color: _scTextPrimary),
+                  tooltip: 'Drive Mode',
+                  onPressed: () =>
+                      Navigator.of(context).pushNamed(RouteNames.driveMode),
                 ),
               ),
               Row(
                 children: [
-                  _scMetalButton(
+                  _scCircleButton(
                     icon: Icons.skip_previous,
-                    size: 46,
+                    size: 54,
                     onTap: () => playerProvider.previous(),
                   ),
                   const SizedBox(width: 16),
                   isLoading
                       ? const SizedBox(
-                          width: 58,
-                          height: 58,
+                          width: 74,
+                          height: 74,
                           child: Padding(
-                            padding: EdgeInsets.all(16),
+                            padding: EdgeInsets.all(22),
                             child: CircularProgressIndicator(
                               strokeWidth: 2.5,
-                              valueColor: AlwaysStoppedAnimation<Color>(_scButtonIcon),
+                              valueColor:
+                                  AlwaysStoppedAnimation<Color>(_scButtonIcon),
                             ),
                           ),
                         )
-                      : _scMetalButton(
+                      : _scCircleButton(
                           icon: isPlaying ? Icons.pause : Icons.play_arrow,
-                          size: 58,
-                          iconSize: 26,
+                          size: 74,
+                          iconSize: 32,
                           onTap: () => playerProvider.togglePlayPause(),
                         ),
                   const SizedBox(width: 16),
-                  _scMetalButton(
+                  _scCircleButton(
                     icon: Icons.skip_next,
-                    size: 46,
+                    size: 54,
                     onTap: () => playerProvider.next(),
                   ),
                 ],
@@ -177,23 +172,28 @@ class MiniPlayerSilverChrome extends StatelessWidget {
               Semantics(
                 label: loopMode == LoopMode.one ? 'Repeat one' : 'Repeat',
                 button: true,
-                child: _scMetalButton(
-                  icon: loopMode == LoopMode.one ? Icons.repeat_one : Icons.repeat,
-                  size: 38,
-                  iconSize: 20,
-                  onTap: () {
-                    final current = loopMode;
-                    LoopMode next;
-                    if (current == LoopMode.off) {
-                      next = LoopMode.all;
-                    } else if (current == LoopMode.all) {
-                      next = LoopMode.one;
-                    } else {
-                      next = LoopMode.off;
-                    }
-                    playerProvider.setLoopMode(next);
-                  },
-                  active: loopMode != LoopMode.off,
+                child: Stack(
+                  clipBehavior: Clip.none,
+                  children: [
+                    IconButton(
+                      icon: Icon(
+                        loopMode == LoopMode.one ? Icons.repeat_one : Icons.repeat,
+                        color: _scTextPrimary,
+                      ),
+                      onPressed: () {
+                        final current = loopMode;
+                        LoopMode next;
+                        if (current == LoopMode.off) {
+                          next = LoopMode.all;
+                        } else if (current == LoopMode.all) {
+                          next = LoopMode.one;
+                        } else {
+                          next = LoopMode.off;
+                        }
+                        playerProvider.setLoopMode(next);
+                      },
+                    ),
+                  ],
                 ),
               ),
             ],
@@ -203,12 +203,12 @@ class MiniPlayerSilverChrome extends StatelessWidget {
     );
   }
 
-  Widget _scMetalButton({
+  Widget _scCircleButton({
     required IconData icon,
     required double size,
-    double iconSize = 22,
-    required VoidCallback onTap,
+    double iconSize = 24,
     bool active = false,
+    required VoidCallback onTap,
   }) {
     return GestureDetector(
       onTap: onTap,
@@ -217,18 +217,11 @@ class MiniPlayerSilverChrome extends StatelessWidget {
         height: size,
         decoration: BoxDecoration(
           shape: BoxShape.circle,
-          gradient: LinearGradient(
+          gradient: const LinearGradient(
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
             colors: [_scMetalLight, _scMetalDark],
           ),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.3),
-              blurRadius: 4,
-              offset: const Offset(0, 2),
-            ),
-          ],
           border: active ? Border.all(color: _scButtonIcon, width: 1.5) : null,
         ),
         child: Icon(icon, color: _scButtonIcon, size: iconSize),
@@ -282,7 +275,8 @@ class _SilverChromeSliderState extends State<_SilverChromeSlider> {
           builder: (context, position, __) {
             final actualPct = duration.inMilliseconds == 0
                 ? 0.0
-                : (position.inMilliseconds / duration.inMilliseconds).clamp(0.0, 1.0);
+                : (position.inMilliseconds / duration.inMilliseconds)
+                    .clamp(0.0, 1.0);
             final pct = _dragValue ?? actualPct;
 
             return Column(
@@ -295,16 +289,18 @@ class _SilverChromeSliderState extends State<_SilverChromeSlider> {
                       onTapDown: (d) => _updateDrag(d.localPosition.dx, width),
                       onTapUp: (_) => _commitDrag(duration),
                       onTapCancel: _cancelDrag,
-                      onHorizontalDragUpdate: (d) => _updateDrag(d.localPosition.dx, width),
+                      onHorizontalDragUpdate: (d) =>
+                          _updateDrag(d.localPosition.dx, width),
                       onHorizontalDragEnd: (_) => _commitDrag(duration),
                       onHorizontalDragCancel: _cancelDrag,
                       child: Container(
-                        height: 18,
+                        height: 10,
                         clipBehavior: Clip.antiAlias,
                         decoration: BoxDecoration(
-                          color: Colors.black,
-                          border: Border.all(color: Colors.white, width: 2),
-                          borderRadius: BorderRadius.circular(20),
+                          gradient: const LinearGradient(
+                            colors: [_scMetalDark, _scMetalLight, _scMetalDark],
+                          ),
+                          borderRadius: BorderRadius.circular(6),
                         ),
                         child: FractionallySizedBox(
                           alignment: Alignment.centerLeft,
@@ -315,12 +311,16 @@ class _SilverChromeSliderState extends State<_SilverChromeSlider> {
                     );
                   },
                 ),
-                const SizedBox(height: 4),
+                const SizedBox(height: 6),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Text(_fmt(position), style: const TextStyle(color: _scTextPrimary, fontSize: 16, fontWeight: FontWeight.w700)),
-                    Text(_fmt(duration), style: const TextStyle(color: _scTextPrimary, fontSize: 16, fontWeight: FontWeight.w700)),
+                    Text(_fmt(position),
+                        style: const TextStyle(
+                            color: _scTextPrimary, fontSize: 16, fontWeight: FontWeight.w700)),
+                    Text(_fmt(duration),
+                        style: const TextStyle(
+                            color: _scTextPrimary, fontSize: 16, fontWeight: FontWeight.w700)),
                   ],
                 ),
               ],
