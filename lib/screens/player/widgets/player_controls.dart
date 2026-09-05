@@ -1,14 +1,7 @@
 // File: lib/screens/player/widgets/player_controls.dart
 //
-// Dispatcher — picks the right per-theme player controls based on the
-// active theme, so every screen that does
-// `import 'widgets/player_controls.dart'` and uses `PlayerControls()`
-// keeps working exactly as before, unchanged.
-//
-// Right now all three themes render the same buttons (see
-// player_controls/ folder — pure file separation for now); this is
-// where each theme's own button styling gets plugged in later without
-// touching this dispatcher.
+// Dispatcher — unchanged. Still picks the right per-theme player
+// controls based on the active theme.
 
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
@@ -32,9 +25,6 @@ class PlayerControls extends StatelessWidget {
         return const SilverChromePlayerControls();
       case AppThemeId.walkmanOrange:
       case AppThemeId.custom:
-        // Custom theme is colour-only today (see custom_theme_builder.dart)
-        // so it keeps using the default structural controls, exactly like
-        // before this split.
         return const WalkmanOrangePlayerControls();
     }
   }
