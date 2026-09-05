@@ -1,8 +1,3 @@
-// File: lib/screens/settings/widgets/custom_theme_section.dart
-// Unchanged — live preview / commit / reset logic and the
-// ColorWheelPicker + ShadeSlider it uses already match the prototype's
-// "Custom Theme" tab concept (wheel + shade bar + Reset/Set buttons).
-
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../../core/constants/app_themes.dart';
@@ -68,6 +63,9 @@ class _CustomThemeSectionState extends State<CustomThemeSection> {
   @override
   Widget build(BuildContext context) {
     final t = context.watch<ThemeProvider>().theme;
+    final Color onAccent = ThemeData.estimateBrightnessForColor(t.accent) == Brightness.light
+        ? Colors.black
+        : Colors.white;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -131,7 +129,7 @@ class _CustomThemeSectionState extends State<CustomThemeSection> {
                 onPressed: _onSet,
                 style: ElevatedButton.styleFrom(
                   backgroundColor: t.accent,
-                  foregroundColor: Colors.white,
+                  foregroundColor: onAccent,
                   padding: const EdgeInsets.symmetric(vertical: 14),
                 ),
                 child: const Text('Set'),
