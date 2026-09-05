@@ -1,7 +1,3 @@
-// FILE: lib/screens/search/widgets/search_result_row.dart
-// Unchanged — this file just wraps SongRow (already restyled to match
-// the prototype), so nothing here needed to change.
-
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../../core/widgets/song_row.dart';
@@ -10,6 +6,7 @@ import '../../../providers/player_provider.dart';
 import '../../../providers/favorites_provider.dart';
 import '../../../providers/downloads_provider.dart';
 import '../../../providers/likes_provider.dart';
+import '../../../providers/theme_provider.dart';
 
 class SearchResultRow extends StatelessWidget {
   final Song song;
@@ -59,6 +56,48 @@ class SearchResultRow extends StatelessWidget {
       if (!context.mounted) return;
       _showFailureSnackBar(context, 'Failed to download song. Please try again.');
     }
+  }
+
+  static Future<void> _confirmAndRemoveDownload(
+      BuildContext context, DownloadsProvider downloadsProvider, Song song) async {
+    final t = Provider.of<ThemeProvider>(context, listen: false).theme;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        backgroundColor: t.surface,
+        title: Text('Delete download?', style: TextStyle(color: t.textPrimary)),
+        content: Text(
+          'This will remove "${song.title}" from your downloads.',
+          style: TextStyle(color: t.textSecondary),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: Text('Cancel', style: TextStyle(color: t.textSecondary)),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            child: const Text('Delete', style: TextStyle(color: Color(0xFFE53935))),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true) return;
+
+    final success = await downloadsProvider.removeDownload(
+      song.id,
+      audioUrl: song.audioUrl,
+    );
+    if (!context.mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          success ? 'Removed from downloads' : 'Failed to remove download',
+        ),
+        backgroundColor: success ? const Color(0xFFE53935) : Colors.grey,
+      ),
+    );
   }
 
   @override
@@ -112,10 +151,8 @@ class SearchResultRow extends StatelessWidget {
                 _toggleFavorite(context, favoritesProvider, song),
             onDownload: () => _downloadSong(context, downloadsProvider, song),
             onCancelDownload: () => downloadsProvider.cancelDownload(song.id),
-            onRemoveDownload: () => downloadsProvider.removeDownload(
-              song.id,
-              audioUrl: song.audioUrl,
-            ),
+            onRemoveDownload: () =>
+                _confirmAndRemoveDownload(context, downloadsProvider, song),
             onToggleLike: () => _toggleLike(context, likesProvider, song.id),
           ),
         );
