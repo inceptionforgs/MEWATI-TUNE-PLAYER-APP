@@ -1,8 +1,3 @@
-// File: lib/screens/settings/widgets/color_wheel_picker.dart
-// Unchanged — CustomPainter-based wheel already matches the prototype's
-// conic-gradient wheel concept, but with a real functioning
-// hue/saturation picker (prototype's version just moves a static dot).
-
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
 
@@ -81,7 +76,9 @@ class _ColorWheelPainter extends CustomPainter {
 
     final hsv = HSVColor.fromColor(color);
     final angleRad = hsv.hue * math.pi / 180;
-    final dist = hsv.saturation * radius;
+    const pointerOuterRadius = 13.5;
+    final maxDist = radius - pointerOuterRadius;
+    final dist = (hsv.saturation * radius).clamp(0.0, maxDist);
     final pointerOffset =
         center + Offset(math.cos(angleRad) * dist, math.sin(angleRad) * dist);
 
@@ -134,18 +131,21 @@ class ShadeSlider extends StatelessWidget {
               border: Border.all(color: Colors.white24, width: 1),
             ),
           ),
-          SliderTheme(
-            data: SliderTheme.of(context).copyWith(
-              trackHeight: 12,
-              activeTrackColor: Colors.transparent,
-              inactiveTrackColor: Colors.transparent,
-              thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 10),
-              thumbColor: Colors.white,
-              overlayColor: Colors.white24,
-            ),
-            child: Slider(
-              value: shade.clamp(0.0, 1.0),
-              onChanged: onChanged,
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 12),
+            child: SliderTheme(
+              data: SliderTheme.of(context).copyWith(
+                trackHeight: 12,
+                activeTrackColor: Colors.transparent,
+                inactiveTrackColor: Colors.transparent,
+                thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 10),
+                thumbColor: Colors.white,
+                overlayColor: Colors.white24,
+              ),
+              child: Slider(
+                value: shade.clamp(0.0, 1.0),
+                onChanged: onChanged,
+              ),
             ),
           ),
         ],
