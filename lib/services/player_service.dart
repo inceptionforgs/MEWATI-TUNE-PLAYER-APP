@@ -260,6 +260,22 @@ class PlayerService {
     await _player.seekToPrevious();
   }
 
+  /// FIXED (Batch 3 audit — Drive Mode queue tap): jumps directly to
+  /// `index` within the already-loaded ConcatenatingAudioSource instead of
+  /// rebuilding/reloading the whole queue via setPlaylist(). Drive Mode's
+  /// queue list uses this so tapping a row is an instant jump instead of a
+  /// full playlist reload (re-resolving local paths, rebuilding the audio
+  /// source, isLoading flicker, playback restarting from scratch).
+  Future<void> jumpToQueueIndex(int index) async {
+    if (index < 0 || index >= _playlist.length) return;
+    await _player.seek(Duration.zero, index: index);
+    if (!_player.playing) {
+      unawaited(_player.play().catchError((e) {
+        debugPrint('PlayerService.jumpToQueueIndex play error: $e');
+      }));
+    }
+  }
+
   void toggleShuffle() {
     _shuffleMode = !_shuffleMode;
     _player.setShuffleModeEnabled(_shuffleMode);
