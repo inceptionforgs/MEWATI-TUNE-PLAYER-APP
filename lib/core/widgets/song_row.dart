@@ -89,209 +89,230 @@ class SongRow extends StatelessWidget {
     final radius = _radius(t.id as AppThemeId);
     final defaultBorder = BorderSide(color: Colors.white.withOpacity(0.18));
 
+    // NOTE: A BoxDecoration cannot have a `borderRadius` when its `border`
+    // sides use different colors (Flutter throws "A borderRadius can only
+    // be given on borders with uniform colors."). The "NOW" state used to
+    // give the left border side a different color than the other three,
+    // which crashed as soon as borderRadius was also set.
+    //
+    // Fix: keep the box border uniform on all sides, and render the NOW
+    // left accent as a separate overlay strip inside a ClipRRect (so it's
+    // still clipped to the same rounded corners) instead of as part of
+    // the border itself.
     return InkWell(
       onTap: actions.onTap,
       onLongPress: actions.onLongPress,
       borderRadius: BorderRadius.circular(radius),
       child: Container(
         margin: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-        decoration: BoxDecoration(
-          color: isNow
-              ? t.surface.withOpacity(0.45)
-              : Colors.black.withOpacity(0.15),
+        child: ClipRRect(
           borderRadius: BorderRadius.circular(radius),
-          border: Border(
-            top: defaultBorder,
-            right: defaultBorder,
-            bottom: defaultBorder,
-            left: isNow
-                ? BorderSide(color: t.textPrimary, width: 4)
-                : defaultBorder,
-          ),
-        ),
-        child: Row(
-          children: [
-            Semantics(
-              label: isNow && isPlaying ? 'Pause' : 'Play',
-              button: true,
-              child: Container(
-                width: 52,
-                height: 52,
+          child: Stack(
+            children: [
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                 decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(radius - 2 < 0 ? 0 : radius - 2),
-                  border: Border.all(color: t.textPrimary.withOpacity(0.24), width: 2),
-                  gradient: LinearGradient(
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                    colors: [t.surface, t.background],
-                  ),
+                  color: isNow
+                      ? t.surface.withOpacity(0.45)
+                      : Colors.black.withOpacity(0.15),
+                  border: Border.fromBorderSide(defaultBorder),
                 ),
-                child: (song.coverImageUrl != null && song.coverImageUrl!.isNotEmpty)
-                    ? ClipRRect(
-                        borderRadius: BorderRadius.circular(radius - 4 < 0 ? 0 : radius - 4),
-                        child: CachedNetworkImage(
-                          imageUrl: song.coverImageUrl!,
-                          fit: BoxFit.cover,
-                          cacheManager: AppCacheManager.instance,
-                          memCacheWidth: 128,
-                          memCacheHeight: 128,
-                          placeholder: (context, url) => Icon(
-                            isNow && isPlaying ? Icons.pause : Icons.play_arrow,
-                            color: t.textPrimary,
-                          ),
-                          errorWidget: (context, url, error) => Icon(
-                            isNow && isPlaying ? Icons.pause : Icons.play_arrow,
-                            color: t.textPrimary,
+                child: Row(
+                  children: [
+                    Semantics(
+                      label: isNow && isPlaying ? 'Pause' : 'Play',
+                      button: true,
+                      child: Container(
+                        width: 52,
+                        height: 52,
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(radius - 2 < 0 ? 0 : radius - 2),
+                          border: Border.all(color: t.textPrimary.withOpacity(0.24), width: 2),
+                          gradient: LinearGradient(
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                            colors: [t.surface, t.background],
                           ),
                         ),
-                      )
-                    : Icon(
-                        isNow && isPlaying ? Icons.pause : Icons.play_arrow,
-                        color: t.textPrimary,
+                        child: (song.coverImageUrl != null && song.coverImageUrl!.isNotEmpty)
+                            ? ClipRRect(
+                                borderRadius: BorderRadius.circular(radius - 4 < 0 ? 0 : radius - 4),
+                                child: CachedNetworkImage(
+                                  imageUrl: song.coverImageUrl!,
+                                  fit: BoxFit.cover,
+                                  cacheManager: AppCacheManager.instance,
+                                  memCacheWidth: 128,
+                                  memCacheHeight: 128,
+                                  placeholder: (context, url) => Icon(
+                                    isNow && isPlaying ? Icons.pause : Icons.play_arrow,
+                                    color: t.textPrimary,
+                                  ),
+                                  errorWidget: (context, url, error) => Icon(
+                                    isNow && isPlaying ? Icons.pause : Icons.play_arrow,
+                                    color: t.textPrimary,
+                                  ),
+                                ),
+                              )
+                            : Icon(
+                                isNow && isPlaying ? Icons.pause : Icons.play_arrow,
+                                color: t.textPrimary,
+                              ),
                       ),
-              ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    song.title,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      color: t.textPrimary,
-                      fontSize: 15,
-                      fontWeight: FontWeight.w900,
                     ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    subtitle ?? (song.category ?? 'Unknown'),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      color: t.textPrimary.withOpacity(0.70),
-                      fontSize: 12.5,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            if (isNow)
-              Padding(
-                padding: const EdgeInsets.only(right: 6),
-                child: ConstrainedBox(
-                  constraints: const BoxConstraints(maxWidth: 54),
-                  child: FittedBox(
-                    fit: BoxFit.scaleDown,
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                      decoration: BoxDecoration(
-                        color: t.textPrimary.withOpacity(0.20),
-                        borderRadius: BorderRadius.circular(radius - 6 < 4 ? 4 : radius - 6),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            song.title,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              color: t.textPrimary,
+                              fontSize: 15,
+                              fontWeight: FontWeight.w900,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            subtitle ?? (song.category ?? 'Unknown'),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              color: t.textPrimary.withOpacity(0.70),
+                              fontSize: 12.5,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ],
                       ),
-                      child: Text(
-                        isPlaying ? 'Ⅱ NOW' : '▶ NOW',
-                        style: TextStyle(
-                          color: t.textPrimary,
-                          fontSize: 11,
-                          fontWeight: FontWeight.w900,
+                    ),
+                    if (isNow)
+                      Padding(
+                        padding: const EdgeInsets.only(right: 6),
+                        child: ConstrainedBox(
+                          constraints: const BoxConstraints(maxWidth: 54),
+                          child: FittedBox(
+                            fit: BoxFit.scaleDown,
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                              decoration: BoxDecoration(
+                                color: t.textPrimary.withOpacity(0.20),
+                                borderRadius: BorderRadius.circular(radius - 6 < 4 ? 4 : radius - 6),
+                              ),
+                              child: Text(
+                                isPlaying ? 'Ⅱ NOW' : '▶ NOW',
+                                style: TextStyle(
+                                  color: t.textPrimary,
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w900,
+                                ),
+                              ),
+                            ),
+                          ),
                         ),
                       ),
+                    Semantics(
+                      label: isFav ? 'Remove from favorites' : 'Add to favorites',
+                      button: true,
+                      child: IconButton(
+                        icon: Icon(
+                          isFav ? Icons.favorite : Icons.favorite_border,
+                          color: isFav ? Colors.redAccent : t.textPrimary.withOpacity(0.75),
+                        ),
+                        onPressed: actions.onToggleFavorite,
+                      ),
                     ),
-                  ),
-                ),
-              ),
-            Semantics(
-              label: isFav ? 'Remove from favorites' : 'Add to favorites',
-              button: true,
-              child: IconButton(
-                icon: Icon(
-                  isFav ? Icons.favorite : Icons.favorite_border,
-                  color: isFav ? Colors.redAccent : t.textPrimary.withOpacity(0.75),
-                ),
-                onPressed: actions.onToggleFavorite,
-              ),
-            ),
-            Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Semantics(
-                  label: isLiked ? 'Unlike song' : 'Like song',
-                  button: true,
-                  child: IconButton(
-                    icon: Icon(
-                      isLiked ? Icons.thumb_up : Icons.thumb_up_outlined,
-                      color: isLiked ? const Color(0xFFFFD700) : t.textPrimary.withOpacity(0.75),
-                      size: 20,
-                    ),
-                    onPressed: actions.onToggleLike,
-                    padding: EdgeInsets.zero,
-                    constraints: const BoxConstraints(minWidth: 48, minHeight: 48),
-                  ),
-                ),
-                Text(
-                  formatCount(likeCount),
-                  style: TextStyle(
-                    color: t.textPrimary.withOpacity(0.75),
-                    fontSize: 9,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ],
-            ),
-            if (isDownloaded)
-              Semantics(
-                label: 'Remove download',
-                button: true,
-                child: IconButton(
-                  icon: const Icon(Icons.check_circle, color: Color(0xFF4CD964)),
-                  onPressed: actions.onRemoveDownload,
-                ),
-              )
-            else if (isDownloading)
-              Semantics(
-                label: 'Cancel download',
-                button: true,
-                child: GestureDetector(
-                  onTap: actions.onCancelDownload,
-                  child: SizedBox(
-                    width: 36,
-                    height: 36,
-                    child: Stack(
-                      alignment: Alignment.center,
+                    Column(
+                      mainAxisSize: MainAxisSize.min,
                       children: [
-                        CircularProgressIndicator(
-                          value: progress,
-                          strokeWidth: 2.5,
-                          color: t.textPrimary,
+                        Semantics(
+                          label: isLiked ? 'Unlike song' : 'Like song',
+                          button: true,
+                          child: IconButton(
+                            icon: Icon(
+                              isLiked ? Icons.thumb_up : Icons.thumb_up_outlined,
+                              color: isLiked ? const Color(0xFFFFD700) : t.textPrimary.withOpacity(0.75),
+                              size: 20,
+                            ),
+                            onPressed: actions.onToggleLike,
+                            padding: EdgeInsets.zero,
+                            constraints: const BoxConstraints(minWidth: 48, minHeight: 48),
+                          ),
                         ),
                         Text(
-                          '${(progress * 100).round()}',
-                          style: TextStyle(fontSize: 8.5, color: t.textPrimary),
+                          formatCount(likeCount),
+                          style: TextStyle(
+                            color: t.textPrimary.withOpacity(0.75),
+                            fontSize: 9,
+                            fontWeight: FontWeight.w600,
+                          ),
                         ),
                       ],
                     ),
-                  ),
-                ),
-              )
-            else
-              Semantics(
-                label: 'Download song',
-                button: true,
-                child: IconButton(
-                  icon: Icon(
-                    Icons.download_outlined,
-                    color: t.textPrimary.withOpacity(0.75),
-                  ),
-                  onPressed: actions.onDownload,
+                    if (isDownloaded)
+                      Semantics(
+                        label: 'Remove download',
+                        button: true,
+                        child: IconButton(
+                          icon: const Icon(Icons.check_circle, color: Color(0xFF4CD964)),
+                          onPressed: actions.onRemoveDownload,
+                        ),
+                      )
+                    else if (isDownloading)
+                      Semantics(
+                        label: 'Cancel download',
+                        button: true,
+                        child: GestureDetector(
+                          onTap: actions.onCancelDownload,
+                          child: SizedBox(
+                            width: 36,
+                            height: 36,
+                            child: Stack(
+                              alignment: Alignment.center,
+                              children: [
+                                CircularProgressIndicator(
+                                  value: progress,
+                                  strokeWidth: 2.5,
+                                  color: t.textPrimary,
+                                ),
+                                Text(
+                                  '${(progress * 100).round()}',
+                                  style: TextStyle(fontSize: 8.5, color: t.textPrimary),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      )
+                    else
+                      Semantics(
+                        label: 'Download song',
+                        button: true,
+                        child: IconButton(
+                          icon: Icon(
+                            Icons.download_outlined,
+                            color: t.textPrimary.withOpacity(0.75),
+                          ),
+                          onPressed: actions.onDownload,
+                        ),
+                      ),
+                  ],
                 ),
               ),
-          ],
+              if (isNow)
+                Positioned(
+                  left: 0,
+                  top: 0,
+                  bottom: 0,
+                  child: Container(
+                    width: 4,
+                    color: t.textPrimary,
+                  ),
+                ),
+            ],
+          ),
         ),
       ),
     );
