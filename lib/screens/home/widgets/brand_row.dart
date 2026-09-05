@@ -1,7 +1,6 @@
-// File: lib/screens/home/widgets/brand_row.dart
-
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import '../../../core/constants/app_strings.dart';
 import '../../../providers/theme_provider.dart';
 
 class BrandRow extends StatelessWidget {
@@ -38,7 +37,7 @@ class BrandRow extends StatelessWidget {
           const SizedBox(width: 8),
           Expanded(
             child: Text(
-              'Mewati Tune',
+              AppStrings.appName,
               style: TextStyle(
                 color: t.textPrimary,
                 fontSize: 20,
