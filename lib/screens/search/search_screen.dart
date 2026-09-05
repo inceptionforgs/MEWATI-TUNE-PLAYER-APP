@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:cached_network_image/cached_network_image.dart';
-import '../../core/constants/app_dimensions.dart';
 import '../../core/constants/app_themes.dart';
 import '../../core/constants/themes/app_theme_id.dart';
 import '../../core/utils/debouncer.dart';
@@ -287,9 +286,7 @@ class _SearchScreenState extends State<SearchScreen> {
                           ),
                         )
                       : ListView.builder(
-                          padding: EdgeInsets.only(
-                            bottom: 16 + AppDimensions.miniPlayerHeight,
-                          ),
+                          padding: const EdgeInsets.only(bottom: 16),
                           itemCount: items.length,
                           itemBuilder: (context, i) {
                             final item = items[i];
@@ -347,9 +344,7 @@ class _SearchScreenState extends State<SearchScreen> {
         singer.name.isNotEmpty ? singer.name[0].toUpperCase() : '?';
     return InkWell(
       onTap: () {
-        final navigator = Navigator.of(context);
-        navigator.pop();
-        navigator.push(
+        Navigator.of(context).pushReplacement(
           MaterialPageRoute(
             builder: (_) => SingerProfileScreen(singer: singer),
           ),
