@@ -1,4 +1,13 @@
-// FILE: lib/providers/player_provider.dart
+// FIXED (Batch 3 audit): the position stream listener used to call
+// notifyListeners() on every tick "because drive_mode_screen.dart still
+// reads playerProvider.position via context.watch" — checked, and that's
+// no longer true anywhere in the codebase (drive_mode_screen consumes
+// position via positionNotifier/ValueListenableBuilder, same as
+// mini_player_bar). That per-tick notifyListeners() was the reason every
+// context.watch<PlayerProvider>() widget (all three PlayerControls themes)
+// rebuilt on every position tick even though they don't use position.
+// Removed — positionNotifier still updates every tick for anything that
+// needs it via ValueListenableBuilder.
 import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:just_audio/just_audio.dart';
@@ -67,15 +76,15 @@ class PlayerProvider extends ChangeNotifier {
       notifyListeners();
     });
 
-    // Note: notifyListeners() is kept here (not stripped) because
-    // drive_mode_screen.dart still reads playerProvider.position via
-    // context.watch and needs it to update every tick. mini_player_bar.dart
-    // no longer depends on this notifyListeners() call — it listens to
-    // positionNotifier directly below.
+    // FIXED: no longer calls notifyListeners() on every tick — nothing in
+    // the codebase reads `.position` via context.watch/select anymore.
+    // positionNotifier below still updates every tick for widgets that
+    // need live position (mini_player_bar, drive_mode_screen, seek bars),
+    // via ValueListenableBuilder, without rebuilding every
+    // context.watch<PlayerProvider>() widget in the tree.
     _positionSubscription = _playerService.positionStream.listen((Duration pos) {
       _position = pos;
       positionNotifier.value = pos;
-      notifyListeners();
     });
 
     _durationSubscription = _playerService.durationStream.listen((Duration? dur) {
