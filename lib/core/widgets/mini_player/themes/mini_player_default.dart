@@ -1,11 +1,9 @@
-//
-// Fallback mini player used by every theme that doesn't have its own
-// dedicated file. This is the original design, unchanged — only moved
-// out of mini_player_bar.dart and re-parameterized on MiniPlayerData.
+// File: lib/core/widgets/mini_player/themes/mini_player_default.dart
+// Unchanged — already has Drive Mode (not Shuffle) and matches the
+// prototype's default mini player.
 
 import 'package:flutter/material.dart';
 import 'package:just_audio/just_audio.dart';
-import 'package:provider/provider.dart';
 
 import '../../../../providers/player_provider.dart';
 import '../../../../routes/route_names.dart';
@@ -50,7 +48,6 @@ class MiniPlayerDefault extends StatelessWidget {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          // Header row (tap to open now playing)
           GestureDetector(
             onTap: () => Navigator.of(context).pushNamed(RouteNames.nowPlaying),
             child: Row(
@@ -79,12 +76,9 @@ class MiniPlayerDefault extends StatelessWidget {
                   ),
                 ],
                 const SizedBox(width: 8),
-                // Time display is part of slider section to avoid duplicate
               ],
             ),
           ),
-          // Fixed (Item 7): inline error banner with retry, shown when
-          // PlayerProvider.errorMessage is set (e.g. playback failed).
           if (errorMessage != null) ...[
             const SizedBox(height: 8),
             Container(
@@ -118,7 +112,6 @@ class MiniPlayerDefault extends StatelessWidget {
             ),
           ],
           const SizedBox(height: 10),
-          // Slider and time section (not tappable to navigate)
           _MiniPlayerSlider(
             onSeek: (duration) => playerProvider.seek(duration),
             textColor: t.textPrimary,
@@ -128,11 +121,9 @@ class MiniPlayerDefault extends StatelessWidget {
             thumbColor: t.textPrimary,
           ),
           const SizedBox(height: 4),
-          // Controls row (tap on empty area? We'll make only buttons tappable)
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              // [F2] Shuffle removed, replaced with Drive Mode in the same slot.
               Semantics(
                 label: 'Drive Mode',
                 button: true,
@@ -156,8 +147,6 @@ class MiniPlayerDefault extends StatelessWidget {
                     iconColor: t.textPrimary,
                   ),
                   const SizedBox(width: 16),
-                  // Fixed (Item 7): show a spinner instead of the
-                  // play/pause icon while PlayerProvider.isLoading.
                   isLoading
                       ? Semantics(
                           label: 'Loading',
@@ -267,17 +256,10 @@ class _MiniPlayerSlider extends StatefulWidget {
 class _MiniPlayerSliderState extends State<_MiniPlayerSlider> {
   double? _dragValue;
 
-  // Fixed: was `inMinutes.remainder(60)`, which silently dropped the hour
-  // count (e.g. 65 min -> showed "5:xx" / effectively "00:xx" once combined
-  // with drag state). DurationExtensions.asCompact correctly shows
-  // h:mm:ss once past 60 minutes, and m:ss below that.
   String _fmt(Duration d) => d.asCompact;
 
   @override
   Widget build(BuildContext context) {
-    // Position/duration now come from PlayerProvider's ValueNotifiers
-    // (added in File 24's fix) instead of context.select, so only this
-    // slider rebuilds on every position tick — not the whole mini-player.
     final playerProvider = context.read<PlayerProvider>();
 
     return ValueListenableBuilder<Duration>(
@@ -293,30 +275,8 @@ class _MiniPlayerSliderState extends State<_MiniPlayerSlider> {
             final pct = _dragValue ?? actualPct;
 
             return Column(
-              // FIX #2 (invisible seek bar): without this, this inner
-              // Column defaulted to MainAxisSize.max, so — sitting inside
-              // the same bounded-height chain coming from app.dart's
-              // Positioned(bottom: 0, no top) — it expanded to fill the
-              // entire available (screen-sized) height instead of just
-              // wrapping its own content (Slider + time row). Its
-              // children then laid out from its own top edge, which ended
-              // up pushed off-screen above y=0, since the oversized
-              // MiniPlayerBar was anchored only at the bottom. That's why
-              // the seek bar/time labels were invisible even though the
-              // controls row (the last child, near the bottom anchor)
-              // still showed fine.
               mainAxisSize: MainAxisSize.min,
               children: [
-                // FIX #1 (full-screen mini player): Slider's RenderObject
-                // expands to fill maxHeight whenever it receives a
-                // *bounded* (but not tight) height constraint — which is
-                // exactly what happened here, since MiniPlayerBar sits
-                // inside a Positioned(left/right/bottom) in app.dart with
-                // no top/height given, handing this whole subtree a
-                // bounded maxHeight equal to the full screen height.
-                // Wrapping it in a fixed-height SizedBox gives it a tight
-                // constraint instead, so it can't expand like that again
-                // regardless of the surrounding context.
                 SizedBox(
                   height: 36,
                   child: SliderTheme(
