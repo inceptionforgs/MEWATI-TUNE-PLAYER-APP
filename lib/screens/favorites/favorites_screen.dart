@@ -97,29 +97,15 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
     final favoritesProvider =
         Provider.of<FavoritesProvider>(context, listen: false);
 
-    final wasFavorite = favoritesProvider.isFavoriteSync(song.id);
-
     await favoritesProvider.toggleFavorite(song);
 
     if (!mounted) return;
 
     if (favoritesProvider.errorMessage != null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Something went wrong. Please try again.'),
-          backgroundColor: Colors.grey,
-        ),
-      );
+      _showFailureSnackBar('Something went wrong. Please try again.');
       favoritesProvider.clearError();
       return;
     }
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(wasFavorite ? 'Removed from favorites' : 'Added to favorites'),
-        backgroundColor: wasFavorite ? const Color(0xFFE53935) : const Color(0xFF4CD964),
-      ),
-    );
   }
 
   @override
