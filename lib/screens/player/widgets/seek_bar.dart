@@ -1,30 +1,91 @@
-// File: lib/screens/player/widgets/seek_bar.dart
-//
-// Dispatcher — unchanged.
+// File: lib/screens/player/widgets/seek_bar/walkman_orange_seek_bar.dart
+// Unchanged — already matches the prototype's default np-seek (plain
+// white thumb, thin rounded track).
 
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import '../../../core/constants/app_themes.dart';
-import '../../../providers/theme_provider.dart';
-import 'seek_bar/cyber_black_seek_bar.dart';
-import 'seek_bar/silver_chrome_seek_bar.dart';
-import 'seek_bar/walkman_orange_seek_bar.dart';
+import '../../../../core/extensions/duration_extensions.dart';
+import '../../../../providers/player_provider.dart';
+import '../../../../providers/theme_provider.dart';
 
-class SeekBar extends StatelessWidget {
-  const SeekBar({Key? key}) : super(key: key);
+class WalkmanOrangeSeekBar extends StatefulWidget {
+  const WalkmanOrangeSeekBar({Key? key}) : super(key: key);
+
+  @override
+  State<WalkmanOrangeSeekBar> createState() => _WalkmanOrangeSeekBarState();
+}
+
+class _WalkmanOrangeSeekBarState extends State<WalkmanOrangeSeekBar> {
+  double? _dragValue;
 
   @override
   Widget build(BuildContext context) {
-    final themeId = context.watch<ThemeProvider>().theme.id;
+    final playerProvider = context.read<PlayerProvider>();
+    final t = context.watch<ThemeProvider>().theme;
 
-    switch (themeId) {
-      case AppThemeId.cyberBlack:
-        return const CyberBlackSeekBar();
-      case AppThemeId.silverChrome:
-        return const SilverChromeSeekBar();
-      case AppThemeId.walkmanOrange:
-      case AppThemeId.custom:
-        return const WalkmanOrangeSeekBar();
-    }
+    return ValueListenableBuilder<Duration?>(
+      valueListenable: playerProvider.durationNotifier,
+      builder: (context, durationValue, _) {
+        final duration = durationValue ?? Duration.zero;
+        return ValueListenableBuilder<Duration>(
+          valueListenable: playerProvider.positionNotifier,
+          builder: (context, position, __) {
+            final actualPct = duration.inMilliseconds == 0
+                ? 0.0
+                : (position.inMilliseconds / duration.inMilliseconds).clamp(0.0, 1.0);
+            final pct = _dragValue ?? actualPct;
+
+            return Column(
+              children: [
+                SliderTheme(
+                  data: SliderTheme.of(context).copyWith(
+                    trackHeight: 4,
+                    thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 7.5),
+                    overlayShape: SliderComponentShape.noOverlay,
+                    activeTrackColor: t.textPrimary,
+                    inactiveTrackColor: t.textPrimary.withOpacity(0.28),
+                    thumbColor: t.textPrimary,
+                  ),
+                  child: Slider(
+                    value: pct,
+                    onChanged: (v) {
+                      setState(() => _dragValue = v);
+                    },
+                    onChangeEnd: (v) {
+                      final newPos = Duration(
+                        milliseconds: (v * duration.inMilliseconds).round(),
+                      );
+                      playerProvider.seek(newPos);
+                      setState(() => _dragValue = null);
+                    },
+                  ),
+                ),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      position.asCompact,
+                      style: TextStyle(
+                        color: t.textPrimary.withOpacity(0.75),
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    Text(
+                      duration.asCompact,
+                      style: TextStyle(
+                        color: t.textPrimary.withOpacity(0.75),
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
   }
 }
