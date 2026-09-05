@@ -1,25 +1,9 @@
-// FILE: lib/screens/player/widgets/now_playing_actions.dart
-//
-// FIXED (Batch 3 audit):
-// - Download progress spinner is now driven by
-//   `downloadsProvider.progressNotifier` via ValueListenableBuilder, so it
-//   updates on every tick instead of being stuck until the next
-//   notifyListeners() call (which previously only fired at start/finish).
-// - The downloading state is now tappable to cancel (previously a
-//   display-only 36x36 box with no gesture handling).
-// - Removing a completed download now asks for confirmation instead of
-//   deleting the file immediately on tap.
-// - Like count now falls back to `song.likeCount` when LikesProvider
-//   hasn't cached a count for this id yet, instead of showing 0.
-//
-// Icon order (heart -> thumbs(+count) -> download -> timer -> equalizer)
-// is unchanged, matching the prototype's np-actions-row order.
-
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../../models/song.dart';
 import '../../../providers/favorites_provider.dart';
 import '../../../providers/downloads_provider.dart';
+import '../../../providers/player_provider.dart';
 import '../../../providers/sleep_timer_provider.dart';
 import '../../../providers/theme_provider.dart';
 import '../../../providers/likes_provider.dart';
@@ -63,8 +47,6 @@ class NowPlayingActions extends StatelessWidget {
     }
   }
 
-  // FIXED: removing a download now confirms first instead of deleting the
-  // file immediately on tap.
   static Future<void> _confirmRemoveDownload(
     BuildContext context,
     DownloadsProvider downloadsProvider,
@@ -107,6 +89,7 @@ class NowPlayingActions extends StatelessWidget {
     final downloadsProvider = context.watch<DownloadsProvider>();
     final sleepTimerProvider = context.watch<SleepTimerProvider>();
     final likesProvider = context.watch<LikesProvider>();
+    final playerProvider = context.watch<PlayerProvider>();
     final t = context.watch<ThemeProvider>().theme;
 
     final isFav = favoritesProvider.isFavoriteSync(song.id);
@@ -114,8 +97,7 @@ class NowPlayingActions extends StatelessWidget {
     final isDownloading = downloadsProvider.isDownloading(song.id);
     final isTimerActive = sleepTimerProvider.isActive;
     final isLiked = likesProvider.isLikedSync(song.id);
-    // FIXED: fall back to the song's own like count when LikesProvider
-    // hasn't cached a value for this id yet, instead of showing 0.
+    final isShuffleOn = playerProvider.shuffleMode;
     final likeCount = likesProvider.likeCounts.containsKey(song.id)
         ? likesProvider.getLikeCountSync(song.id)
         : song.likeCount;
@@ -123,7 +105,6 @@ class NowPlayingActions extends StatelessWidget {
     return Row(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
-        // Heart (favorite) — first, matching the prototype.
         IconButton(
           icon: Icon(
             isFav ? Icons.favorite : Icons.favorite_border,
@@ -132,8 +113,7 @@ class NowPlayingActions extends StatelessWidget {
           ),
           onPressed: () => _toggleFavorite(context, favoritesProvider, song),
         ),
-        const SizedBox(width: 18),
-        // Thumbs up (like) + count — second.
+        const SizedBox(width: 14),
         Column(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -155,7 +135,20 @@ class NowPlayingActions extends StatelessWidget {
             ),
           ],
         ),
-        const SizedBox(width: 18),
+        const SizedBox(width: 14),
+        Semantics(
+          label: 'Shuffle',
+          button: true,
+          child: IconButton(
+            icon: Icon(
+              Icons.shuffle,
+              color: isShuffleOn ? t.accent : t.textPrimary.withOpacity(0.75),
+              size: 22,
+            ),
+            onPressed: () => playerProvider.toggleShuffle(),
+          ),
+        ),
+        const SizedBox(width: 14),
         if (isDownloaded)
           IconButton(
             icon: const Icon(Icons.check_circle, color: Color(0xFF4CD964), size: 22),
@@ -163,9 +156,6 @@ class NowPlayingActions extends StatelessWidget {
                 _confirmRemoveDownload(context, downloadsProvider, song),
           )
         else if (isDownloading)
-          // FIXED: wrapped in an InkWell to cancel, and the progress value
-          // now comes from progressNotifier via ValueListenableBuilder so
-          // it animates live instead of sitting stuck at 0%.
           InkWell(
             borderRadius: BorderRadius.circular(18),
             onTap: () => downloadsProvider.cancelDownload(song.id),
@@ -207,7 +197,7 @@ class NowPlayingActions extends StatelessWidget {
               }
             },
           ),
-        const SizedBox(width: 18),
+        const SizedBox(width: 14),
         IconButton(
           icon: Icon(
             Icons.timer_outlined,
@@ -216,7 +206,7 @@ class NowPlayingActions extends StatelessWidget {
           ),
           onPressed: onTimerTap,
         ),
-        const SizedBox(width: 18),
+        const SizedBox(width: 14),
         IconButton(
           icon: Icon(Icons.equalizer,
               color: t.textPrimary.withOpacity(0.75), size: 22),
