@@ -1,13 +1,4 @@
-// File: lib/screens/player/widgets/seek_bar/silver_chrome_seek_bar.dart
-//
-// UPDATED: thick white-bordered black track with a metallic-grey fill —
-// matches the prototype's silver-chrome np-seek override
-// (18px height, 2px white border, black background, no separate thumb).
-//
-// FIXED (Batch 3 audit): added onTapCancel/onHorizontalDragCancel — the
-// gesture only reset _dragValue on a successful onTapUp/onHorizontalDragEnd,
-// so a cancelled gesture (e.g. a scroll winning the gesture arena) left the
-// fill visually stuck at the last dragged position.
+// File: lib/screens/player/widgets/seek_bar/cyber_black_seek_bar.dart
 
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
@@ -15,14 +6,14 @@ import '../../../../core/extensions/duration_extensions.dart';
 import '../../../../providers/player_provider.dart';
 import '../../../../providers/theme_provider.dart';
 
-class SilverChromeSeekBar extends StatefulWidget {
-  const SilverChromeSeekBar({Key? key}) : super(key: key);
+class CyberBlackSeekBar extends StatefulWidget {
+  const CyberBlackSeekBar({Key? key}) : super(key: key);
 
   @override
-  State<SilverChromeSeekBar> createState() => _SilverChromeSeekBarState();
+  State<CyberBlackSeekBar> createState() => _CyberBlackSeekBarState();
 }
 
-class _SilverChromeSeekBarState extends State<SilverChromeSeekBar> {
+class _CyberBlackSeekBarState extends State<CyberBlackSeekBar> {
   double? _dragValue;
 
   void _updateDrag(double localDx, double width, Duration duration) {
@@ -39,9 +30,6 @@ class _SilverChromeSeekBarState extends State<SilverChromeSeekBar> {
     setState(() => _dragValue = null);
   }
 
-  // FIXED: resets the stuck-fill state when a tap/drag is cancelled
-  // instead of committed (e.g. interrupted by a scroll or a system
-  // gesture), instead of leaving _dragValue set indefinitely.
   void _cancelDrag() {
     if (_dragValue == null) return;
     setState(() => _dragValue = null);
@@ -52,10 +40,9 @@ class _SilverChromeSeekBarState extends State<SilverChromeSeekBar> {
     final playerProvider = context.read<PlayerProvider>();
     final t = context.watch<ThemeProvider>().theme;
 
-    return ValueListenableBuilder<Duration?>(
+    return ValueListenableBuilder<Duration>(
       valueListenable: playerProvider.durationNotifier,
-      builder: (context, durationValue, _) {
-        final duration = durationValue ?? Duration.zero;
+      builder: (context, duration, _) {
         return ValueListenableBuilder<Duration>(
           valueListenable: playerProvider.positionNotifier,
           builder: (context, position, __) {
@@ -82,13 +69,13 @@ class _SilverChromeSeekBarState extends State<SilverChromeSeekBar> {
                         clipBehavior: Clip.antiAlias,
                         decoration: BoxDecoration(
                           color: Colors.black,
-                          border: Border.all(color: Colors.white, width: 2),
+                          border: Border.all(color: t.accent, width: 2),
                           borderRadius: BorderRadius.circular(20),
                         ),
                         child: FractionallySizedBox(
                           alignment: Alignment.centerLeft,
                           widthFactor: pct,
-                          child: Container(color: const Color(0xFFA0A0A0)),
+                          child: Container(color: t.accent),
                         ),
                       ),
                     );
