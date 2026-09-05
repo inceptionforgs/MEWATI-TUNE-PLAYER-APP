@@ -1,9 +1,19 @@
 // FILE: lib/screens/player/widgets/now_playing_actions.dart
 //
-// Reordered icons to match the prototype's np-actions-row order:
-// heart -> thumbs(+count) -> download -> timer -> equalizer.
-// (Was: thumbs -> heart -> download -> timer -> equalizer.)
-// All provider calls/callbacks are unchanged.
+// FIXED (Batch 3 audit):
+// - Download progress spinner is now driven by
+//   `downloadsProvider.progressNotifier` via ValueListenableBuilder, so it
+//   updates on every tick instead of being stuck until the next
+//   notifyListeners() call (which previously only fired at start/finish).
+// - The downloading state is now tappable to cancel (previously a
+//   display-only 36x36 box with no gesture handling).
+// - Removing a completed download now asks for confirmation instead of
+//   deleting the file immediately on tap.
+// - Like count now falls back to `song.likeCount` when LikesProvider
+//   hasn't cached a count for this id yet, instead of showing 0.
+//
+// Icon order (heart -> thumbs(+count) -> download -> timer -> equalizer)
+// is unchanged, matching the prototype's np-actions-row order.
 
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
@@ -53,6 +63,44 @@ class NowPlayingActions extends StatelessWidget {
     }
   }
 
+  // FIXED: removing a download now confirms first instead of deleting the
+  // file immediately on tap.
+  static Future<void> _confirmRemoveDownload(
+    BuildContext context,
+    DownloadsProvider downloadsProvider,
+    Song song,
+  ) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Remove download?'),
+        content: Text('"${song.title}" will be deleted from your downloads.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            child: const Text('Remove'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true) return;
+    if (!context.mounted) return;
+
+    final success = await downloadsProvider.removeDownload(
+      song.id,
+      audioUrl: song.audioUrl,
+    );
+    if (!context.mounted) return;
+    if (!success) {
+      _showFailureSnackBar(context, 'Failed to remove download');
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final favoritesProvider = context.watch<FavoritesProvider>();
@@ -64,10 +112,13 @@ class NowPlayingActions extends StatelessWidget {
     final isFav = favoritesProvider.isFavoriteSync(song.id);
     final isDownloaded = downloadsProvider.isDownloaded(song.id);
     final isDownloading = downloadsProvider.isDownloading(song.id);
-    final progress = downloadsProvider.getProgress(song.id);
     final isTimerActive = sleepTimerProvider.isActive;
     final isLiked = likesProvider.isLikedSync(song.id);
-    final likeCount = likesProvider.getLikeCountSync(song.id);
+    // FIXED: fall back to the song's own like count when LikesProvider
+    // hasn't cached a value for this id yet, instead of showing 0.
+    final likeCount = likesProvider.likeCounts.containsKey(song.id)
+        ? likesProvider.getLikeCountSync(song.id)
+        : song.likeCount;
 
     return Row(
       mainAxisAlignment: MainAxisAlignment.center,
@@ -108,34 +159,39 @@ class NowPlayingActions extends StatelessWidget {
         if (isDownloaded)
           IconButton(
             icon: const Icon(Icons.check_circle, color: Color(0xFF4CD964), size: 22),
-            onPressed: () async {
-              final success = await downloadsProvider.removeDownload(
-                song.id,
-                audioUrl: song.audioUrl,
-              );
-              if (!context.mounted) return;
-              if (!success) {
-                _showFailureSnackBar(context, 'Failed to remove download');
-              }
-            },
+            onPressed: () =>
+                _confirmRemoveDownload(context, downloadsProvider, song),
           )
         else if (isDownloading)
-          SizedBox(
-            width: 36,
-            height: 36,
-            child: Stack(
-              alignment: Alignment.center,
-              children: [
-                CircularProgressIndicator(
-                  value: progress,
-                  strokeWidth: 2.5,
-                  color: t.textPrimary,
-                ),
-                Text(
-                  '${(progress * 100).round()}',
-                  style: TextStyle(fontSize: 8.5, color: t.textPrimary),
-                ),
-              ],
+          // FIXED: wrapped in an InkWell to cancel, and the progress value
+          // now comes from progressNotifier via ValueListenableBuilder so
+          // it animates live instead of sitting stuck at 0%.
+          InkWell(
+            borderRadius: BorderRadius.circular(18),
+            onTap: () => downloadsProvider.cancelDownload(song.id),
+            child: SizedBox(
+              width: 36,
+              height: 36,
+              child: ValueListenableBuilder<Map<String, double>>(
+                valueListenable: downloadsProvider.progressNotifier,
+                builder: (context, progressMap, _) {
+                  final progress = progressMap[song.id] ?? 0.0;
+                  return Stack(
+                    alignment: Alignment.center,
+                    children: [
+                      CircularProgressIndicator(
+                        value: progress,
+                        strokeWidth: 2.5,
+                        color: t.textPrimary,
+                      ),
+                      Text(
+                        '${(progress * 100).round()}',
+                        style: TextStyle(fontSize: 8.5, color: t.textPrimary),
+                      ),
+                    ],
+                  );
+                },
+              ),
             ),
           )
         else
