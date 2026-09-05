@@ -1,5 +1,3 @@
-// File: lib/core/constants/app_strings.dart
-
 class AppStrings {
   static const String appTagline = 'Mewati music ka ghar';
   static const String appName = 'Mewati Song Player';
