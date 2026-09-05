@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import '../../core/constants/app_strings.dart';
+import '../../core/widgets/loading_widget.dart';
 import '../../core/widgets/song_row.dart';
 import '../../models/song.dart';
 import '../../providers/downloads_provider.dart';
@@ -18,6 +20,8 @@ class DownloadsScreen extends StatefulWidget {
 }
 
 class _DownloadsScreenState extends State<DownloadsScreen> {
+  bool _isLoading = true;
+
   @override
   void initState() {
     super.initState();
@@ -26,14 +30,20 @@ class _DownloadsScreenState extends State<DownloadsScreen> {
           Provider.of<DownloadsProvider>(context, listen: false);
       final likesProvider = Provider.of<LikesProvider>(context, listen: false);
 
-      await downloadsProvider.initialize();
+      try {
+        await downloadsProvider.initialize();
 
-      final songsProvider = Provider.of<SongsProvider>(context, listen: false);
-      if (songsProvider.allSongs.isNotEmpty) {
-        await downloadsProvider.checkExistingDownloads(songsProvider.allSongs);
+        final songsProvider = Provider.of<SongsProvider>(context, listen: false);
+        if (songsProvider.allSongs.isNotEmpty) {
+          await downloadsProvider.checkExistingDownloads(songsProvider.allSongs);
+        }
+
+        likesProvider.loadLikesData(downloadsProvider.downloadedSongsList);
+      } finally {
+        if (mounted) {
+          setState(() => _isLoading = false);
+        }
       }
-
-      likesProvider.loadLikesData(downloadsProvider.downloadedSongsList);
     });
   }
 
@@ -156,6 +166,10 @@ class _DownloadsScreenState extends State<DownloadsScreen> {
     final isPlaying = context.select<PlayerProvider, bool>(
       (p) => p.isPlaying,
     );
+
+    if (_isLoading) {
+      return const LoadingWidget(message: AppStrings.loading);
+    }
 
     final downloadedSongs = downloadsProvider.downloadedSongsList;
 
