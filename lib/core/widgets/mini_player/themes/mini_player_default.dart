@@ -35,187 +35,233 @@ class MiniPlayerDefault extends StatelessWidget {
           end: Alignment.bottomCenter,
           colors: [t.surface, t.background],
         ),
-        borderRadius: const BorderRadius.only(
-          topLeft: Radius.circular(16),
-          topRight: Radius.circular(16),
+        border: Border(
+          top: BorderSide(color: t.textPrimary.withOpacity(0.10)),
         ),
+        boxShadow: const [
+          BoxShadow(
+            color: Colors.black45,
+            blurRadius: 30,
+            offset: Offset(0, -10),
+          ),
+        ],
       ),
-      child: SafeArea(
-        top: false,
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            GestureDetector(
-              onTap: () =>
-                  Navigator.of(context).pushNamed(RouteNames.nowPlaying),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          GestureDetector(
+            onTap: () => Navigator.of(context).pushNamed(RouteNames.nowPlaying),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    song.title,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      color: t.textPrimary,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                ),
+                if (queuePosition.isNotEmpty) ...[
+                  const SizedBox(width: 8),
+                  Text(
+                    queuePosition,
+                    style: TextStyle(
+                      color: t.textSecondary,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w400,
+                    ),
+                  ),
+                ],
+                const SizedBox(width: 8),
+              ],
+            ),
+          ),
+          if (errorMessage != null) ...[
+            const SizedBox(height: 8),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+              decoration: BoxDecoration(
+                color: Colors.red.withOpacity(0.12),
+                borderRadius: BorderRadius.circular(8),
+              ),
               child: Row(
                 children: [
-                  ClipRRect(
-                    borderRadius: BorderRadius.circular(8),
-                    child: song.coverImageUrl != null
-                        ? Image.network(
-                            song.coverImageUrl,
-                            width: 48,
-                            height: 48,
-                            fit: BoxFit.cover,
-                          )
-                        : Container(
-                            width: 48,
-                            height: 48,
-                            color: t.surface,
-                            child: Icon(Icons.music_note, color: t.textPrimary),
-                          ),
-                  ),
-                  const SizedBox(width: 12),
+                  const Icon(Icons.error_outline, color: Colors.redAccent, size: 18),
+                  const SizedBox(width: 8),
                   Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text(
-                          song.title,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: TextStyle(
-                            color: t.textPrimary,
-                            fontSize: 15,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                        if (queuePosition.isNotEmpty)
-                          Text(
-                            queuePosition,
-                            style: TextStyle(
-                              color: t.textPrimary.withOpacity(0.6),
-                              fontSize: 12,
-                            ),
-                          ),
-                      ],
+                    child: Text(
+                      errorMessage,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(color: Colors.redAccent, fontSize: 12),
                     ),
                   ),
-                  Semantics(
-                    label: 'Drive Mode',
-                    button: true,
-                    child: IconButton(
-                      icon: Icon(Icons.drive_eta, color: t.textPrimary),
-                      onPressed: () => Navigator.of(context)
-                          .pushNamed(RouteNames.driveMode),
-                    ),
-                  ),
-                  IconButton(
-                    icon: const Icon(Icons.skip_previous),
-                    color: t.textPrimary,
-                    onPressed: () => playerProvider.previous(),
-                  ),
-                  isLoading
-                      ? SizedBox(
-                          width: 40,
-                          height: 40,
-                          child: Padding(
-                            padding: const EdgeInsets.all(10),
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2,
-                              valueColor:
-                                  AlwaysStoppedAnimation<Color>(t.accent),
-                            ),
-                          ),
-                        )
-                      : IconButton(
-                          icon: Icon(isPlaying ? Icons.pause : Icons.play_arrow),
-                          color: t.textPrimary,
-                          iconSize: 32,
-                          onPressed: () => playerProvider.togglePlayPause(),
-                        ),
-                  IconButton(
-                    icon: const Icon(Icons.skip_next),
-                    color: t.textPrimary,
-                    onPressed: () => playerProvider.next(),
+                  TextButton(
+                    onPressed: () {
+                      playerProvider.clearError();
+                      playerProvider.togglePlayPause();
+                    },
+                    child: const Text('Retry', style: TextStyle(fontSize: 12)),
                   ),
                 ],
               ),
             ),
-            if (errorMessage != null) ...[
-              const SizedBox(height: 8),
-              Container(
-                width: double.infinity,
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                decoration: BoxDecoration(
-                  color: Colors.red.withOpacity(0.14),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Row(
-                  children: [
-                    const Icon(Icons.error_outline,
-                        color: Colors.redAccent, size: 16),
-                    const SizedBox(width: 6),
-                    Expanded(
-                      child: Text(
-                        errorMessage,
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                        style:
-                            const TextStyle(color: Colors.redAccent, fontSize: 11),
-                      ),
-                    ),
-                    TextButton(
-                      onPressed: () {
-                        playerProvider.clearError();
-                        playerProvider.togglePlayPause();
-                      },
-                      child: const Text('Retry', style: TextStyle(fontSize: 11)),
-                    ),
-                  ],
+          ],
+          const SizedBox(height: 10),
+          _MiniPlayerSlider(
+            onSeek: (duration) => playerProvider.seek(duration),
+            textColor: t.textPrimary,
+            secondaryTextColor: t.textSecondary,
+            activeTrackColor: t.textPrimary,
+            inactiveTrackColor: t.textPrimary.withOpacity(0.25),
+            thumbColor: t.textPrimary,
+          ),
+          const SizedBox(height: 4),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Semantics(
+                label: 'Drive Mode',
+                button: true,
+                child: IconButton(
+                  icon: Icon(
+                    Icons.drive_eta,
+                    color: t.textPrimary.withOpacity(0.85),
+                  ),
+                  tooltip: 'Drive Mode',
+                  onPressed: () =>
+                      Navigator.of(context).pushNamed(RouteNames.driveMode),
                 ),
               ),
+              Row(
+                children: [
+                  _circleButton(
+                    icon: Icons.skip_previous,
+                    size: 46,
+                    onTap: () => playerProvider.previous(),
+                    borderColor: t.textPrimary,
+                    iconColor: t.textPrimary,
+                  ),
+                  const SizedBox(width: 16),
+                  isLoading
+                      ? Semantics(
+                          label: 'Loading',
+                          child: SizedBox(
+                            width: 58,
+                            height: 58,
+                            child: Padding(
+                              padding: const EdgeInsets.all(16),
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2.5,
+                                valueColor:
+                                    AlwaysStoppedAnimation<Color>(t.textPrimary),
+                              ),
+                            ),
+                          ),
+                        )
+                      : _circleButton(
+                          icon: isPlaying ? Icons.pause : Icons.play_arrow,
+                          size: 58,
+                          iconSize: 26,
+                          onTap: () => playerProvider.togglePlayPause(),
+                          borderColor: t.textPrimary,
+                          iconColor: t.textPrimary,
+                        ),
+                  const SizedBox(width: 16),
+                  _circleButton(
+                    icon: Icons.skip_next,
+                    size: 46,
+                    onTap: () => playerProvider.next(),
+                    borderColor: t.textPrimary,
+                    iconColor: t.textPrimary,
+                  ),
+                ],
+              ),
+              IconButton(
+                icon: Icon(
+                  loopMode == LoopMode.one ? Icons.repeat_one : Icons.repeat,
+                  color: loopMode != LoopMode.off
+                      ? t.accent
+                      : t.textPrimary.withOpacity(0.85),
+                ),
+                onPressed: () {
+                  final current = loopMode;
+                  LoopMode next;
+                  if (current == LoopMode.off) {
+                    next = LoopMode.all;
+                  } else if (current == LoopMode.all) {
+                    next = LoopMode.one;
+                  } else {
+                    next = LoopMode.off;
+                  }
+                  playerProvider.setLoopMode(next);
+                },
+              ),
             ],
-            const SizedBox(height: 8),
-            _DefaultSlider(t: t, onSeek: (d) => playerProvider.seek(d)),
-          ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _circleButton({
+    required IconData icon,
+    required double size,
+    double iconSize = 20,
+    required VoidCallback onTap,
+    required Color borderColor,
+    required Color iconColor,
+  }) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        width: size,
+        height: size,
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          border: Border.all(color: borderColor, width: 2),
         ),
+        child: Icon(icon, color: iconColor, size: iconSize),
       ),
     );
   }
 }
 
-class _DefaultSlider extends StatefulWidget {
-  final dynamic t;
+class _MiniPlayerSlider extends StatefulWidget {
   final void Function(Duration position) onSeek;
+  final Color textColor;
+  final Color secondaryTextColor;
+  final Color activeTrackColor;
+  final Color inactiveTrackColor;
+  final Color thumbColor;
 
-  const _DefaultSlider({required this.t, required this.onSeek});
+  const _MiniPlayerSlider({
+    Key? key,
+    required this.onSeek,
+    required this.textColor,
+    required this.secondaryTextColor,
+    required this.activeTrackColor,
+    required this.inactiveTrackColor,
+    required this.thumbColor,
+  }) : super(key: key);
 
   @override
-  State<_DefaultSlider> createState() => _DefaultSliderState();
+  State<_MiniPlayerSlider> createState() => _MiniPlayerSliderState();
 }
 
-class _DefaultSliderState extends State<_DefaultSlider> {
+class _MiniPlayerSliderState extends State<_MiniPlayerSlider> {
   double? _dragValue;
 
   String _fmt(Duration d) => d.asCompact;
 
-  void _updateDrag(double localDx, double width) {
-    if (width <= 0) return;
-    final pct = (localDx / width).clamp(0.0, 1.0);
-    setState(() => _dragValue = pct);
-  }
-
-  void _commitDrag(Duration duration) {
-    if (_dragValue == null) return;
-    widget.onSeek(Duration(
-      milliseconds: (_dragValue! * duration.inMilliseconds).round(),
-    ));
-    setState(() => _dragValue = null);
-  }
-
-  void _cancelDrag() {
-    if (_dragValue == null) return;
-    setState(() => _dragValue = null);
-  }
-
   @override
   Widget build(BuildContext context) {
     final playerProvider = context.read<PlayerProvider>();
-    final t = widget.t;
 
     return ValueListenableBuilder<Duration>(
       valueListenable: playerProvider.durationNotifier,
@@ -232,36 +278,32 @@ class _DefaultSliderState extends State<_DefaultSlider> {
             return Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                LayoutBuilder(
-                  builder: (context, constraints) {
-                    final width = constraints.maxWidth;
-                    return GestureDetector(
-                      onTapDown: (d) => _updateDrag(d.localPosition.dx, width),
-                      onTapUp: (_) => _commitDrag(duration),
-                      onTapCancel: _cancelDrag,
-                      onHorizontalDragUpdate: (d) =>
-                          _updateDrag(d.localPosition.dx, width),
-                      onHorizontalDragEnd: (_) => _commitDrag(duration),
-                      onHorizontalDragCancel: _cancelDrag,
-                      child: Container(
-                        height: 4,
-                        decoration: BoxDecoration(
-                          color: t.textPrimary.withOpacity(0.2),
-                          borderRadius: BorderRadius.circular(2),
-                        ),
-                        child: FractionallySizedBox(
-                          alignment: Alignment.centerLeft,
-                          widthFactor: pct,
-                          child: Container(
-                            decoration: BoxDecoration(
-                              color: t.accent,
-                              borderRadius: BorderRadius.circular(2),
-                            ),
-                          ),
-                        ),
-                      ),
-                    );
-                  },
+                SizedBox(
+                  height: 36,
+                  child: SliderTheme(
+                    data: SliderTheme.of(context).copyWith(
+                      trackHeight: 3,
+                      thumbShape:
+                          const RoundSliderThumbShape(enabledThumbRadius: 7),
+                      overlayShape: SliderComponentShape.noOverlay,
+                      activeTrackColor: widget.activeTrackColor,
+                      inactiveTrackColor: widget.inactiveTrackColor,
+                      thumbColor: widget.thumbColor,
+                    ),
+                    child: Slider(
+                      value: pct,
+                      onChanged: (v) {
+                        setState(() => _dragValue = v);
+                      },
+                      onChangeEnd: (v) {
+                        final newPos = Duration(
+                          milliseconds: (v * duration.inMilliseconds).round(),
+                        );
+                        widget.onSeek(newPos);
+                        setState(() => _dragValue = null);
+                      },
+                    ),
+                  ),
                 ),
                 const SizedBox(height: 4),
                 Row(
@@ -270,15 +312,15 @@ class _DefaultSliderState extends State<_DefaultSlider> {
                     Text(
                       _fmt(position),
                       style: TextStyle(
-                        color: t.textPrimary.withOpacity(0.6),
-                        fontSize: 11,
+                        color: widget.secondaryTextColor,
+                        fontSize: 13,
                       ),
                     ),
                     Text(
                       _fmt(duration),
                       style: TextStyle(
-                        color: t.textPrimary.withOpacity(0.6),
-                        fontSize: 11,
+                        color: widget.secondaryTextColor,
+                        fontSize: 13,
                       ),
                     ),
                   ],
@@ -291,3 +333,4 @@ class _DefaultSliderState extends State<_DefaultSlider> {
     );
   }
 }
+
