@@ -1,5 +1,3 @@
-// lib/screens/songs/songs_screen.dart
-
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../core/constants/app_strings.dart';
@@ -74,7 +72,13 @@ class _SongsScreenState extends State<SongsScreen> {
   }
 
   void _playSong(List<Song> songs, int index) {
-    Provider.of<PlayerProvider>(context, listen: false).setPlaylist(
+    final playerProvider = Provider.of<PlayerProvider>(context, listen: false);
+    final tappedSong = songs[index];
+    if (playerProvider.currentSong?.id == tappedSong.id) {
+      playerProvider.togglePlayPause();
+      return;
+    }
+    playerProvider.setPlaylist(
       songs: songs,
       startIndex: index,
     );
@@ -121,9 +125,51 @@ class _SongsScreenState extends State<SongsScreen> {
     Provider.of<DownloadsProvider>(context, listen: false).cancelDownload(songId);
   }
 
-  void _removeDownload(String songId, {required String audioUrl}) {
-    Provider.of<DownloadsProvider>(context, listen: false)
-        .removeDownload(songId, audioUrl: audioUrl);
+  Future<void> _confirmAndRemoveDownload(Song song) async {
+    final t = Provider.of<ThemeProvider>(context, listen: false).theme;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        backgroundColor: t.surface,
+        title: Text('Delete download?', style: TextStyle(color: t.textPrimary)),
+        content: Text(
+          'This will remove "${song.title}" from your downloads.',
+          style: TextStyle(color: t.textSecondary),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: Text('Cancel', style: TextStyle(color: t.textSecondary)),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            child: const Text('Delete', style: TextStyle(color: Color(0xFFE53935))),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true) {
+      await _removeDownload(song);
+    }
+  }
+
+  Future<void> _removeDownload(Song song) async {
+    final downloadsProvider =
+        Provider.of<DownloadsProvider>(context, listen: false);
+    final success = await downloadsProvider.removeDownload(
+      song.id,
+      audioUrl: song.audioUrl,
+    );
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          success ? 'Removed from downloads' : 'Failed to remove download',
+        ),
+        backgroundColor: success ? const Color(0xFFE53935) : Colors.grey,
+      ),
+    );
   }
 
   @override
@@ -208,8 +254,7 @@ class _SongsScreenState extends State<SongsScreen> {
                 onToggleFavorite: () => _toggleFavorite(song),
                 onDownload: () => _downloadSong(song),
                 onCancelDownload: () => _cancelDownload(song.id),
-                onRemoveDownload: () =>
-                    _removeDownload(song.id, audioUrl: song.audioUrl),
+                onRemoveDownload: () => _confirmAndRemoveDownload(song),
                 onToggleLike: () => _toggleLike(song.id),
               ),
             );
