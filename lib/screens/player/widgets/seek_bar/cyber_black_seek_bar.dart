@@ -1,14 +1,13 @@
+// File: lib/screens/player/widgets/seek_bar/cyber_black_seek_bar.dart
+// Unchanged — prototype doesn't give cyber-black a distinct np-seek
+// override, so it keeps the default look, same as before.
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../../../core/extensions/duration_extensions.dart';
 import '../../../../providers/player_provider.dart';
 import '../../../../providers/theme_provider.dart';
 
-/// Seek bar used for the Deep Black theme.
-///
-/// Content is currently identical to WalkmanOrangeSeekBar — this is a
-/// pure file-separation step so Deep Black's seek bar can get its own
-/// look later without touching the other themes.
 class CyberBlackSeekBar extends StatefulWidget {
   const CyberBlackSeekBar({Key? key}) : super(key: key);
 
