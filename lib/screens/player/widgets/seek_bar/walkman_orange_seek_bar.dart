@@ -1,12 +1,13 @@
+// File: lib/screens/player/widgets/seek_bar/walkman_orange_seek_bar.dart
+// Unchanged — already matches the prototype's default np-seek (plain
+// white thumb, thin rounded track).
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../../../core/extensions/duration_extensions.dart';
 import '../../../../providers/player_provider.dart';
 import '../../../../providers/theme_provider.dart';
 
-/// Seek bar used for the Walkman Orange theme (and, for now, Custom —
-/// see seek_bar.dart's dispatcher). Content is unchanged from the
-/// original single-file seek_bar.dart; only the location moved.
 class WalkmanOrangeSeekBar extends StatefulWidget {
   const WalkmanOrangeSeekBar({Key? key}) : super(key: key);
 
