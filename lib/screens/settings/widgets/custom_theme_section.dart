@@ -40,7 +40,10 @@ class _CustomThemeSectionState extends State<CustomThemeSection> {
   }
 
   void _onShadeChanged(double shade) {
-    setState(() => _shade = shade);
+    setState(() {
+      _shade = shade;
+      _pickedColor = HSVColor.fromColor(_pickedColor).withValue(shade).toColor();
+    });
     _updatePreview();
   }
 
