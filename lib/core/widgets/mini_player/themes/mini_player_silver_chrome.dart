@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import 'package:just_audio/just_audio.dart';
 
 import '../../../../providers/player_provider.dart';
+import '../../../../routes/app_router.dart';
 import '../../../../routes/route_names.dart';
 import '../../../extensions/duration_extensions.dart';
 import '../mini_player_data.dart';
@@ -57,7 +58,8 @@ class MiniPlayerSilverChrome extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         children: [
           GestureDetector(
-            onTap: () => Navigator.of(context).pushNamed(RouteNames.nowPlaying),
+            onTap: () => AppRouter.navigatorKey.currentState
+                ?.pushNamed(RouteNames.nowPlaying),
             child: Row(
               children: [
                 Expanded(
@@ -137,7 +139,8 @@ class MiniPlayerSilverChrome extends StatelessWidget {
                   icon: Icons.drive_eta,
                   size: 38,
                   iconSize: 20,
-                  onTap: () => Navigator.of(context).pushNamed(RouteNames.driveMode),
+                  onTap: () => AppRouter.navigatorKey.currentState
+                      ?.pushNamed(RouteNames.driveMode),
                 ),
               ),
               Row(
@@ -287,6 +290,7 @@ class _SilverChromeSliderState extends State<_SilverChromeSlider> {
 
             return Column(
               mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 LayoutBuilder(
                   builder: (context, constraints) {
@@ -298,18 +302,25 @@ class _SilverChromeSliderState extends State<_SilverChromeSlider> {
                       onHorizontalDragUpdate: (d) => _updateDrag(d.localPosition.dx, width),
                       onHorizontalDragEnd: (_) => _commitDrag(duration),
                       onHorizontalDragCancel: _cancelDrag,
-                      child: Container(
+                      child: SizedBox(
+                        width: width,
                         height: 18,
-                        clipBehavior: Clip.antiAlias,
-                        decoration: BoxDecoration(
-                          color: Colors.black,
-                          border: Border.all(color: Colors.white, width: 2),
-                          borderRadius: BorderRadius.circular(20),
-                        ),
-                        child: FractionallySizedBox(
+                        child: Container(
+                          width: width,
+                          height: 18,
+                          clipBehavior: Clip.antiAlias,
                           alignment: Alignment.centerLeft,
-                          widthFactor: pct,
-                          child: Container(color: _scTrackFill),
+                          decoration: BoxDecoration(
+                            color: Colors.black,
+                            border: Border.all(color: Colors.white, width: 2),
+                            borderRadius: BorderRadius.circular(20),
+                          ),
+                          child: FractionallySizedBox(
+                            alignment: Alignment.centerLeft,
+                            widthFactor: pct,
+                            heightFactor: 1.0,
+                            child: const ColoredBox(color: _scTrackFill),
+                          ),
                         ),
                       ),
                     );
@@ -331,4 +342,3 @@ class _SilverChromeSliderState extends State<_SilverChromeSlider> {
     );
   }
 }
-
