@@ -1,4 +1,15 @@
 // File: lib/screens/drive_mode/drive_mode_screen.dart
+//
+// FIXED (Batch 3 audit):
+// - Seek slider no longer calls playerProvider.seek() on every pixel of
+//   drag (onChanged) — now uses local drag state and only commits the
+//   seek in onChangeEnd, same pattern as the themed seek bars.
+// - _DriveModeButton now takes a required `label` so Previous/Play-Pause/
+//   Next each get a distinct Semantics label instead of all three
+//   announcing "Drive mode control".
+// - Tapping a queue row now jumps directly to that index via
+//   playerProvider.jumpToQueueIndex() instead of calling setPlaylist()
+//   again (which reloaded/restarted the whole queue on every tap).
 
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
@@ -28,6 +39,10 @@ class DriveModeScreen extends StatefulWidget {
 }
 
 class _DriveModeScreenState extends State<DriveModeScreen> {
+  // FIXED: local drag preview for the seek slider so dragging doesn't
+  // call playerProvider.seek() on every pixel — only on release.
+  double? _dragValue;
+
   @override
   void initState() {
     super.initState();
@@ -176,6 +191,21 @@ class _DriveModeScreenState extends State<DriveModeScreen> {
                     return ValueListenableBuilder<Duration>(
                       valueListenable: playerProvider.positionNotifier,
                       builder: (context, position, __) {
+                        final actualValue = duration.inMilliseconds > 0
+                            ? position.inMilliseconds
+                                .clamp(0, duration.inMilliseconds)
+                                .toDouble()
+                            : 0.0;
+                        final sliderMax = duration.inMilliseconds > 0
+                            ? duration.inMilliseconds.toDouble()
+                            : 1.0;
+                        // Guard against a stale drag value surviving a
+                        // track-length change (e.g. song changed mid-drag).
+                        final displayValue =
+                            (_dragValue != null && _dragValue! <= sliderMax)
+                                ? _dragValue!
+                                : actualValue;
+
                         return Column(
                           children: [
                             SliderTheme(
@@ -188,16 +218,20 @@ class _DriveModeScreenState extends State<DriveModeScreen> {
                                 thumbColor: Colors.white,
                               ),
                               child: Slider(
-                                value: duration.inMilliseconds > 0
-                                    ? position.inMilliseconds
-                                        .clamp(0, duration.inMilliseconds)
-                                        .toDouble()
-                                    : 0.0,
-                                max: duration.inMilliseconds > 0
-                                    ? duration.inMilliseconds.toDouble()
-                                    : 1.0,
+                                value: displayValue,
+                                max: sliderMax,
+                                // FIXED: was calling playerProvider.seek()
+                                // on every drag pixel here — now this only
+                                // updates local preview state.
                                 onChanged: (value) {
-                                  playerProvider.seek(Duration(milliseconds: value.round()));
+                                  setState(() => _dragValue = value);
+                                },
+                                // FIXED: seek is now only committed once,
+                                // on release.
+                                onChangeEnd: (value) {
+                                  playerProvider.seek(
+                                      Duration(milliseconds: value.round()));
+                                  setState(() => _dragValue = null);
                                 },
                               ),
                             ),
@@ -231,17 +265,20 @@ class _DriveModeScreenState extends State<DriveModeScreen> {
                   _DriveModeButton(
                     icon: Icons.skip_previous,
                     size: 64,
+                    label: 'Previous',
                     onTap: playerProvider.previous,
                   ),
                   _DriveModeButton(
                     icon: isPlaying ? Icons.pause_circle_filled : Icons.play_circle_filled,
                     size: 108,
                     color: t.accent,
+                    label: isPlaying ? 'Pause' : 'Play',
                     onTap: playerProvider.togglePlayPause,
                   ),
                   _DriveModeButton(
                     icon: Icons.skip_next,
                     size: 64,
+                    label: 'Next',
                     onTap: playerProvider.next,
                   ),
                 ],
@@ -267,8 +304,12 @@ class _DriveModeScreenState extends State<DriveModeScreen> {
                             song: rowSong,
                             isCurrent: isCurrent,
                             accent: t.accent,
+                            // FIXED: was setPlaylist(songs: queue,
+                            // startIndex: index) — reloaded/restarted the
+                            // whole queue on every tap. Now a direct jump
+                            // within the already-loaded queue.
                             onTap: () {
-                              playerProvider.setPlaylist(songs: queue, startIndex: index);
+                              playerProvider.jumpToQueueIndex(index);
                             },
                           );
                         },
@@ -286,11 +327,13 @@ class _DriveModeButton extends StatelessWidget {
   final IconData icon;
   final double size;
   final Color color;
+  final String label;
   final VoidCallback onTap;
 
   const _DriveModeButton({
     required this.icon,
     required this.size,
+    required this.label,
     required this.onTap,
     this.color = Colors.white,
   });
@@ -299,7 +342,7 @@ class _DriveModeButton extends StatelessWidget {
   Widget build(BuildContext context) {
     return Semantics(
       button: true,
-      label: 'Drive mode control',
+      label: label,
       child: InkWell(
         borderRadius: BorderRadius.circular(size),
         onTap: onTap,
