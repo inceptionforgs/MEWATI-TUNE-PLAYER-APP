@@ -5,6 +5,7 @@ import '../constants/app_strings.dart';
 import '../../providers/theme_provider.dart';
 import '../../providers/auth_provider.dart';
 import '../../routes/route_names.dart';
+import '../../screens/settings/advance_settings_screen.dart';
 
 class AppDrawer extends StatelessWidget {
   const AppDrawer({Key? key}) : super(key: key);
@@ -18,6 +19,12 @@ class AppDrawer extends StatelessWidget {
       default:
         return 14;
     }
+  }
+
+  static void _openAdvanceSettings(BuildContext context, {required int tab}) {
+    final navigator = Navigator.of(context);
+    navigator.pop();
+    navigator.pushNamed(RouteNames.advanceSettings, arguments: tab);
   }
 
   @override
@@ -131,10 +138,10 @@ class AppDrawer extends StatelessWidget {
                 radius: radius,
                 isActive: isCustomTheme,
                 t: t,
-                onTap: () {
-                  Navigator.of(context).pop();
-                  Navigator.of(context).pushNamed(RouteNames.advanceSettings);
-                },
+                onTap: () => _openAdvanceSettings(
+                  context,
+                  tab: AdvanceSettingsScreen.themeTab,
+                ),
                 leading: Container(
                   width: 14,
                   height: 14,
@@ -171,8 +178,11 @@ class AppDrawer extends StatelessWidget {
                 isActive: isCustomEq,
                 t: t,
                 onTap: () {
-                  Navigator.of(context).pop();
-                  Navigator.of(context).pushNamed(RouteNames.advanceSettings);
+                  themeProvider.setEqPreset('custom');
+                  _openAdvanceSettings(
+                    context,
+                    tab: AdvanceSettingsScreen.equalizerTab,
+                  );
                 },
                 label: 'Custom',
               ),
@@ -184,10 +194,10 @@ class AppDrawer extends StatelessWidget {
               label: AppStrings.advanceSettingsDrawerLabel,
               t: t,
               radius: radius,
-              onTap: () {
-                Navigator.of(context).pop();
-                Navigator.of(context).pushNamed(RouteNames.advanceSettings);
-              },
+              onTap: () => _openAdvanceSettings(
+                context,
+                tab: AdvanceSettingsScreen.equalizerTab,
+              ),
             ),
             const SizedBox(height: 8),
             _DrawerActionRow(
@@ -196,8 +206,9 @@ class AppDrawer extends StatelessWidget {
               t: t,
               radius: radius,
               onTap: () {
-                Navigator.of(context).pop();
-                Navigator.of(context).pushNamed(RouteNames.feedback);
+                final navigator = Navigator.of(context);
+                navigator.pop();
+                navigator.pushNamed(RouteNames.feedback);
               },
             ),
 
