@@ -1,12 +1,9 @@
-// File: lib/core/widgets/mini_player/themes/mini_player_default.dart
-// Unchanged — already has Drive Mode (not Shuffle) and matches the
-// prototype's default mini player.
-
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:just_audio/just_audio.dart';
 
 import '../../../../providers/player_provider.dart';
+import '../../../../routes/app_router.dart';
 import '../../../../routes/route_names.dart';
 import '../../../extensions/duration_extensions.dart';
 import '../mini_player_data.dart';
@@ -50,7 +47,8 @@ class MiniPlayerDefault extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         children: [
           GestureDetector(
-            onTap: () => Navigator.of(context).pushNamed(RouteNames.nowPlaying),
+            onTap: () => AppRouter.navigatorKey.currentState
+                ?.pushNamed(RouteNames.nowPlaying),
             child: Row(
               children: [
                 Expanded(
@@ -134,8 +132,8 @@ class MiniPlayerDefault extends StatelessWidget {
                     color: t.textPrimary.withOpacity(0.85),
                   ),
                   tooltip: 'Drive Mode',
-                  onPressed: () =>
-                      Navigator.of(context).pushNamed(RouteNames.driveMode),
+                  onPressed: () => AppRouter.navigatorKey.currentState
+                      ?.pushNamed(RouteNames.driveMode),
                 ),
               ),
               Row(
@@ -283,6 +281,7 @@ class _MiniPlayerSliderState extends State<_MiniPlayerSlider> {
                   child: SliderTheme(
                     data: SliderTheme.of(context).copyWith(
                       trackHeight: 3,
+                      trackShape: const RoundedRectSliderTrackShape(),
                       thumbShape:
                           const RoundSliderThumbShape(enabledThumbRadius: 7),
                       overlayShape: SliderComponentShape.noOverlay,
@@ -291,6 +290,8 @@ class _MiniPlayerSliderState extends State<_MiniPlayerSlider> {
                       thumbColor: widget.thumbColor,
                     ),
                     child: Slider(
+                      year2023: true,
+                      padding: EdgeInsets.zero,
                       value: pct,
                       onChanged: (v) {
                         setState(() => _dragValue = v);
@@ -333,4 +334,3 @@ class _MiniPlayerSliderState extends State<_MiniPlayerSlider> {
     );
   }
 }
-
