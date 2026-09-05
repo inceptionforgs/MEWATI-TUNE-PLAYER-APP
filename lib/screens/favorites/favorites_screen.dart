@@ -1,4 +1,6 @@
-// File: lib/screens/favorites/favorites_screen.dart
+// FILE: lib/screens/favorites/favorites_screen.dart
+// Unchanged — already uses the restyled SongRow; empty state already
+// has the circular icon-badge look matching the prototype's .empty-icon.
 
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
@@ -32,9 +34,6 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
 
       await favoritesProvider.loadFavorites();
 
-      // Fixed (P5-2): Favorites screen previously never called
-      // loadLikesData at all, so hearts/like counts here relied on
-      // whatever another screen happened to have already loaded.
       if (favoritesProvider.favoriteSongs.isNotEmpty) {
         likesProvider.loadLikesData(favoritesProvider.favoriteSongs);
       }
@@ -56,11 +55,6 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
   }
 
   Future<void> _downloadSong(Song song) async {
-    // Fixed (Item 11): await the download and show a SnackBar on failure,
-    // mirroring the pattern used above for favorite/like toggle errors.
-    // downloadSong() rethrows on failure specifically so callers can do
-    // this — previously this call was fire-and-forget and errors were
-    // silently dropped.
     try {
       await Provider.of<DownloadsProvider>(context, listen: false)
           .downloadSong(song);
@@ -75,9 +69,6 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
         .cancelDownload(songId);
   }
 
-  // Fixed: audioUrl is now required by DownloadsProvider.removeDownload
-  // (File 36) so the correct file/extension actually gets deleted, and the
-  // result is checked to show the right SnackBar.
   Future<void> _removeDownload(Song song) async {
     final downloadsProvider =
         Provider.of<DownloadsProvider>(context, listen: false);
@@ -195,8 +186,6 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
     final favoriteSongs = favoritesProvider.favoriteSongs;
 
     return ListView.builder(
-      // Bottom padding accounts for the mini-player bar overlaying the
-      // bottom of the screen, so the last row(s) aren't hidden behind it.
       padding: EdgeInsets.only(
         bottom: 16 + AppDimensions.miniPlayerHeight,
         top: 8,
@@ -211,12 +200,6 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
             ? likesProvider.getLikeCountSync(song.id)
             : song.likeCount;
 
-        // Fixed (Item 10): consume downloadsProvider.progressNotifier via
-        // ValueListenableBuilder so this row's progress actually animates
-        // during a download — progressNotifier deliberately never calls
-        // notifyListeners(), so reading getProgress()/isDownloading()
-        // directly in itemBuilder (outside this builder) was stale until
-        // some unrelated rebuild happened to occur.
         return ValueListenableBuilder<Map<String, double>>(
           valueListenable: downloadsProvider.progressNotifier,
           builder: (context, progressMap, _) {
