@@ -1,3 +1,9 @@
+// File: lib/screens/player/now_playing_screen.dart
+// Unchanged from before — layout already matches the prototype's Now
+// Playing screen (back button + "NOW PLAYING" label, album art, title,
+// singer, actions row, seek bar, controls). Regenerated as-is per
+// request; no visual changes needed here.
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../core/widgets/app_drawer.dart';
@@ -35,12 +41,8 @@ class _NowPlayingScreenState extends State<NowPlayingScreen> {
   Widget build(BuildContext context) {
     final t = context.watch<ThemeProvider>().theme;
 
-    // Use context.select to avoid rebuilding whole screen on every position tick.
     final hasSong = context.select<PlayerProvider, bool>((p) => p.hasSong);
     final song = context.select<PlayerProvider, dynamic>((p) => p.currentSong);
-    // Fixed (Item 7): surface PlayerProvider.errorMessage as a banner with
-    // a retry action, since playback/seek/next/previous failures set it
-    // but nothing displayed it before.
     final errorMessage =
         context.select<PlayerProvider, String?>((p) => p.errorMessage);
 
@@ -138,8 +140,6 @@ class _NowPlayingScreenState extends State<NowPlayingScreen> {
                       ),
                     ),
                     const SizedBox(height: 16),
-                    // Fixed (Item 7): error banner + retry, shown when
-                    // PlayerProvider.errorMessage is set.
                     if (errorMessage != null)
                       Padding(
                         padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 10),
