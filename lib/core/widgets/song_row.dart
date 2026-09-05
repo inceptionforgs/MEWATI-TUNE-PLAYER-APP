@@ -1,11 +1,3 @@
-// FILE: lib/core/widgets/song_row.dart
-//
-// FIXED: previous version used Border.all(...).copyWith(left: ...),
-// which isn't valid — Border has no copyWith. Replaced with an explicit
-// Border(top:, right:, bottom:, left:) so every side is set directly.
-// Everything else (data/action wiring, layout, icon order) is unchanged
-// from the last version.
-
 import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import '../utils/formatters.dart';
@@ -189,18 +181,24 @@ class SongRow extends StatelessWidget {
             if (isNow)
               Padding(
                 padding: const EdgeInsets.only(right: 6),
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: t.textPrimary.withOpacity(0.20),
-                    borderRadius: BorderRadius.circular(radius - 6 < 4 ? 4 : radius - 6),
-                  ),
-                  child: Text(
-                    isPlaying ? 'Ⅱ NOW' : '▶ NOW',
-                    style: TextStyle(
-                      color: t.textPrimary,
-                      fontSize: 11,
-                      fontWeight: FontWeight.w900,
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 54),
+                  child: FittedBox(
+                    fit: BoxFit.scaleDown,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: t.textPrimary.withOpacity(0.20),
+                        borderRadius: BorderRadius.circular(radius - 6 < 4 ? 4 : radius - 6),
+                      ),
+                      child: Text(
+                        isPlaying ? 'Ⅱ NOW' : '▶ NOW',
+                        style: TextStyle(
+                          color: t.textPrimary,
+                          fontSize: 11,
+                          fontWeight: FontWeight.w900,
+                        ),
+                      ),
                     ),
                   ),
                 ),
