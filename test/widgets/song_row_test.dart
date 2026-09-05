@@ -1,15 +1,18 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:mewati_tune_player/core/constants/themes/app_theme_id.dart';
 import 'package:mewati_tune_player/core/widgets/song_row.dart';
 import 'package:mewati_tune_player/models/song.dart';
 
 /// Minimal stand-in for AppThemeData — SongRow only reads a handful of
-/// color fields off `t` (typed `dynamic` in the widget).
+/// color fields (plus `id`, used to pick the per-theme corner radius)
+/// off `t` (typed `dynamic` in the widget).
 class _FakeTheme {
   final Color surface = Colors.grey;
   final Color textPrimary = Colors.white;
   final Color accent = Colors.deepOrange;
   final Color background = Colors.black;
+  final AppThemeId id = AppThemeId.walkmanOrange;
 }
 
 Widget _wrap(Widget child) => MaterialApp(home: Scaffold(body: child));
