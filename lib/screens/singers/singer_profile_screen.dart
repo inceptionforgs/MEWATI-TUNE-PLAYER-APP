@@ -1,3 +1,5 @@
+// File: lib/screens/singers/singer_profile_screen.dart
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:cached_network_image/cached_network_image.dart';
@@ -33,8 +35,9 @@ class _SingerProfileScreenState extends State<SingerProfileScreen> {
   @override
   void initState() {
     super.initState();
-    _loadSongs();
-    Future.microtask(() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      _loadSongs();
       Provider.of<FavoritesProvider>(context, listen: false).loadFavorites();
     });
   }
