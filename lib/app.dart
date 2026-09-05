@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'core/constants/app_strings.dart';
 import 'core/constants/app_theme.dart';
 import 'core/constants/app_dimensions.dart';
 import 'core/constants/themes/app_theme_id.dart';
@@ -142,7 +143,7 @@ class _MewatiTunePlayerAppState extends State<MewatiTunePlayerApp>
       child: Consumer<ThemeProvider>(
         builder: (context, themeProvider, _) {
           return MaterialApp(
-            title: 'Mewati Tune Player',
+            title: AppStrings.appName,
             debugShowCheckedModeBanner: false,
             theme: AppTheme.fromAppTheme(themeProvider.theme),
             onGenerateRoute: AppRouter.generateRoute,
