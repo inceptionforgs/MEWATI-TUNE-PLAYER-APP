@@ -1,12 +1,6 @@
 // File: lib/screens/player/widgets/seek_bar.dart
 //
-// Dispatcher — picks the right per-theme seek bar based on the active
-// theme, so every screen that does `import 'widgets/seek_bar.dart'` and
-// uses `SeekBar()` keeps working exactly as before, unchanged.
-//
-// Right now all three themes render the same look (see seek_bar/ folder —
-// pure file separation for now); this is where each theme's own seek-bar
-// styling gets plugged in later without touching this dispatcher.
+// Dispatcher — unchanged.
 
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
@@ -30,9 +24,6 @@ class SeekBar extends StatelessWidget {
         return const SilverChromeSeekBar();
       case AppThemeId.walkmanOrange:
       case AppThemeId.custom:
-        // Custom theme is colour-only today (see custom_theme_builder.dart)
-        // so it keeps using the default structural seek bar, exactly like
-        // before this split.
         return const WalkmanOrangeSeekBar();
     }
   }
