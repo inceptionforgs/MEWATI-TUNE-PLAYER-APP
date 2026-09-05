@@ -1,5 +1,3 @@
-// File: lib/screens/player/widgets/seek_bar/walkman_orange_seek_bar.dart
-
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../../../core/extensions/duration_extensions.dart';
@@ -37,6 +35,7 @@ class _WalkmanOrangeSeekBarState extends State<WalkmanOrangeSeekBar> {
                 SliderTheme(
                   data: SliderTheme.of(context).copyWith(
                     trackHeight: 4,
+                    trackShape: const RoundedRectSliderTrackShape(),
                     thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 7.5),
                     overlayShape: SliderComponentShape.noOverlay,
                     activeTrackColor: t.textPrimary,
@@ -44,6 +43,8 @@ class _WalkmanOrangeSeekBarState extends State<WalkmanOrangeSeekBar> {
                     thumbColor: t.textPrimary,
                   ),
                   child: Slider(
+                    year2023: true,
+                    padding: EdgeInsets.zero,
                     value: pct,
                     onChanged: (v) {
                       setState(() => _dragValue = v);
