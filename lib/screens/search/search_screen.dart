@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import '../../core/constants/app_themes.dart';
-import '../../core/constants/themes/app_theme_id.dart';
 import '../../core/utils/debouncer.dart';
 import '../../core/widgets/error_widget.dart';
 import '../../models/song.dart';
@@ -450,3 +449,4 @@ class _SearchScreenState extends State<SearchScreen> {
     );
   }
 }
+
