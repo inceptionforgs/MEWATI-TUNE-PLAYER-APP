@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import 'package:just_audio/just_audio.dart';
 
 import '../../../../providers/player_provider.dart';
+import '../../../../routes/app_router.dart';
 import '../../../../routes/route_names.dart';
 import '../../../extensions/duration_extensions.dart';
 import '../mini_player_data.dart';
@@ -56,7 +57,8 @@ class MiniPlayerCyberBlack extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         children: [
           GestureDetector(
-            onTap: () => Navigator.of(context).pushNamed(RouteNames.nowPlaying),
+            onTap: () => AppRouter.navigatorKey.currentState
+                ?.pushNamed(RouteNames.nowPlaying),
             child: Column(
               children: [
                 Text(
@@ -130,8 +132,8 @@ class MiniPlayerCyberBlack extends StatelessWidget {
                 child: IconButton(
                   icon: const Icon(Icons.drive_eta, color: _cbTextPrimary),
                   tooltip: 'Drive Mode',
-                  onPressed: () =>
-                      Navigator.of(context).pushNamed(RouteNames.driveMode),
+                  onPressed: () => AppRouter.navigatorKey.currentState
+                      ?.pushNamed(RouteNames.driveMode),
                 ),
               ),
               Row(
@@ -299,6 +301,7 @@ class _CyberBlackSliderState extends State<_CyberBlackSlider> {
 
             return Column(
               mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 LayoutBuilder(
                   builder: (context, constraints) {
@@ -311,18 +314,25 @@ class _CyberBlackSliderState extends State<_CyberBlackSlider> {
                           _updateDrag(d.localPosition.dx, width),
                       onHorizontalDragEnd: (_) => _commitDrag(duration),
                       onHorizontalDragCancel: _cancelDrag,
-                      child: Container(
+                      child: SizedBox(
+                        width: width,
                         height: 12,
-                        clipBehavior: Clip.antiAlias,
-                        decoration: BoxDecoration(
-                          color: _cbTrackBg,
-                          border: Border.all(color: _cbTrackBorder, width: 1),
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: FractionallySizedBox(
+                        child: Container(
+                          width: width,
+                          height: 12,
+                          clipBehavior: Clip.antiAlias,
                           alignment: Alignment.centerLeft,
-                          widthFactor: pct,
-                          child: Container(color: _cbProgressFill),
+                          decoration: BoxDecoration(
+                            color: _cbTrackBg,
+                            border: Border.all(color: _cbTrackBorder, width: 1),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: FractionallySizedBox(
+                            alignment: Alignment.centerLeft,
+                            widthFactor: pct,
+                            heightFactor: 1.0,
+                            child: const ColoredBox(color: _cbProgressFill),
+                          ),
                         ),
                       ),
                     );
@@ -350,4 +360,3 @@ class _CyberBlackSliderState extends State<_CyberBlackSlider> {
     );
   }
 }
-
