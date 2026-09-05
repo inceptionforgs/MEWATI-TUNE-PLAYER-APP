@@ -1,13 +1,3 @@
-// File: lib/core/widgets/app_drawer.dart
-//
-// Restyled to match the "Mewati Song Player" Walkman-Edition prototype:
-// pill-shaped rows, left colour swatch on theme rows, a glowing dot
-// indicator on the active row (instead of a radio icon), and per-theme
-// corner radius (Walkman Orange: 14, Deep Black/cyber: 4, Apple
-// Green/silver-chrome: 10) — matching the prototype's --card-radius
-// token for each theme. All providers, routes, and preset/theme ids are
-// unchanged from before; only presentation changed.
-
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../constants/app_themes.dart';
@@ -19,8 +9,6 @@ import '../../routes/route_names.dart';
 class AppDrawer extends StatelessWidget {
   const AppDrawer({Key? key}) : super(key: key);
 
-  /// Card/row corner radius per theme — mirrors the prototype's
-  /// --card-radius (14 default / 4 cyber-black / 10 silver-chrome).
   static double _cardRadius(AppThemeId id) {
     switch (id) {
       case AppThemeId.cyberBlack:
@@ -35,12 +23,6 @@ class AppDrawer extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final themeProvider = context.watch<ThemeProvider>();
-    // CHANGED: was context.read<ThemeProvider>() — that meant this
-    // widget never rebuilt when theme/eq preset changed elsewhere, so
-    // the selected radio circle here stayed stale until some other
-    // rebuild happened to touch this drawer.
-    // Fix: watch, not read — drawer was stuck on "Guest" after login
-    // because it never rebuilt when auth state changed.
     final authProvider = context.watch<AuthProvider>();
     final t = themeProvider.theme;
     final radius = _cardRadius(t.id);
@@ -48,18 +30,13 @@ class AppDrawer extends StatelessWidget {
     final bool isLoggedIn = authProvider.isLoggedIn;
     final profile = authProvider.profile;
 
-    // No hardcoded fake identity. There's no display-name field on
-    // Profile (auth is anonymous-only), so we show a consistent,
-    // honest label instead of pretending it's personalized.
     final String displayName = isLoggedIn ? 'Mewati Listener' : 'Guest';
     final String avatarLetter = displayName[0].toUpperCase();
 
-    // Only show VIP if subscription_status genuinely says so
-    // (client can't fake this thanks to the profiles trigger in File 17).
     final bool isPremium = profile?.isPremium ?? false;
+    final bool isCustomTheme = themeProvider.themeId == AppThemeId.custom;
+    final bool isCustomEq = themeProvider.eqPreset == 'custom';
 
-    // Fixed 280px width to match the prototype's .drawer{width:280px}
-    // instead of Flutter's default Material drawer width.
     return Drawer(
       width: 280,
       backgroundColor: t.background,
@@ -127,7 +104,7 @@ class AppDrawer extends StatelessWidget {
             _SectionTitle(label: 'THEME SELECT', color: t.textSecondary),
             const SizedBox(height: 10),
             ...AppThemes.all.map((themeData) {
-              final isActive = themeProvider.themeId == themeData.id;
+              final isActive = !isCustomTheme && themeProvider.themeId == themeData.id;
               return Padding(
                 padding: const EdgeInsets.symmetric(vertical: 3),
                 child: _DrawerPillRow(
@@ -148,12 +125,34 @@ class AppDrawer extends StatelessWidget {
                 ),
               );
             }).toList(),
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 3),
+              child: _DrawerPillRow(
+                radius: radius,
+                isActive: isCustomTheme,
+                t: t,
+                onTap: () {
+                  Navigator.of(context).pop();
+                  Navigator.of(context).pushNamed(RouteNames.advanceSettings);
+                },
+                leading: Container(
+                  width: 14,
+                  height: 14,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: themeProvider.customColor,
+                    border: Border.all(color: t.textPrimary.withOpacity(0.3)),
+                  ),
+                ),
+                label: 'Custom',
+              ),
+            ),
 
             const SizedBox(height: 18),
             _SectionTitle(label: 'EQUALIZER PRESETS', color: t.textSecondary),
             const SizedBox(height: 10),
             ..._eqPresets.map((preset) {
-              final isActive = themeProvider.eqPreset == preset.id;
+              final isActive = !isCustomEq && themeProvider.eqPreset == preset.id;
               return Padding(
                 padding: const EdgeInsets.symmetric(vertical: 3),
                 child: _DrawerPillRow(
@@ -165,6 +164,19 @@ class AppDrawer extends StatelessWidget {
                 ),
               );
             }).toList(),
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 3),
+              child: _DrawerPillRow(
+                radius: radius,
+                isActive: isCustomEq,
+                t: t,
+                onTap: () {
+                  Navigator.of(context).pop();
+                  Navigator.of(context).pushNamed(RouteNames.advanceSettings);
+                },
+                label: 'Custom',
+              ),
+            ),
 
             const SizedBox(height: 18),
             _DrawerActionRow(
@@ -245,9 +257,6 @@ class _EqPresetDef {
   const _EqPresetDef(this.id, this.label);
 }
 
-// Labels matched verbatim to the prototype's drawer EQ chips. The
-// underlying ids are unchanged so ThemeProvider.setEqPreset(...) and
-// EqualizerService keep working exactly as before.
 const List<_EqPresetDef> _eqPresets = [
   _EqPresetDef('normal', 'Normal'),
   _EqPresetDef('mewati-bass', 'Mewati Bass™'),
@@ -275,10 +284,6 @@ class _SectionTitle extends StatelessWidget {
   }
 }
 
-/// A full-width pill row used for both the theme list and the EQ
-/// preset list — matches the prototype's .theme-btn / .eq-preset-chip:
-/// left label (with optional leading swatch), and a small dot on the
-/// right that glows when active.
 class _DrawerPillRow extends StatelessWidget {
   final double radius;
   final bool isActive;
@@ -350,9 +355,6 @@ class _DrawerPillRow extends StatelessWidget {
   }
 }
 
-/// Action row (Advance Settings / Feedback) — matches the prototype's
-/// .action-row: icon + label + chevron, same pill shape as the rows
-/// above.
 class _DrawerActionRow extends StatelessWidget {
   final IconData icon;
   final String label;
