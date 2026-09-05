@@ -3,11 +3,16 @@
 // Dispatcher only. Reads PlayerProvider/ThemeProvider once, packs the
 // result into a MiniPlayerData, and hands off to the widget for the
 // active theme. Add a new theme by:
-//   1. Creating lib/core/widgets/mini_player/themes/mini_player_<name>.dart
-//      with a `class MiniPlayer<Name> extends StatelessWidget` that takes
+//   1. Creating lib/core/widgets/mini_player/themes/mini_player_<n>.dart
+//      with a `class MiniPlayer<n> extends StatelessWidget` that takes
 //      `{required MiniPlayerData data}`.
 //   2. Importing it below and adding one `case` to the switch.
 // No existing theme file needs to change when you do this.
+//
+// UPDATED: added the Silver Chrome case + import — matches the
+// prototype's metallic mini player (thick bordered progress bar,
+// chrome-gradient circular controls). Default/Walkman Orange path is
+// unchanged.
 
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
@@ -18,6 +23,7 @@ import '../../../providers/theme_provider.dart';
 import '../../constants/themes/app_theme_id.dart';
 import 'mini_player_data.dart';
 import 'themes/mini_player_cyber_black.dart';
+import 'themes/mini_player_silver_chrome.dart';
 import 'themes/mini_player_default.dart';
 
 class MiniPlayerBar extends StatelessWidget {
@@ -61,9 +67,11 @@ class MiniPlayerBar extends StatelessWidget {
       playerProvider: playerProvider,
     );
 
-    switch (t.id) {
+    switch (t.id as AppThemeId) {
       case AppThemeId.cyberBlack:
         return MiniPlayerCyberBlack(data: data);
+      case AppThemeId.silverChrome:
+        return MiniPlayerSilverChrome(data: data);
       default:
         return MiniPlayerDefault(data: data);
     }
