@@ -1,12 +1,3 @@
-// File: lib/screens/settings/widgets/custom_equalizer_section.dart
-//
-// Unchanged. This already talks to the device's real AndroidEqualizer
-// (live bands/min-max dB from getBandParameters(), persisted gains,
-// timeout handling) — genuinely more capable than the prototype's
-// static hardcoded 5-band mock, so it's kept exactly as-is rather than
-// downgraded to match. Only the screen wrapping it (advance_settings_screen.dart)
-// changed visually.
-
 import 'dart:async';
 
 import 'package:flutter/material.dart';
@@ -76,18 +67,19 @@ class _CustomEqualizerSectionState extends State<CustomEqualizerSection> {
     await _equalizerService.setBassBoost(saved.bassBoostDb);
 
     if (!mounted) return;
-    final themeProvider = context.read<ThemeProvider>();
-    if (themeProvider.eqPreset != 'custom') {
-      await themeProvider.setEqPreset('custom');
-    }
-
-    if (!mounted) return;
     setState(() {
       _params = params;
       _bandGains = List<double>.from(saved.bandGains);
       _bassBoost = saved.bassBoostDb;
       _loading = false;
     });
+  }
+
+  void _markCustomIfNeeded() {
+    final themeProvider = context.read<ThemeProvider>();
+    if (themeProvider.eqPreset != 'custom') {
+      themeProvider.setEqPreset('custom');
+    }
   }
 
   Future<void> _persist() async {
@@ -195,6 +187,7 @@ class _CustomEqualizerSectionState extends State<CustomEqualizerSection> {
                                 _bandGains[index] = value;
                               });
                               _equalizerService.setBandGain(index, value);
+                              _markCustomIfNeeded();
                             },
                             onChangeEnd: (_) => _persist(),
                           ),
@@ -246,6 +239,7 @@ class _CustomEqualizerSectionState extends State<CustomEqualizerSection> {
             onChanged: (value) {
               setState(() => _bassBoost = value);
               _equalizerService.setBassBoost(value);
+              _markCustomIfNeeded();
             },
             onChangeEnd: (_) => _persist(),
           ),
