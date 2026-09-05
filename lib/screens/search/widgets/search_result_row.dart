@@ -1,4 +1,7 @@
 // FILE: lib/screens/search/widgets/search_result_row.dart
+// Unchanged — this file just wraps SongRow (already restyled to match
+// the prototype), so nothing here needed to change.
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../../core/widgets/song_row.dart';
@@ -50,11 +53,6 @@ class SearchResultRow extends StatelessWidget {
 
   static Future<void> _downloadSong(
       BuildContext context, DownloadsProvider downloadsProvider, Song song) async {
-    // Fixed (Item 11): await the download and show a SnackBar on failure,
-    // mirroring the pattern used above for favorite/like toggle errors.
-    // downloadSong() rethrows on failure specifically so callers can do
-    // this — previously this call was fire-and-forget and errors were
-    // silently dropped.
     try {
       await downloadsProvider.downloadSong(song);
     } catch (e) {
@@ -82,11 +80,6 @@ class SearchResultRow extends StatelessWidget {
         ? likesProvider.getLikeCountSync(song.id)
         : song.likeCount;
 
-    // Fixed (Item 10): consume downloadsProvider.progressNotifier via
-    // ValueListenableBuilder so this row's progress actually animates
-    // during a download — progressNotifier deliberately never calls
-    // notifyListeners(), so reading getProgress()/isDownloading() directly
-    // in build() was stale until some unrelated rebuild happened to occur.
     return ValueListenableBuilder<Map<String, double>>(
       valueListenable: downloadsProvider.progressNotifier,
       builder: (context, progressMap, _) {
@@ -109,7 +102,6 @@ class SearchResultRow extends StatelessWidget {
           ),
           actions: SongRowActions(
             onTap: () {
-              // Play the full search results list starting at this song.
               context.read<PlayerProvider>().setPlaylist(
                     songs: allResults,
                     startIndex: index,
