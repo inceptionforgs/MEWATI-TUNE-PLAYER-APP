@@ -1,13 +1,17 @@
+// File: lib/screens/player/widgets/player_controls/walkman_orange_player_controls.dart
+//
+// UPDATED: left slot changed from Shuffle to Drive Mode, matching the
+// prototype's np-controls (and the same swap already made in
+// mini_player_default.dart). playerProvider.shuffleMode/toggleShuffle()
+// are untouched in the provider — just no longer wired to this button.
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:just_audio/just_audio.dart';
 import '../../../../providers/player_provider.dart';
 import '../../../../providers/theme_provider.dart';
+import '../../../../routes/route_names.dart';
 
-/// Player controls (shuffle / prev / play-pause / next / repeat) used
-/// for the Walkman Orange theme (and, for now, Custom — see
-/// player_controls.dart's dispatcher). Content is unchanged from the
-/// original single-file player_controls.dart; only the location moved.
 class WalkmanOrangePlayerControls extends StatelessWidget {
   const WalkmanOrangePlayerControls({Key? key}) : super(key: key);
 
@@ -16,8 +20,6 @@ class WalkmanOrangePlayerControls extends StatelessWidget {
     final playerProvider = context.watch<PlayerProvider>();
     final t = context.watch<ThemeProvider>().theme;
 
-    // Fixed (Item 7): loading spinner tied to PlayerProvider.isLoading,
-    // shown in place of the play/pause icon while a playlist is loading.
     final isLoading = context.select<PlayerProvider, bool>((p) => p.isLoading);
 
     String _repeatLabel(LoopMode mode) {
@@ -34,23 +36,20 @@ class WalkmanOrangePlayerControls extends StatelessWidget {
     return Row(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
-        // Fixed (Item 16): Semantics label for the shuffle button.
         Semantics(
           button: true,
-          label: 'Shuffle',
+          label: 'Drive Mode',
           child: IconButton(
             icon: Icon(
-              Icons.shuffle,
-              color: playerProvider.shuffleMode
-                  ? t.accent
-                  : t.textPrimary.withOpacity(0.85),
+              Icons.drive_eta,
+              color: t.textPrimary.withOpacity(0.85),
               size: 22,
             ),
-            onPressed: () => playerProvider.toggleShuffle(),
+            tooltip: 'Drive Mode',
+            onPressed: () => Navigator.of(context).pushNamed(RouteNames.driveMode),
           ),
         ),
         const SizedBox(width: 10),
-        // Fixed (Item 16): Semantics label for the previous button.
         Semantics(
           button: true,
           label: 'Previous',
@@ -68,7 +67,6 @@ class WalkmanOrangePlayerControls extends StatelessWidget {
             border: Border.all(color: t.textPrimary, width: 2),
             color: t.textPrimary.withOpacity(0.08),
           ),
-          // Fixed (Item 16): Semantics label for play/pause.
           child: Semantics(
             button: true,
             label: playerProvider.isPlaying ? 'Pause' : 'Play',
@@ -91,7 +89,6 @@ class WalkmanOrangePlayerControls extends StatelessWidget {
           ),
         ),
         const SizedBox(width: 10),
-        // Fixed (Item 16): Semantics label for the next button.
         Semantics(
           button: true,
           label: 'Next',
@@ -101,8 +98,6 @@ class WalkmanOrangePlayerControls extends StatelessWidget {
           ),
         ),
         const SizedBox(width: 10),
-        // Fixed (Item 16): Semantics label for the repeat button, reflecting
-        // the current repeat mode.
         Semantics(
           button: true,
           label: _repeatLabel(playerProvider.loopMode),
