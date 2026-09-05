@@ -1,10 +1,7 @@
-// FILE: lib/screens/favorites/favorites_screen.dart
-// Unchanged — already uses the restyled SongRow; empty state already
-// has the circular icon-badge look matching the prototype's .empty-icon.
+// lib/screens/favorites/favorites_screen.dart
 
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import '../../core/constants/app_dimensions.dart';
 import '../../core/constants/app_strings.dart';
 import '../../core/widgets/loading_widget.dart';
 import '../../core/widgets/error_widget.dart';
@@ -187,7 +184,7 @@ class _FavoritesScreenState extends State<FavoritesScreen> {
 
     return ListView.builder(
       padding: EdgeInsets.only(
-        bottom: 16 + AppDimensions.miniPlayerHeight,
+        bottom: 16,
         top: 8,
       ),
       itemCount: favoriteSongs.length,
