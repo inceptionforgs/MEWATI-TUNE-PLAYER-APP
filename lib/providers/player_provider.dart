@@ -1,13 +1,5 @@
-// FIXED (Batch 3 audit): the position stream listener used to call
-// notifyListeners() on every tick "because drive_mode_screen.dart still
-// reads playerProvider.position via context.watch" — checked, and that's
-// no longer true anywhere in the codebase (drive_mode_screen consumes
-// position via positionNotifier/ValueListenableBuilder, same as
-// mini_player_bar). That per-tick notifyListeners() was the reason every
-// context.watch<PlayerProvider>() widget (all three PlayerControls themes)
-// rebuilt on every position tick even though they don't use position.
-// Removed — positionNotifier still updates every tick for anything that
-// needs it via ValueListenableBuilder.
+// File: lib/providers/player_provider.dart
+
 import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:just_audio/just_audio.dart';
@@ -25,10 +17,6 @@ class PlayerProvider extends ChangeNotifier {
   bool _isLoading = false;
   String? _errorMessage;
 
-  // Fixed (Serial 2): lightweight position/duration notifiers so widgets
-  // like mini_player_bar can rebuild via ValueListenableBuilder instead of
-  // context.watch/select on the whole provider. These are updated on every
-  // stream tick WITHOUT calling notifyListeners() themselves.
   final ValueNotifier<Duration> positionNotifier =
       ValueNotifier<Duration>(Duration.zero);
   final ValueNotifier<Duration> durationNotifier =
@@ -53,16 +41,8 @@ class PlayerProvider extends ChangeNotifier {
   int get currentQueueIndex => _playerService.currentIndex;
   int get totalQueueLength => _playerService.playlist.length;
 
-  /// Read-only view of the current queue — used by Drive Mode (File 32)
-  /// to show the larger, simplified song list without duplicating
-  /// PlayerService's playlist state anywhere.
   List<Song> get queue => _playerService.playlist;
 
-  // Fixed (Serial 17): added an `autoInit` test seam. When false, the
-  // constructor skips subscribing to PlayerService's real audio streams —
-  // used by widget tests that need a PlayerProvider in the widget tree
-  // (e.g. via Provider) without exercising real playback plumbing.
-  // Default (no argument) behavior is completely unchanged.
   PlayerProvider({bool autoInit = true}) {
     if (autoInit) _init();
   }
@@ -76,12 +56,6 @@ class PlayerProvider extends ChangeNotifier {
       notifyListeners();
     });
 
-    // FIXED: no longer calls notifyListeners() on every tick — nothing in
-    // the codebase reads `.position` via context.watch/select anymore.
-    // positionNotifier below still updates every tick for widgets that
-    // need live position (mini_player_bar, drive_mode_screen, seek bars),
-    // via ValueListenableBuilder, without rebuilding every
-    // context.watch<PlayerProvider>() widget in the tree.
     _positionSubscription = _playerService.positionStream.listen((Duration pos) {
       _position = pos;
       positionNotifier.value = pos;
@@ -113,8 +87,6 @@ class PlayerProvider extends ChangeNotifier {
 
     try {
       await _playerService.setPlaylist(songs: songs, startIndex: startIndex);
-      // Use the service's actual current song, not the original list reference,
-      // because the service may filter out unplayable songs and adjust the index.
       _currentSong = _playerService.currentSong;
     } catch (e) {
       _errorMessage = 'Playback failed: ${ErrorHandler.getMessage(e)}';
@@ -167,6 +139,19 @@ class PlayerProvider extends ChangeNotifier {
       if (song != null) {
         _currentSong = song;
       }
+      notifyListeners();
+    } catch (e) {
+      _errorMessage = ErrorHandler.getMessage(e);
+      notifyListeners();
+    }
+  }
+
+  Future<void> jumpToQueueIndex(int index) async {
+    _errorMessage = null;
+    try {
+      await _playerService.jumpToQueueIndex(index);
+      final song = _playerService.currentSong;
+      if (song != null) _currentSong = song;
       notifyListeners();
     } catch (e) {
       _errorMessage = ErrorHandler.getMessage(e);
