@@ -14,7 +14,6 @@ import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import '../../../core/constants/app_dimensions.dart';
 import '../../../core/constants/app_themes.dart';
-import '../../../core/constants/themes/app_theme_id.dart';
 import '../../../models/song.dart';
 import '../../../services/app_cache_manager.dart';
 
@@ -96,3 +95,4 @@ class AlbumArt extends StatelessWidget {
     );
   }
 }
+
