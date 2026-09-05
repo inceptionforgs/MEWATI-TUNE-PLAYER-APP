@@ -1,5 +1,3 @@
-// File: lib/providers/songs_provider.dart
-
 import 'package:flutter/foundation.dart';
 import '../models/song.dart';
 import '../services/songs_service.dart';
@@ -11,7 +9,6 @@ class SongsProvider extends ChangeNotifier {
 
   List<Song> _allSongs = [];
   List<Song> _filteredSongs = [];
-  bool _isSearchActive = false;
 
   int _currentPage = 0;
   bool _hasMore = true;
@@ -43,30 +40,20 @@ class SongsProvider extends ChangeNotifier {
         limit: _pageSize,
       );
       _allSongs = firstPage;
-      if (!_isSearchActive) {
-        _filteredSongs = firstPage;
-      }
+      _filteredSongs = firstPage;
       _currentPage = 0;
       _hasMore = firstPage.length >= _pageSize;
 
-      // Cache only here, on the first successful load. Previously
-      // loadMoreSongs() also called cacheSongs() on every extra page,
-      // rewriting the entire cached blob each time — wasteful once the
-      // library has hundreds/thousands of songs loaded via pagination.
       await _cacheService.cacheSongs(_allSongs);
     } catch (e) {
       final cached = await _cacheService.getCachedSongs();
       if (cached != null && cached.isNotEmpty) {
         _allSongs = cached;
-        if (!_isSearchActive) {
-          _filteredSongs = cached;
-        }
+        _filteredSongs = cached;
         _hasMore = false;
       } else {
         _allSongs = [];
-        if (!_isSearchActive) {
-          _filteredSongs = [];
-        }
+        _filteredSongs = [];
         _errorMessage = e.toString();
       }
     } finally {
@@ -91,44 +78,14 @@ class SongsProvider extends ChangeNotifier {
         _hasMore = false;
       } else {
         _allSongs.addAll(nextPage);
-        if (!_isSearchActive) {
-          _filteredSongs = _allSongs;
-        }
+        _filteredSongs = _allSongs;
         _currentPage++;
         _hasMore = nextPage.length >= _pageSize;
-
-        // Fixed (P5-6): no longer re-caches the entire accumulated list on
-        // every "load more" page. The offline cache reflects the first
-        // page only (from loadSongs()) — an acceptable tradeoff since the
-        // cache exists purely as an offline fallback, not a live mirror.
       }
     } catch (e) {
       _errorMessage = e.toString();
     } finally {
       _isLoadingMore = false;
-      notifyListeners();
-    }
-  }
-
-  Future<void> searchSongs(String query) async {
-    _errorMessage = null;
-    notifyListeners();
-
-    if (query.trim().isEmpty) {
-      _isSearchActive = false;
-      _filteredSongs = _allSongs;
-      notifyListeners();
-      return;
-    }
-
-    _isSearchActive = true;
-    try {
-      final results = await _songsService.searchSongs(query);
-      _filteredSongs = results;
-    } catch (e) {
-      _filteredSongs = [];
-      _errorMessage = e.toString();
-    } finally {
       notifyListeners();
     }
   }
@@ -157,13 +114,6 @@ class SongsProvider extends ChangeNotifier {
       if (cached != null) return cached;
       rethrow;
     }
-  }
-
-  void clearSearch() {
-    _isSearchActive = false;
-    _filteredSongs = _allSongs;
-    _errorMessage = null;
-    notifyListeners();
   }
 
   void clearError() {
