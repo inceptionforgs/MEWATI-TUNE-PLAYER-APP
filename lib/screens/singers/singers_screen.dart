@@ -1,14 +1,8 @@
-// File: lib/screens/singers/singers_screen.dart
-//
-// UPDATED: singer row now uses per-theme corner radius + a card border
-// (was a fixed 14px radius with no border), matching the pill-card look
-// used everywhere else (drawer, song rows, sleep timer). Loading/error/
-// pagination logic unchanged.
+// lib/screens/singers/singers_screen.dart
 
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:cached_network_image/cached_network_image.dart';
-import '../../core/constants/app_dimensions.dart';
 import '../../core/constants/app_strings.dart';
 import '../../core/constants/themes/app_theme_id.dart';
 import '../../core/widgets/loading_widget.dart';
@@ -96,7 +90,7 @@ class _SingersScreenState extends State<SingersScreen> {
 
     return ListView.builder(
       controller: _scrollController,
-      padding: EdgeInsets.only(bottom: 16 + AppDimensions.miniPlayerHeight),
+      padding: EdgeInsets.only(bottom: 16),
       itemCount: singers.length + (singersProvider.isLoadingMore ? 1 : 0),
       itemBuilder: (context, index) {
         if (index == singers.length) {
