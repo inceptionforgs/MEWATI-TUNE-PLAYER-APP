@@ -1,3 +1,12 @@
+// File: lib/screens/settings/widgets/custom_equalizer_section.dart
+//
+// Unchanged. This already talks to the device's real AndroidEqualizer
+// (live bands/min-max dB from getBandParameters(), persisted gains,
+// timeout handling) — genuinely more capable than the prototype's
+// static hardcoded 5-band mock, so it's kept exactly as-is rather than
+// downgraded to match. Only the screen wrapping it (advance_settings_screen.dart)
+// changed visually.
+
 import 'dart:async';
 
 import 'package:flutter/material.dart';
@@ -6,16 +15,6 @@ import 'package:provider/provider.dart';
 import '../../../providers/theme_provider.dart';
 import '../../../services/equalizer_service.dart';
 
-/// Custom Equalizer sub-section of Advance Settings (File 31a).
-///
-/// 5-band gain sliders (matching whatever bands the device's real
-/// AndroidEqualizer reports — no hardcoded frequency list) + a separate
-/// Bass Boost slider (the loudness enhancer's single target gain) +
-/// Reset to Default.
-///
-/// Surround Sound and Mono Audio were intentionally left out: just_audio
-/// has no API for either on any platform, so there is nothing real to
-/// wire a toggle to.
 class CustomEqualizerSection extends StatefulWidget {
   const CustomEqualizerSection({super.key});
 
@@ -28,9 +27,6 @@ class _CustomEqualizerSectionState extends State<CustomEqualizerSection> {
 
   bool _loading = true;
   bool _supported = true;
-  // NEW: distinguishes "device genuinely has no AndroidEqualizer" from
-  // "the native call just never responded" so the message shown below
-  // is accurate either way.
   bool _timedOut = false;
   AndroidEqualizerParameters? _params;
   List<double> _bandGains = [];
@@ -51,14 +47,6 @@ class _CustomEqualizerSectionState extends State<CustomEqualizerSection> {
       return;
     }
 
-    // NEW: getBandParameters() awaits just_audio's native
-    // `equalizer.parameters` getter, which only resolves once the
-    // AndroidEqualizer is actually attached to a live AudioPipeline. If
-    // that never happens (no player loaded yet on this device, or the
-    // native effect fails to attach), the Future never completes and the
-    // spinner in build() below spins forever. A hard timeout guarantees
-    // this screen always settles into either the sliders or the
-    // "not available" message.
     AndroidEqualizerParameters? params;
     try {
       params = await _equalizerService.getBandParameters().timeout(
@@ -82,10 +70,6 @@ class _CustomEqualizerSectionState extends State<CustomEqualizerSection> {
       bandCount: params.bands.length,
     );
 
-    // Apply the saved custom values live right away, and switch the
-    // active preset to 'custom' so what the sliders show matches what's
-    // actually playing (matches File 31's "persist the equalizer preset
-    // choice, not just the theme" requirement).
     for (int i = 0; i < params.bands.length; i++) {
       await _equalizerService.setBandGain(i, saved.bandGains[i]);
     }
@@ -148,9 +132,6 @@ class _CustomEqualizerSectionState extends State<CustomEqualizerSection> {
         padding: const EdgeInsets.all(16),
         child: Text(
           _timedOut
-              // CHANGED: previously always said "only available on Android
-              // devices" even when running ON Android and the real problem
-              // was the native call timing out.
               ? 'Custom Equalizer could not be loaded on this device. Try playing a song first, then reopen this screen.'
               : 'Custom Equalizer is only available on Android devices.',
           style: TextStyle(color: t.textSecondary),
@@ -180,7 +161,6 @@ class _CustomEqualizerSectionState extends State<CustomEqualizerSection> {
         ),
         const SizedBox(height: 16),
 
-        // 5-band sliders, laid out horizontally like a hardware EQ.
         SizedBox(
           height: 220,
           child: Row(
@@ -235,8 +215,6 @@ class _CustomEqualizerSectionState extends State<CustomEqualizerSection> {
 
         const SizedBox(height: 24),
 
-        // Bass Boost — a separate single control (the loudness enhancer),
-        // not one of the 5 EQ bands.
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
