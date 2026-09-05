@@ -61,10 +61,18 @@ class _CustomEqualizerSectionState extends State<CustomEqualizerSection> {
       bandCount: params.bands.length,
     );
 
-    for (int i = 0; i < params.bands.length; i++) {
-      await _equalizerService.setBandGain(i, saved.bandGains[i]);
+    // TabBarView also mounts this widget when opening Custom Theme.
+    // Only push saved custom EQ onto the live pipeline if Custom is
+    // already the active preset — otherwise a theme-only visit would
+    // silently replace Mewati Bass / Vocal / etc.
+    final applyLive =
+        mounted && context.read<ThemeProvider>().eqPreset == 'custom';
+    if (applyLive) {
+      for (int i = 0; i < params.bands.length; i++) {
+        await _equalizerService.setBandGain(i, saved.bandGains[i]);
+      }
+      await _equalizerService.setBassBoost(saved.bassBoostDb);
     }
-    await _equalizerService.setBassBoost(saved.bassBoostDb);
 
     if (!mounted) return;
     setState(() {
