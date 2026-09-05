@@ -1,17 +1,14 @@
+// File: lib/screens/settings/widgets/custom_theme_section.dart
+// Unchanged — live preview / commit / reset logic and the
+// ColorWheelPicker + ShadeSlider it uses already match the prototype's
+// "Custom Theme" tab concept (wheel + shade bar + Reset/Set buttons).
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../../core/constants/app_themes.dart';
 import '../../../providers/theme_provider.dart';
 import 'color_wheel_picker.dart';
 
-/// Custom Theme sub-section of Advance Settings (File 31b).
-///
-/// Dragging the wheel/shade slider updates the WHOLE app's theme live via
-/// [ThemeProvider.previewCustomTheme] — nothing is persisted until "Set"
-/// is pressed. If the user navigates away without pressing "Set", the
-/// parent screen (advance_settings_screen.dart) calls
-/// [ThemeProvider.cancelThemePreview] on pop, and this widget does the
-/// same defensively in its own [dispose].
 class CustomThemeSection extends StatefulWidget {
   const CustomThemeSection({super.key});
 
@@ -33,9 +30,6 @@ class _CustomThemeSectionState extends State<CustomThemeSection> {
 
   @override
   void dispose() {
-    // Safety net: if this widget is torn down some other way besides the
-    // parent screen's own pop handler, still make sure no un-set preview
-    // is left applied to the whole app.
     context.read<ThemeProvider>().cancelThemePreview();
     super.dispose();
   }
@@ -73,8 +67,6 @@ class _CustomThemeSectionState extends State<CustomThemeSection> {
 
   @override
   Widget build(BuildContext context) {
-    // Watches ThemeProvider so this section's own text/buttons repaint in
-    // the live-preview color too, same as the rest of the app.
     final t = context.watch<ThemeProvider>().theme;
 
     return Column(
