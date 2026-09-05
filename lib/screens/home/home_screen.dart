@@ -13,6 +13,27 @@ import 'widgets/brand_row.dart';
 import 'widgets/home_tabs.dart';
 import '../../providers/theme_provider.dart';
 
+class _KeepAlivePage extends StatefulWidget {
+  final Widget child;
+
+  const _KeepAlivePage({required this.child});
+
+  @override
+  State<_KeepAlivePage> createState() => _KeepAlivePageState();
+}
+
+class _KeepAlivePageState extends State<_KeepAlivePage>
+    with AutomaticKeepAliveClientMixin {
+  @override
+  bool get wantKeepAlive => true;
+
+  @override
+  Widget build(BuildContext context) {
+    super.build(context);
+    return widget.child;
+  }
+}
+
 class HomeScreen extends StatefulWidget {
   const HomeScreen({Key? key}) : super(key: key);
 
@@ -23,8 +44,9 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   int _currentIndex = 0;
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
+  late final PageController _pageController;
 
-  final Set<int> _visitedTabs = {0};
+  final Set<int> _visitedTabs = {};
 
   static final List<Widget Function()> _screenBuilders = [
     () => const SongsScreen(),
@@ -34,10 +56,41 @@ class _HomeScreenState extends State<HomeScreen> {
     () => const DownloadsScreen(),
   ];
 
+  @override
+  void initState() {
+    super.initState();
+    _pageController = PageController(initialPage: _currentIndex);
+    _markVisited(_currentIndex);
+  }
+
+  @override
+  void dispose() {
+    _pageController.dispose();
+    super.dispose();
+  }
+
+  void _markVisited(int index) {
+    _visitedTabs.add(index);
+    if (index > 0) _visitedTabs.add(index - 1);
+    if (index < _screenBuilders.length - 1) _visitedTabs.add(index + 1);
+  }
+
   void _onTabSelected(int index) {
     setState(() {
       _currentIndex = index;
-      _visitedTabs.add(index);
+      _markVisited(index);
+    });
+    _pageController.animateToPage(
+      index,
+      duration: const Duration(milliseconds: 250),
+      curve: Curves.easeInOut,
+    );
+  }
+
+  void _onPageChanged(int index) {
+    setState(() {
+      _currentIndex = index;
+      _markVisited(index);
     });
   }
 
@@ -83,13 +136,15 @@ class _HomeScreenState extends State<HomeScreen> {
                 onTabSelected: _onTabSelected,
               ),
               Expanded(
-                child: IndexedStack(
-                  index: _currentIndex,
-                  children: List.generate(_screenBuilders.length, (i) {
+                child: PageView.builder(
+                  controller: _pageController,
+                  onPageChanged: _onPageChanged,
+                  itemCount: _screenBuilders.length,
+                  itemBuilder: (context, i) {
                     return _visitedTabs.contains(i)
-                        ? _screenBuilders[i]()
+                        ? _KeepAlivePage(child: _screenBuilders[i]())
                         : const SizedBox.shrink();
-                  }),
+                  },
                 ),
               ),
               const AdBannerWidget(),
