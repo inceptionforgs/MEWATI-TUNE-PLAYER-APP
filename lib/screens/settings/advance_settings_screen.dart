@@ -9,11 +9,20 @@ const _asAppBarBg = Color(0xFF1A1A1A);
 const _asAccent = Color(0xFF2199D6);
 
 class AdvanceSettingsScreen extends StatelessWidget {
-  const AdvanceSettingsScreen({super.key});
+  static const int equalizerTab = 0;
+  static const int themeTab = 1;
+
+  final int initialTabIndex;
+
+  const AdvanceSettingsScreen({
+    super.key,
+    this.initialTabIndex = equalizerTab,
+  });
 
   @override
   Widget build(BuildContext context) {
     context.watch<ThemeProvider>();
+    final index = initialTabIndex.clamp(equalizerTab, themeTab);
 
     return PopScope(
       canPop: true,
@@ -23,6 +32,7 @@ class AdvanceSettingsScreen extends StatelessWidget {
       },
       child: DefaultTabController(
         length: 2,
+        initialIndex: index,
         child: Scaffold(
           backgroundColor: _asBackground,
           body: SafeArea(
