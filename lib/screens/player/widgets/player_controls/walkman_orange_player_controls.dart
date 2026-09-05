@@ -1,10 +1,3 @@
-// File: lib/screens/player/widgets/player_controls/walkman_orange_player_controls.dart
-//
-// UPDATED: left slot changed from Shuffle to Drive Mode, matching the
-// prototype's np-controls (and the same swap already made in
-// mini_player_default.dart). playerProvider.shuffleMode/toggleShuffle()
-// are untouched in the provider — just no longer wired to this button.
-
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:just_audio/just_audio.dart';
@@ -84,6 +77,8 @@ class WalkmanOrangePlayerControls extends StatelessWidget {
                       color: t.textPrimary,
                       size: 28,
                     ),
+                    iconSize: 28,
+                    padding: EdgeInsets.zero,
                     onPressed: () => playerProvider.togglePlayPause(),
                   ),
           ),
