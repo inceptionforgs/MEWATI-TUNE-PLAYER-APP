@@ -1,12 +1,3 @@
-// File: lib/core/widgets/mini_player/themes/mini_player_silver_chrome.dart
-//
-// Silver Chrome mini player — new file, following the exact same
-// pattern as mini_player_cyber_black.dart (self-contained, hardcoded
-// palette taken 1:1 from the prototype's silver-chrome CSS overrides:
-// thick white-bordered black progress track, metallic gradient circular
-// buttons). Does not touch mini_player_default.dart or
-// mini_player_cyber_black.dart.
-
 import 'package:flutter/material.dart';
 import 'package:just_audio/just_audio.dart';
 
@@ -274,6 +265,11 @@ class _SilverChromeSliderState extends State<_SilverChromeSlider> {
     setState(() => _dragValue = null);
   }
 
+  void _cancelDrag() {
+    if (_dragValue == null) return;
+    setState(() => _dragValue = null);
+  }
+
   @override
   Widget build(BuildContext context) {
     final playerProvider = context.read<PlayerProvider>();
@@ -298,8 +294,10 @@ class _SilverChromeSliderState extends State<_SilverChromeSlider> {
                     return GestureDetector(
                       onTapDown: (d) => _updateDrag(d.localPosition.dx, width),
                       onTapUp: (_) => _commitDrag(duration),
+                      onTapCancel: _cancelDrag,
                       onHorizontalDragUpdate: (d) => _updateDrag(d.localPosition.dx, width),
                       onHorizontalDragEnd: (_) => _commitDrag(duration),
+                      onHorizontalDragCancel: _cancelDrag,
                       child: Container(
                         height: 18,
                         clipBehavior: Clip.antiAlias,
