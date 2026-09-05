@@ -67,7 +67,7 @@ class MiniPlayerBar extends StatelessWidget {
       playerProvider: playerProvider,
     );
 
-    switch (t.id as AppThemeId) {
+    switch (t.id) {
       case AppThemeId.cyberBlack:
         return MiniPlayerCyberBlack(data: data);
       case AppThemeId.silverChrome:
