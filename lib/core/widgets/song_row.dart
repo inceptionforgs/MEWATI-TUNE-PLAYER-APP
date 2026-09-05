@@ -38,6 +38,7 @@ class SongRowActions {
   final VoidCallback onCancelDownload;
   final VoidCallback onRemoveDownload;
   final VoidCallback onToggleLike;
+  final VoidCallback? onLongPress;
 
   const SongRowActions({
     required this.onTap,
@@ -46,6 +47,7 @@ class SongRowActions {
     required this.onCancelDownload,
     required this.onRemoveDownload,
     required this.onToggleLike,
+    this.onLongPress,
   });
 }
 
@@ -89,6 +91,7 @@ class SongRow extends StatelessWidget {
 
     return InkWell(
       onTap: actions.onTap,
+      onLongPress: actions.onLongPress,
       borderRadius: BorderRadius.circular(radius),
       child: Container(
         margin: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
