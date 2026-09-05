@@ -1,4 +1,4 @@
-// FILE: lib/main.dart
+// File: lib/main.dart
 
 import 'dart:async';
 
@@ -18,35 +18,19 @@ import 'services/supabase_service.dart';
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // IMPORTANT:
-  // DownloadsProvider Supabase par depend nahi karta, isliye ise
-  // startup se pehle safely create kiya ja sakta hai.
   final downloadsProvider = DownloadsProvider();
 
-  // ============================================================
-  // INITIALIZE ALL CORE SERVICES FIRST
-  //
-  // IMPORTANT FIX:
-  //
-  // AuthProvider ko Supabase initialize hone se PEHLE create nahi
-  // karna chahiye.
-  //
-  // AuthProvider constructor immediately authStateChanges listen
-  // karta hai, jo SupabaseService().client access karta hai.
-  //
-  // Isliye initialization order:
-  //
-  // Supabase initialize
-  //        ↓
-  // AuthProvider create
-  //        ↓
-  // runApp
-  // ============================================================
+  try {
+    await _initializeApp(downloadsProvider);
+  } catch (e) {
+    // FIXED: Supabase init failure (no internet, bad config, timeout)
+    // used to crash before runApp() was ever called — blank screen,
+    // no retry. Now we boot a minimal error/retry app instead of
+    // letting the exception escape main() uncaught.
+    runApp(_StartupErrorApp(error: e.toString()));
+    return;
+  }
 
-  await _initializeApp(downloadsProvider);
-
-  // Supabase initialization attempt complete hone ke BAAD hi
-  // AuthProvider create karo.
   final authProvider = AuthProvider();
 
   runApp(
@@ -57,36 +41,54 @@ Future<void> main() async {
   );
 }
 
+class _StartupErrorApp extends StatelessWidget {
+  final String error;
+
+  const _StartupErrorApp({required this.error});
+
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      debugShowCheckedModeBanner: false,
+      home: Scaffold(
+        backgroundColor: const Color(0xFF0A0A0A),
+        body: Center(
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(Icons.wifi_off, color: Colors.white70, size: 48),
+                const SizedBox(height: 16),
+                const Text(
+                  'Could not connect. Please check your internet and try again.',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(color: Colors.white, fontSize: 16),
+                ),
+                const SizedBox(height: 20),
+                ElevatedButton(
+                  onPressed: () => main(),
+                  child: const Text('Retry'),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 Future<void> _initializeApp(
   DownloadsProvider downloadsProvider,
 ) async {
   try {
-    // ============================================================
-    // OPTIONAL ENVIRONMENT FILE
-    // ============================================================
-
-    // Load environment variables (optional).
-    //
-    // Supabase/Sentry configuration dotenv se directly depend nahi
-    // karti, lekin optional .env doosre non-critical parts ke liye
-    // available reh sakti hai.
     try {
       await dotenv.load(fileName: '.env');
     } catch (e) {
-      // .env optional hai.
-      // Missing hone par app startup block nahi hoga.
       debugPrint('Optional .env not loaded: $e');
     }
 
-    // ============================================================
-    // JUST AUDIO BACKGROUND
-    // ============================================================
-
-    // Background audio support initialize karo.
-    //
-    // Timeout intentionally use kiya gaya hai taaki koi stuck
-    // platform-channel call native splash screen ko permanently
-    // hold na kare.
     try {
       await JustAudioBackground.init(
         androidNotificationChannelId:
@@ -101,19 +103,8 @@ Future<void> _initializeApp(
       debugPrint(
         'JustAudioBackground.init failed/timed out: $e',
       );
-
-      // Non-fatal startup failure.
-      // App boot continue karega.
     }
 
-    // ============================================================
-    // SUPABASE
-    // ============================================================
-
-    // IMPORTANT:
-    //
-    // AuthProvider create hone se pehle Supabase initialization
-    // yahin complete hota hai.
     try {
       await SupabaseService().initialize().timeout(
         const Duration(seconds: 10),
@@ -136,22 +127,8 @@ Future<void> _initializeApp(
         'Supabase initialization failed: $e',
       );
 
-      // IMPORTANT:
-      //
-      // Is failure ke baad app run karne ki koshish karne par
-      // AuthProvider Supabase client access karega.
-      //
-      // Isliye configuration/startup problem ko clearly surface
-      // karne ke liye exception rethrow kiya ja raha hai.
-      //
-      // Agar Supabase initialize nahi ho sakta, AuthProvider ko
-      // create karna safe nahi hai.
       rethrow;
     }
-
-    // ============================================================
-    // LOCAL CACHE
-    // ============================================================
 
     try {
       await LocalCacheService()
@@ -171,14 +148,7 @@ Future<void> _initializeApp(
       DebugLogService().error(
         'Local cache initialization failed: $e',
       );
-
-      // Cache failure fatal nahi hai.
-      // App network data ke saath continue kar sakta hai.
     }
-
-    // ============================================================
-    // DOWNLOADS PROVIDER
-    // ============================================================
 
     try {
       await downloadsProvider.initialize().timeout(
@@ -196,15 +166,8 @@ Future<void> _initializeApp(
       DebugLogService().error(
         'DownloadsProvider initialization failed: $e',
       );
-
-      // Download cache/load failure startup ko block nahi karega.
     }
 
-    // ============================================================
-    // SENTRY
-    // ============================================================
-
-    // Sentry sirf tab initialize hoga jab DSN provided ho.
     if (Environment.sentryDsn.isNotEmpty) {
       try {
         await SentryFlutter.init(
@@ -228,14 +191,8 @@ Future<void> _initializeApp(
         DebugLogService().error(
           'Sentry initialization failed: $e',
         );
-
-        // Sentry failure app startup ko block nahi karega.
       }
     }
-
-    // ============================================================
-    // STARTUP COMPLETE
-    // ============================================================
 
     DebugLogService().info(
       'App initialized successfully',
@@ -245,8 +202,6 @@ Future<void> _initializeApp(
       'App initialization failed: $e',
     );
 
-    // Supabase initialization fatal hai because AuthProvider
-    // Supabase client par depend karta hai.
     rethrow;
   }
 }
