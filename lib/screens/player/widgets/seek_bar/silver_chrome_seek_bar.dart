@@ -1,5 +1,3 @@
-// File: lib/screens/player/widgets/seek_bar/silver_chrome_seek_bar.dart
-
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../../../core/extensions/duration_extensions.dart';
@@ -52,6 +50,7 @@ class _SilverChromeSeekBarState extends State<SilverChromeSeekBar> {
             final pct = _dragValue ?? actualPct;
 
             return Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 LayoutBuilder(
                   builder: (context, constraints) {
@@ -64,18 +63,25 @@ class _SilverChromeSeekBarState extends State<SilverChromeSeekBar> {
                           _updateDrag(d.localPosition.dx, width, duration),
                       onHorizontalDragEnd: (_) => _commitDrag(duration),
                       onHorizontalDragCancel: _cancelDrag,
-                      child: Container(
+                      child: SizedBox(
+                        width: width,
                         height: 18,
-                        clipBehavior: Clip.antiAlias,
-                        decoration: BoxDecoration(
-                          color: Colors.black,
-                          border: Border.all(color: Colors.white, width: 2),
-                          borderRadius: BorderRadius.circular(20),
-                        ),
-                        child: FractionallySizedBox(
+                        child: Container(
+                          width: width,
+                          height: 18,
+                          clipBehavior: Clip.antiAlias,
                           alignment: Alignment.centerLeft,
-                          widthFactor: pct,
-                          child: Container(color: const Color(0xFFA0A0A0)),
+                          decoration: BoxDecoration(
+                            color: Colors.black,
+                            border: Border.all(color: Colors.white, width: 2),
+                            borderRadius: BorderRadius.circular(20),
+                          ),
+                          child: FractionallySizedBox(
+                            alignment: Alignment.centerLeft,
+                            widthFactor: pct,
+                            heightFactor: 1.0,
+                            child: const ColoredBox(color: Color(0xFFA0A0A0)),
+                          ),
                         ),
                       ),
                     );
