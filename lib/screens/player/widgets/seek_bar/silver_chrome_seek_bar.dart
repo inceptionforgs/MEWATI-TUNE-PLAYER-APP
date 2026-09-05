@@ -1,8 +1,4 @@
 // File: lib/screens/player/widgets/seek_bar/silver_chrome_seek_bar.dart
-//
-// UPDATED: thick white-bordered black track with a metallic-grey fill —
-// matches the prototype's silver-chrome np-seek override
-// (18px height, 2px white border, black background, no separate thumb).
 
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
@@ -34,15 +30,19 @@ class _SilverChromeSeekBarState extends State<SilverChromeSeekBar> {
     setState(() => _dragValue = null);
   }
 
+  void _cancelDrag() {
+    if (_dragValue == null) return;
+    setState(() => _dragValue = null);
+  }
+
   @override
   Widget build(BuildContext context) {
     final playerProvider = context.read<PlayerProvider>();
     final t = context.watch<ThemeProvider>().theme;
 
-    return ValueListenableBuilder<Duration?>(
+    return ValueListenableBuilder<Duration>(
       valueListenable: playerProvider.durationNotifier,
-      builder: (context, durationValue, _) {
-        final duration = durationValue ?? Duration.zero;
+      builder: (context, duration, _) {
         return ValueListenableBuilder<Duration>(
           valueListenable: playerProvider.positionNotifier,
           builder: (context, position, __) {
@@ -59,9 +59,11 @@ class _SilverChromeSeekBarState extends State<SilverChromeSeekBar> {
                     return GestureDetector(
                       onTapDown: (d) => _updateDrag(d.localPosition.dx, width, duration),
                       onTapUp: (_) => _commitDrag(duration),
+                      onTapCancel: _cancelDrag,
                       onHorizontalDragUpdate: (d) =>
                           _updateDrag(d.localPosition.dx, width, duration),
                       onHorizontalDragEnd: (_) => _commitDrag(duration),
+                      onHorizontalDragCancel: _cancelDrag,
                       child: Container(
                         height: 18,
                         clipBehavior: Clip.antiAlias,
