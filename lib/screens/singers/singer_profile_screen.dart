@@ -1,12 +1,8 @@
-// FILE: lib/screens/singers/singer_profile_screen.dart
-// Unchanged — header (avatar/name/song count), "Back to Singers" row,
-// and song list already match the prototype's singer-detail layout,
-// and the list already uses the restyled SongRow.
+// lib/screens/singers/singer_profile_screen.dart
 
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:cached_network_image/cached_network_image.dart';
-import '../../core/constants/app_dimensions.dart';
 import '../../core/constants/app_strings.dart';
 import '../../core/widgets/loading_widget.dart';
 import '../../core/widgets/error_widget.dart';
@@ -326,7 +322,7 @@ class _SingerProfileScreenState extends State<SingerProfileScreen> {
     }
 
     return ListView.builder(
-      padding: EdgeInsets.only(bottom: 16 + AppDimensions.miniPlayerHeight),
+      padding: EdgeInsets.only(bottom: 16),
       itemCount: _songs.length,
       itemBuilder: (context, index) {
         final song = _songs[index];
