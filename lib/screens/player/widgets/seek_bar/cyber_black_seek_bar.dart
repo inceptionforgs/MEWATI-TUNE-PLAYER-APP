@@ -1,5 +1,3 @@
-// File: lib/screens/player/widgets/seek_bar/cyber_black_seek_bar.dart
-
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../../../core/extensions/duration_extensions.dart';
@@ -52,6 +50,7 @@ class _CyberBlackSeekBarState extends State<CyberBlackSeekBar> {
             final pct = _dragValue ?? actualPct;
 
             return Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 LayoutBuilder(
                   builder: (context, constraints) {
@@ -64,18 +63,25 @@ class _CyberBlackSeekBarState extends State<CyberBlackSeekBar> {
                           _updateDrag(d.localPosition.dx, width, duration),
                       onHorizontalDragEnd: (_) => _commitDrag(duration),
                       onHorizontalDragCancel: _cancelDrag,
-                      child: Container(
+                      child: SizedBox(
+                        width: width,
                         height: 18,
-                        clipBehavior: Clip.antiAlias,
-                        decoration: BoxDecoration(
-                          color: Colors.black,
-                          border: Border.all(color: t.accent, width: 2),
-                          borderRadius: BorderRadius.circular(20),
-                        ),
-                        child: FractionallySizedBox(
+                        child: Container(
+                          width: width,
+                          height: 18,
+                          clipBehavior: Clip.antiAlias,
                           alignment: Alignment.centerLeft,
-                          widthFactor: pct,
-                          child: Container(color: t.accent),
+                          decoration: BoxDecoration(
+                            color: Colors.black,
+                            border: Border.all(color: t.accent, width: 2),
+                            borderRadius: BorderRadius.circular(20),
+                          ),
+                          child: FractionallySizedBox(
+                            alignment: Alignment.centerLeft,
+                            widthFactor: pct,
+                            heightFactor: 1.0,
+                            child: ColoredBox(color: t.accent),
+                          ),
                         ),
                       ),
                     );
