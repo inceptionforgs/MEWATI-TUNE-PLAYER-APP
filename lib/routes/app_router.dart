@@ -12,6 +12,11 @@ import '../screens/search/search_screen.dart';
 import 'route_names.dart';
 
 class AppRouter {
+  /// Mini-player lives in [MaterialApp.builder] (sibling of the Navigator),
+  /// so [Navigator.of] cannot see a Navigator ancestor. Use this key instead.
+  static final GlobalKey<NavigatorState> navigatorKey =
+      GlobalKey<NavigatorState>();
+
   static Route<dynamic> generateRoute(RouteSettings settings) {
     switch (settings.name) {
       case RouteNames.splash:
