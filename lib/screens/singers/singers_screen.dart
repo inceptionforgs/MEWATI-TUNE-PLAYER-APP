@@ -166,10 +166,10 @@ class _SingersScreenState extends State<SingersScreen> {
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
                 border: Border.all(color: t.textPrimary, width: 2),
-                gradient: const LinearGradient(
+                gradient: LinearGradient(
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
-                  colors: [Color(0xFF2B180D), Color(0xFF120C08)],
+                  colors: [t.surface, t.background],
                 ),
               ),
               child: (singer.photoUrl != null && singer.photoUrl!.isNotEmpty)
