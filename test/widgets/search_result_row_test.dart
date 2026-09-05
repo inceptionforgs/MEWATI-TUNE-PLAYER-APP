@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:provider/provider.dart';
+import 'package:mewati_tune_player/core/constants/themes/app_theme_id.dart';
 import 'package:mewati_tune_player/models/song.dart';
 import 'package:mewati_tune_player/providers/downloads_provider.dart';
 import 'package:mewati_tune_player/providers/favorites_provider.dart';
@@ -13,6 +14,7 @@ class _FakeTheme {
   final Color textPrimary = Colors.white;
   final Color accent = Colors.deepOrange;
   final Color background = Colors.black;
+  final AppThemeId id = AppThemeId.walkmanOrange;
 }
 
 void main() {
@@ -61,3 +63,4 @@ void main() {
     expect(find.text('Two'), findsNothing);
   });
 }
+
