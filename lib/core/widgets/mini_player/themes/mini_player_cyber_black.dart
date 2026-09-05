@@ -1,12 +1,9 @@
-//
-// Cyber Black mini player: colors taken 1:1 from the HTML mockup.
-// Hardcoded on purpose (per request) instead of reading from
-// ThemeProvider, so this widget ignores the app's existing color tokens.
-// Self-contained — touch only this file for further Cyber Black tweaks.
+// File: lib/core/widgets/mini_player/themes/mini_player_cyber_black.dart
+// Unchanged — already has Drive Mode (not Shuffle) and matches the
+// prototype's Cyber Black palette/layout.
 
 import 'package:flutter/material.dart';
 import 'package:just_audio/just_audio.dart';
-import 'package:provider/provider.dart';
 
 import '../../../../providers/player_provider.dart';
 import '../../../../routes/route_names.dart';
@@ -107,7 +104,7 @@ class MiniPlayerCyberBlack extends StatelessWidget {
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(
-                      errorMessage,
+                      errorMessage!,
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                       style: const TextStyle(color: Colors.redAccent, fontSize: 12),
@@ -319,7 +316,7 @@ class _CyberBlackSliderState extends State<_CyberBlackSlider> {
                           borderRadius: BorderRadius.circular(8),
                         ),
                         child: FractionallySizedBox(
-                          alignment: Alignment.topLeft,
+                          alignment: Alignment.centerLeft,
                           widthFactor: pct,
                           child: Container(color: _cbProgressFill),
                         ),
