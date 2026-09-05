@@ -1,13 +1,7 @@
-// FILE: lib/screens/search/search_screen.dart
-//
-// UPDATED: per-theme corner radius on the search input box and the
-// singer result row (matching the pill-card language used elsewhere),
-// and the search-icon empty state given a circular badge like the
-// prototype's .empty-icon. All search logic (debounce, remote search,
-// error/empty states, likes loading) is unchanged.
-
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:cached_network_image/cached_network_image.dart';
+import '../../core/constants/app_dimensions.dart';
 import '../../core/constants/app_themes.dart';
 import '../../core/constants/themes/app_theme_id.dart';
 import '../../core/utils/debouncer.dart';
@@ -17,6 +11,7 @@ import '../../models/singer.dart';
 import '../../providers/songs_provider.dart';
 import '../../providers/likes_provider.dart';
 import '../../providers/theme_provider.dart';
+import '../../services/app_cache_manager.dart';
 import '../../services/singers_service.dart';
 import '../singers/singer_profile_screen.dart';
 import 'widgets/search_result_row.dart';
@@ -177,7 +172,7 @@ class _SearchScreenState extends State<SearchScreen> {
                   ),
                   Expanded(
                     child: Container(
-                      height: 40,
+                      constraints: const BoxConstraints(minHeight: 44),
                       padding: const EdgeInsets.symmetric(horizontal: 12),
                       decoration: BoxDecoration(
                         color: t.surface,
@@ -186,15 +181,39 @@ class _SearchScreenState extends State<SearchScreen> {
                           color: t.textPrimary.withOpacity(0.2),
                         ),
                       ),
-                      child: TextField(
-                        controller: _searchController,
-                        autofocus: true,
-                        style: TextStyle(color: t.textPrimary, fontSize: 14),
-                        decoration: InputDecoration(
-                          hintText: 'Search songs or singers...',
-                          hintStyle: TextStyle(color: t.textSecondary),
-                          border: InputBorder.none,
-                        ),
+                      child: Row(
+                        children: [
+                          Expanded(
+                            child: TextField(
+                              controller: _searchController,
+                              autofocus: true,
+                              style: TextStyle(color: t.textPrimary, fontSize: 14),
+                              decoration: InputDecoration(
+                                isDense: true,
+                                contentPadding:
+                                    const EdgeInsets.symmetric(vertical: 12),
+                                hintText: 'Search songs or singers...',
+                                hintStyle: TextStyle(color: t.textSecondary),
+                                border: InputBorder.none,
+                              ),
+                            ),
+                          ),
+                          AnimatedBuilder(
+                            animation: _searchController,
+                            builder: (context, _) {
+                              if (_searchController.text.isEmpty) {
+                                return const SizedBox.shrink();
+                              }
+                              return IconButton(
+                                icon: Icon(Icons.close,
+                                    size: 18, color: t.textSecondary),
+                                padding: EdgeInsets.zero,
+                                constraints: const BoxConstraints(),
+                                onPressed: () => _searchController.clear(),
+                              );
+                            },
+                          ),
+                        ],
                       ),
                     ),
                   ),
@@ -268,7 +287,9 @@ class _SearchScreenState extends State<SearchScreen> {
                           ),
                         )
                       : ListView.builder(
-                          padding: const EdgeInsets.only(bottom: 16),
+                          padding: EdgeInsets.only(
+                            bottom: 16 + AppDimensions.miniPlayerHeight,
+                          ),
                           itemCount: items.length,
                           itemBuilder: (context, i) {
                             final item = items[i];
@@ -326,8 +347,9 @@ class _SearchScreenState extends State<SearchScreen> {
         singer.name.isNotEmpty ? singer.name[0].toUpperCase() : '?';
     return InkWell(
       onTap: () {
-        Navigator.of(context).pop();
-        Navigator.of(context).push(
+        final navigator = Navigator.of(context);
+        navigator.pop();
+        navigator.push(
           MaterialPageRoute(
             builder: (_) => SingerProfileScreen(singer: singer),
           ),
@@ -344,28 +366,86 @@ class _SearchScreenState extends State<SearchScreen> {
         ),
         child: Row(
           children: [
-            CircleAvatar(
-              radius: 26,
-              backgroundColor: t.surface,
-              child: Text(
-                initial,
-                style: TextStyle(
-                  color: t.accent,
-                  fontWeight: FontWeight.w800,
+            Container(
+              width: 54,
+              height: 54,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                border: Border.all(color: t.textPrimary, width: 2),
+                gradient: const LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [Color(0xFF2B180D), Color(0xFF120C08)],
                 ),
               ),
+              child: (singer.photoUrl != null && singer.photoUrl!.isNotEmpty)
+                  ? ClipOval(
+                      child: CachedNetworkImage(
+                        imageUrl: singer.photoUrl!,
+                        fit: BoxFit.cover,
+                        cacheManager: AppCacheManager.instance,
+                        memCacheWidth: 160,
+                        memCacheHeight: 160,
+                        placeholder: (context, url) => Center(
+                          child: Text(
+                            initial,
+                            style: TextStyle(
+                              color: t.textPrimary,
+                              fontSize: 21,
+                              fontStyle: FontStyle.italic,
+                            ),
+                          ),
+                        ),
+                        errorWidget: (context, url, error) => Center(
+                          child: Text(
+                            initial,
+                            style: TextStyle(
+                              color: t.textPrimary,
+                              fontSize: 21,
+                              fontStyle: FontStyle.italic,
+                            ),
+                          ),
+                        ),
+                      ),
+                    )
+                  : Center(
+                      child: Text(
+                        initial,
+                        style: TextStyle(
+                          color: t.textPrimary,
+                          fontSize: 21,
+                          fontStyle: FontStyle.italic,
+                        ),
+                      ),
+                    ),
             ),
             const SizedBox(width: 12),
             Expanded(
-              child: Text(
-                singer.name,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  color: t.textPrimary,
-                  fontSize: 15,
-                  fontWeight: FontWeight.w900,
-                ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    singer.name,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      color: t.textPrimary,
+                      fontSize: 15,
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    '${singer.songCount ?? 0} songs',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      color: t.textSecondary,
+                      fontSize: 12.5,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
               ),
             ),
             Icon(Icons.chevron_right, color: t.textSecondary),
