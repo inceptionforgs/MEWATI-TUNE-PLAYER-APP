@@ -17,6 +17,9 @@ class AppErrorWidget extends StatelessWidget {
   Widget build(BuildContext context) {
     final String errorMessage = ErrorHandler.getMessage(error);
     final t = context.watch<ThemeProvider>().theme;
+    final Color onAccent = ThemeData.estimateBrightnessForColor(t.accent) == Brightness.light
+        ? Colors.black
+        : Colors.white;
 
     return Center(
       child: Padding(
@@ -41,7 +44,7 @@ class AppErrorWidget extends StatelessWidget {
                 onPressed: onRetry,
                 style: ElevatedButton.styleFrom(
                   backgroundColor: t.accent,
-                  foregroundColor: Colors.white,
+                  foregroundColor: onAccent,
                 ),
                 icon: const Icon(Icons.refresh),
                 label: const Text('Retry'),
