@@ -8,6 +8,7 @@ import '../../providers/favorites_provider.dart';
 import '../../providers/likes_provider.dart';
 import '../../providers/player_provider.dart';
 import '../../providers/theme_provider.dart';
+import '../../routes/route_names.dart';
 
 class DownloadsScreen extends StatefulWidget {
   const DownloadsScreen({Key? key}) : super(key: key);
@@ -47,6 +48,10 @@ class _DownloadsScreenState extends State<DownloadsScreen> {
       songs: songs,
       startIndex: index,
     );
+  }
+
+  void _openFeedback(Song song) {
+    Navigator.of(context).pushNamed(RouteNames.feedback, arguments: song);
   }
 
   void _showFailureSnackBar(String message) {
@@ -238,6 +243,7 @@ class _DownloadsScreenState extends State<DownloadsScreen> {
                 onCancelDownload: () => _cancelDownload(song.id),
                 onRemoveDownload: () => _confirmAndRemoveDownload(song),
                 onToggleLike: () => _toggleLike(song.id),
+                onLongPress: () => _openFeedback(song),
               ),
             );
           },
