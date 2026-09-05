@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import 'core/constants/app_theme.dart';
 import 'core/constants/app_dimensions.dart';
 import 'core/constants/themes/app_theme_id.dart';
+import 'core/widgets/connectivity_banner.dart';
 import 'core/widgets/debug_panel.dart';
 import 'core/widgets/mini_player/mini_player_bar.dart';
 import 'services/downloads_service.dart';
@@ -193,6 +194,15 @@ class _MewatiTunePlayerAppState extends State<MewatiTunePlayerApp>
                             child: const MiniPlayerBar(),
                           ),
                         ),
+                      Positioned(
+                        top: 0,
+                        left: 0,
+                        right: 0,
+                        child: SafeArea(
+                          bottom: false,
+                          child: const ConnectivityBanner(),
+                        ),
+                      ),
                       if (kDebugMode) const DebugPanel(),
                     ],
                   );
