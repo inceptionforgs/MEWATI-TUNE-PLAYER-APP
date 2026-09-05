@@ -14,23 +14,24 @@ class CustomThemeSection extends StatefulWidget {
 class _CustomThemeSectionState extends State<CustomThemeSection> {
   late Color _pickedColor;
   late double _shade;
+  late ThemeProvider _themeProvider;
 
   @override
   void initState() {
     super.initState();
-    final themeProvider = context.read<ThemeProvider>();
-    _pickedColor = themeProvider.customColor;
-    _shade = themeProvider.customShade;
+    _themeProvider = context.read<ThemeProvider>();
+    _pickedColor = _themeProvider.customColor;
+    _shade = _themeProvider.customShade;
   }
 
   @override
   void dispose() {
-    context.read<ThemeProvider>().cancelThemePreview();
+    _themeProvider.cancelThemePreview();
     super.dispose();
   }
 
   void _updatePreview() {
-    context.read<ThemeProvider>().previewCustomTheme(_pickedColor, _shade);
+    _themeProvider.previewCustomTheme(_pickedColor, _shade);
   }
 
   void _onColorChanged(Color color) {
@@ -44,7 +45,7 @@ class _CustomThemeSectionState extends State<CustomThemeSection> {
   }
 
   Future<void> _onSet() async {
-    await context.read<ThemeProvider>().commitCustomTheme(_pickedColor, _shade);
+    await _themeProvider.commitCustomTheme(_pickedColor, _shade);
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text('Theme saved')),
@@ -52,7 +53,7 @@ class _CustomThemeSectionState extends State<CustomThemeSection> {
   }
 
   Future<void> _onResetTheme() async {
-    await context.read<ThemeProvider>().resetToDefaultTheme();
+    await _themeProvider.resetToDefaultTheme();
     if (!mounted) return;
     setState(() {
       _pickedColor = AppThemes.walkmanOrange.accent;
