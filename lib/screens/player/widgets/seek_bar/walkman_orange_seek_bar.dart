@@ -1,6 +1,4 @@
 // File: lib/screens/player/widgets/seek_bar/walkman_orange_seek_bar.dart
-// Unchanged — already matches the prototype's default np-seek (plain
-// white thumb, thin rounded track).
 
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
@@ -23,10 +21,9 @@ class _WalkmanOrangeSeekBarState extends State<WalkmanOrangeSeekBar> {
     final playerProvider = context.read<PlayerProvider>();
     final t = context.watch<ThemeProvider>().theme;
 
-    return ValueListenableBuilder<Duration?>(
+    return ValueListenableBuilder<Duration>(
       valueListenable: playerProvider.durationNotifier,
-      builder: (context, durationValue, _) {
-        final duration = durationValue ?? Duration.zero;
+      builder: (context, duration, _) {
         return ValueListenableBuilder<Duration>(
           valueListenable: playerProvider.positionNotifier,
           builder: (context, position, __) {
