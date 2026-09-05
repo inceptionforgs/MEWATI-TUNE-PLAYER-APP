@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../core/widgets/ad_banner_widget.dart';
-import '../../core/widgets/connectivity_banner.dart';
 import '../../core/widgets/app_drawer.dart';
 import '../../routes/route_names.dart';
 import '../songs/songs_screen.dart';
@@ -75,7 +74,6 @@ class _HomeScreenState extends State<HomeScreen> {
         child: SafeArea(
           child: Column(
             children: [
-              const ConnectivityBanner(),
               BrandRow(
                 onMenuTap: _openDrawer,
                 onSearchTap: _openSearch,
