@@ -1,7 +1,15 @@
 // FILE: lib/screens/search/search_screen.dart
+//
+// UPDATED: per-theme corner radius on the search input box and the
+// singer result row (matching the pill-card language used elsewhere),
+// and the search-icon empty state given a circular badge like the
+// prototype's .empty-icon. All search logic (debounce, remote search,
+// error/empty states, likes loading) is unchanged.
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../core/constants/app_themes.dart';
+import '../../core/constants/themes/app_theme_id.dart';
 import '../../core/utils/debouncer.dart';
 import '../../core/widgets/error_widget.dart';
 import '../../models/song.dart';
@@ -21,6 +29,17 @@ class _SearchListItem {
   const _SearchListItem(this.type, [this.index = 0]);
 }
 
+double _cardRadius(AppThemeId id) {
+  switch (id) {
+    case AppThemeId.cyberBlack:
+      return 4;
+    case AppThemeId.silverChrome:
+      return 10;
+    default:
+      return 14;
+  }
+}
+
 class SearchScreen extends StatefulWidget {
   const SearchScreen({Key? key}) : super(key: key);
 
@@ -38,11 +57,8 @@ class _SearchScreenState extends State<SearchScreen> {
   List<Singer> _singerResults = [];
   bool _isSearching = false;
   bool _isLoading = false;
-  int _searchGeneration = 0; // increments on every new search to discard stale results
+  int _searchGeneration = 0;
 
-  // Fixed (14c): distinct error state — a real search failure (network/API)
-  // is now shown via AppErrorWidget with Retry, separate from the genuine
-  // "no matches found" empty-results case, which keeps its existing copy.
   String? _errorMessage;
 
   @override
@@ -80,7 +96,6 @@ class _SearchScreenState extends State<SearchScreen> {
       return;
     }
 
-    // Invalidate previous searches
     final gen = ++_searchGeneration;
     setState(() {
       _isLoading = true;
@@ -90,10 +105,6 @@ class _SearchScreenState extends State<SearchScreen> {
     try {
       final songsProvider = context.read<SongsProvider>();
 
-      // Run both remote searches concurrently.
-      // NOTE: singers search goes through SingersService directly (side-effect-free)
-      // instead of SingersProvider.searchSingers, which would otherwise overwrite
-      // the Singers tab's filteredSingers list as a side effect.
       final results = await Future.wait<dynamic>([
         songsProvider.searchSongsRemote(term),
         _singersService.searchSingers(term),
@@ -112,7 +123,6 @@ class _SearchScreenState extends State<SearchScreen> {
         _errorMessage = null;
       });
 
-      // Load likes for the found songs.
       final likesProvider = Provider.of<LikesProvider>(context, listen: false);
       likesProvider.loadLikesData(_songResults);
     } catch (e) {
@@ -134,11 +144,10 @@ class _SearchScreenState extends State<SearchScreen> {
   @override
   Widget build(BuildContext context) {
     final t = context.watch<ThemeProvider>().theme;
+    final radius = _cardRadius(t.id);
     final hasResults = _songResults.isNotEmpty || _singerResults.isNotEmpty;
     final hasError = _errorMessage != null;
 
-    // Flatten singer/song headers + rows into a single item list for
-    // ListView.builder so mixed section headers and rows are built lazily.
     final items = <_SearchListItem>[];
     if (_singerResults.isNotEmpty) {
       items.add(const _SearchListItem(_SearchItemType.singerHeader));
@@ -172,7 +181,7 @@ class _SearchScreenState extends State<SearchScreen> {
                       padding: const EdgeInsets.symmetric(horizontal: 12),
                       decoration: BoxDecoration(
                         color: t.surface,
-                        borderRadius: BorderRadius.circular(10),
+                        borderRadius: BorderRadius.circular(radius),
                         border: Border.all(
                           color: t.textPrimary.withOpacity(0.2),
                         ),
@@ -206,8 +215,17 @@ class _SearchScreenState extends State<SearchScreen> {
                           child: Column(
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
-                              Icon(Icons.search,
-                                  size: 56, color: t.textSecondary),
+                              Container(
+                                width: 56,
+                                height: 56,
+                                decoration: BoxDecoration(
+                                  shape: BoxShape.circle,
+                                  color: Colors.white.withOpacity(0.12),
+                                  border: Border.all(color: t.textPrimary, width: 2),
+                                ),
+                                alignment: Alignment.center,
+                                child: Icon(Icons.search, size: 26, color: t.textPrimary),
+                              ),
                               const SizedBox(height: 15),
                               Text(
                                 _isSearching
@@ -271,7 +289,7 @@ class _SearchScreenState extends State<SearchScreen> {
                                 );
                               case _SearchItemType.singerRow:
                                 return _buildSingerResultRow(
-                                    _singerResults[item.index], t);
+                                    _singerResults[item.index], t, radius);
                               case _SearchItemType.songHeader:
                                 return Padding(
                                   padding:
@@ -303,7 +321,7 @@ class _SearchScreenState extends State<SearchScreen> {
     );
   }
 
-  Widget _buildSingerResultRow(Singer singer, AppThemeData t) {
+  Widget _buildSingerResultRow(Singer singer, AppThemeData t, double radius) {
     final initial =
         singer.name.isNotEmpty ? singer.name[0].toUpperCase() : '?';
     return InkWell(
@@ -315,13 +333,14 @@ class _SearchScreenState extends State<SearchScreen> {
           ),
         );
       },
-      borderRadius: BorderRadius.circular(14),
+      borderRadius: BorderRadius.circular(radius),
       child: Container(
         margin: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
         decoration: BoxDecoration(
           color: t.surface.withOpacity(0.2),
-          borderRadius: BorderRadius.circular(14),
+          borderRadius: BorderRadius.circular(radius),
+          border: Border.all(color: t.textPrimary.withOpacity(0.18)),
         ),
         child: Row(
           children: [
