@@ -160,6 +160,7 @@ class _CustomEqualizerSectionState extends State<CustomEqualizerSection> {
             children: List.generate(params.bands.length, (index) {
               final band = params.bands[index];
               final gain = _bandGains.length > index ? _bandGains[index] : 0.0;
+              final frequencyLabel = _formatFrequency(band.centerFrequency.round());
               return Expanded(
                 child: Column(
                   children: [
@@ -168,35 +169,42 @@ class _CustomEqualizerSectionState extends State<CustomEqualizerSection> {
                       style: TextStyle(color: t.textSecondary, fontSize: 10),
                     ),
                     Expanded(
-                      child: RotatedBox(
-                        quarterTurns: 3,
-                        child: SliderTheme(
-                          data: SliderTheme.of(context).copyWith(
-                            activeTrackColor: t.accent,
-                            inactiveTrackColor: t.surface,
-                            thumbColor: t.accent,
-                            overlayColor: t.accent.withOpacity(0.2),
-                            trackHeight: 4,
-                          ),
-                          child: Slider(
-                            value: gain.clamp(minDb, maxDb),
-                            min: minDb,
-                            max: maxDb,
-                            onChanged: (value) {
-                              setState(() {
-                                _bandGains[index] = value;
-                              });
-                              _equalizerService.setBandGain(index, value);
-                              _markCustomIfNeeded();
-                            },
-                            onChangeEnd: (_) => _persist(),
+                      child: Semantics(
+                        label: '$frequencyLabel band',
+                        value: '${gain.toStringAsFixed(1)}dB',
+                        increasedValue: '${(gain + 1).clamp(minDb, maxDb).toStringAsFixed(1)}dB',
+                        decreasedValue: '${(gain - 1).clamp(minDb, maxDb).toStringAsFixed(1)}dB',
+                        slider: true,
+                        child: RotatedBox(
+                          quarterTurns: 3,
+                          child: SliderTheme(
+                            data: SliderTheme.of(context).copyWith(
+                              activeTrackColor: t.accent,
+                              inactiveTrackColor: t.surface,
+                              thumbColor: t.accent,
+                              overlayColor: t.accent.withOpacity(0.2),
+                              trackHeight: 4,
+                            ),
+                            child: Slider(
+                              value: gain.clamp(minDb, maxDb),
+                              min: minDb,
+                              max: maxDb,
+                              onChanged: (value) {
+                                setState(() {
+                                  _bandGains[index] = value;
+                                });
+                                _equalizerService.setBandGain(index, value);
+                                _markCustomIfNeeded();
+                              },
+                              onChangeEnd: (_) => _persist(),
+                            ),
                           ),
                         ),
                       ),
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      _formatFrequency(band.centerFrequency.round()),
+                      frequencyLabel,
                       style: TextStyle(color: t.textSecondary, fontSize: 11),
                     ),
                   ],
