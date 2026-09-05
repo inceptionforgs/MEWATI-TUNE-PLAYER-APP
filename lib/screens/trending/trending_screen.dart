@@ -157,8 +157,6 @@ class _TrendingScreenState extends State<TrendingScreen> {
     }
   }
 
-  // ***** RECONSTRUCTED FROM HERE (dump was cut mid-line) *****
-
   Future<void> _toggleLike(String songId) async {
     final likesProvider = Provider.of<LikesProvider>(context, listen: false);
     await likesProvider.toggleLike(songId);
@@ -207,9 +205,16 @@ class _TrendingScreenState extends State<TrendingScreen> {
     );
 
     if (confirmed != true) return;
+    await _removeDownload(song);
+  }
 
-    final success = await Provider.of<DownloadsProvider>(context, listen: false)
-        .removeDownload(song.id, audioUrl: song.audioUrl);
+  Future<void> _removeDownload(Song song) async {
+    final downloadsProvider =
+        Provider.of<DownloadsProvider>(context, listen: false);
+    final success = await downloadsProvider.removeDownload(
+      song.id,
+      audioUrl: song.audioUrl,
+    );
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
@@ -241,13 +246,10 @@ class _TrendingScreenState extends State<TrendingScreen> {
     }
 
     if (_errorMessage != null && _trendingSongs.isEmpty) {
-      return AppErrorWidget(
-        error: _errorMessage,
-        onRetry: _loadFirstPage,
-      );
+      return AppErrorWidget(error: _errorMessage, onRetry: _loadFirstPage);
     }
 
-    if (_trendingSongs.isEmpty) {
+    if (_trendingSongs.isEmpty && !_isLoading) {
       return Center(
         child: Text(AppStrings.noSongsFound,
             style: TextStyle(color: t.textSecondary)),
@@ -261,12 +263,6 @@ class _TrendingScreenState extends State<TrendingScreen> {
           (_isLoadingMore || _loadMoreError != null ? 1 : 0),
       itemBuilder: (context, index) {
         if (index == _trendingSongs.length) {
-          if (_isLoadingMore) {
-            return const Padding(
-              padding: EdgeInsets.symmetric(vertical: 12),
-              child: Center(child: CircularProgressIndicator()),
-            );
-          }
           if (_loadMoreError != null) {
             return Padding(
               padding: const EdgeInsets.symmetric(vertical: 12),
@@ -284,6 +280,12 @@ class _TrendingScreenState extends State<TrendingScreen> {
                   ),
                 ],
               ),
+            );
+          }
+          if (_isLoadingMore) {
+            return const Padding(
+              padding: EdgeInsets.symmetric(vertical: 12),
+              child: Center(child: CircularProgressIndicator()),
             );
           }
           return const SizedBox.shrink();
@@ -314,7 +316,8 @@ class _TrendingScreenState extends State<TrendingScreen> {
                 isDownloaded: isDownloaded,
                 isDownloading: isDownloading,
                 progress: progress,
-                subtitle: song.singerName ?? 'Unknown Artist',
+                subtitle:
+                    '${song.singerName ?? "Unknown Artist"} · Plays: ${song.playCount}',
                 isLiked: isLiked,
                 likeCount: likeCount,
               ),
@@ -325,8 +328,6 @@ class _TrendingScreenState extends State<TrendingScreen> {
                 onCancelDownload: () => _cancelDownload(song.id),
                 onRemoveDownload: () => _confirmAndRemoveDownload(song),
                 onToggleLike: () => _toggleLike(song.id),
-                onLongPress: () => Navigator.of(context)
-                    .pushNamed('/feedback', arguments: song),
               ),
             );
           },
