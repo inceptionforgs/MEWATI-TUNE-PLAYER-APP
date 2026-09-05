@@ -1,14 +1,5 @@
 // File: lib/core/widgets/mini_player/mini_player_data.dart
-//
-// Plain data holder for everything a themed mini player needs to render.
-// mini_player_bar.dart builds one of these per frame (from PlayerProvider
-// selects) and hands it to whichever theme widget is active, so every
-// theme file has one single, stable constructor signature to depend on.
-//
-// `song` and `theme` are left as `dynamic` on purpose, matching the
-// existing convention in this codebase (see the old mini_player_bar.dart),
-// so this file doesn't need to import the concrete Song / AppThemeData
-// types just to pass them through.
+// Unchanged.
 
 import 'package:just_audio/just_audio.dart';
 
