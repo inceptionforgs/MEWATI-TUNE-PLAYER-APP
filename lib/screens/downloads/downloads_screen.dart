@@ -1,10 +1,7 @@
-// FILE: lib/screens/downloads/downloads_screen.dart
-// Unchanged — already uses the restyled SongRow, has a confirm-before-
-// delete dialog, and an empty state matching the prototype's style.
+// lib/screens/downloads/downloads_screen.dart
 
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import '../../core/constants/app_dimensions.dart';
 import '../../core/widgets/song_row.dart';
 import '../../models/song.dart';
 import '../../providers/downloads_provider.dart';
@@ -197,7 +194,7 @@ class _DownloadsScreenState extends State<DownloadsScreen> {
 
     return ListView.builder(
       padding: EdgeInsets.only(
-        bottom: 16 + AppDimensions.miniPlayerHeight,
+        bottom: 16,
         top: 8,
       ),
       itemCount: downloadedSongs.length,
