@@ -1,5 +1,3 @@
-// lib/screens/singers/singer_profile_screen.dart
-
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:cached_network_image/cached_network_image.dart';
@@ -66,7 +64,13 @@ class _SingerProfileScreenState extends State<SingerProfileScreen> {
   }
 
   void _playSong(List<Song> songs, int index) {
-    Provider.of<PlayerProvider>(context, listen: false).setPlaylist(
+    final playerProvider = Provider.of<PlayerProvider>(context, listen: false);
+    final tappedSong = songs[index];
+    if (playerProvider.currentSong?.id == tappedSong.id) {
+      playerProvider.togglePlayPause();
+      return;
+    }
+    playerProvider.setPlaylist(
       songs: songs,
       startIndex: index,
     );
@@ -408,4 +412,3 @@ class _SingerProfileScreenState extends State<SingerProfileScreen> {
     );
   }
 }
-
