@@ -11,6 +11,7 @@ import '../../providers/favorites_provider.dart';
 import '../../providers/downloads_provider.dart';
 import '../../providers/likes_provider.dart';
 import '../../providers/theme_provider.dart';
+import '../../routes/route_names.dart';
 
 class SongsScreen extends StatefulWidget {
   const SongsScreen({Key? key}) : super(key: key);
@@ -22,6 +23,7 @@ class SongsScreen extends StatefulWidget {
 class _SongsScreenState extends State<SongsScreen> {
   final ScrollController _scrollController = ScrollController();
   SongsProvider? _songsProvider;
+  String? _loadMoreError;
 
   @override
   void initState() {
@@ -67,7 +69,19 @@ class _SongsScreenState extends State<SongsScreen> {
   void _onScroll() {
     if (_scrollController.position.pixels >=
         _scrollController.position.maxScrollExtent - 200) {
-      Provider.of<SongsProvider>(context, listen: false).loadMoreSongs();
+      _loadMore();
+    }
+  }
+
+  Future<void> _loadMore() async {
+    final songsProvider = Provider.of<SongsProvider>(context, listen: false);
+    await songsProvider.loadMoreSongs();
+    if (!mounted) return;
+    if (songsProvider.errorMessage != null) {
+      setState(() => _loadMoreError = songsProvider.errorMessage);
+      songsProvider.clearError();
+    } else if (_loadMoreError != null) {
+      setState(() => _loadMoreError = null);
     }
   }
 
@@ -82,6 +96,10 @@ class _SongsScreenState extends State<SongsScreen> {
       songs: songs,
       startIndex: index,
     );
+  }
+
+  void _openFeedback(Song song) {
+    Navigator.of(context).pushNamed(RouteNames.feedback, arguments: song);
   }
 
   void _showFailureSnackBar(String message) {
@@ -211,13 +229,36 @@ class _SongsScreenState extends State<SongsScreen> {
     return ListView.builder(
       controller: _scrollController,
       padding: EdgeInsets.only(bottom: 16),
-      itemCount: songs.length + (songsProvider.isLoadingMore ? 1 : 0),
+      itemCount: songs.length +
+          (songsProvider.isLoadingMore || _loadMoreError != null ? 1 : 0),
       itemBuilder: (context, index) {
         if (index == songs.length) {
-          return const Padding(
-            padding: EdgeInsets.symmetric(vertical: 12),
-            child: Center(child: CircularProgressIndicator()),
-          );
+          if (songsProvider.isLoadingMore) {
+            return const Padding(
+              padding: EdgeInsets.symmetric(vertical: 12),
+              child: Center(child: CircularProgressIndicator()),
+            );
+          }
+          if (_loadMoreError != null) {
+            return Padding(
+              padding: const EdgeInsets.symmetric(vertical: 12),
+              child: Column(
+                children: [
+                  Text(
+                    _loadMoreError!,
+                    textAlign: TextAlign.center,
+                    style: TextStyle(color: t.textSecondary, fontSize: 13),
+                  ),
+                  const SizedBox(height: 8),
+                  TextButton(
+                    onPressed: _loadMore,
+                    child: const Text('Retry'),
+                  ),
+                ],
+              ),
+            );
+          }
+          return const SizedBox.shrink();
         }
 
         final song = songs[index];
@@ -256,6 +297,7 @@ class _SongsScreenState extends State<SongsScreen> {
                 onCancelDownload: () => _cancelDownload(song.id),
                 onRemoveDownload: () => _confirmAndRemoveDownload(song),
                 onToggleLike: () => _toggleLike(song.id),
+                onLongPress: () => _openFeedback(song),
               ),
             );
           },
