@@ -1,8 +1,14 @@
 // File: lib/screens/player/widgets/album_art.dart
+//
+// Added per-theme corner radius to match the prototype's --thumb-radius
+// token (Walkman Orange: 12, Deep Black/cyber: 0 — sharp square, Apple
+// Green/silver-chrome: 8). Everything else (gradient, border, shadow,
+// cached image loading) is unchanged.
 
 import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import '../../../core/constants/app_themes.dart';
+import '../../../core/constants/themes/app_theme_id.dart';
 import '../../../models/song.dart';
 import '../../../services/app_cache_manager.dart';
 
@@ -12,13 +18,26 @@ class AlbumArt extends StatelessWidget {
 
   const AlbumArt({Key? key, required this.song, required this.t}) : super(key: key);
 
+  static double _radius(AppThemeId id) {
+    switch (id) {
+      case AppThemeId.cyberBlack:
+        return 0;
+      case AppThemeId.silverChrome:
+        return 8;
+      default:
+        return 12;
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
+    final radius = _radius(t.id);
+
     return Container(
       width: 230,
       height: 230,
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(radius),
         // Theme-derived gradient (fixed in File 42) instead of a hardcoded
         // pair of colors that never changed with the active theme.
         gradient: LinearGradient(
@@ -40,15 +59,11 @@ class AlbumArt extends StatelessWidget {
       ),
       child: (song.coverImageUrl != null && song.coverImageUrl!.isNotEmpty)
           ? ClipRRect(
-              borderRadius: BorderRadius.circular(18),
+              borderRadius: BorderRadius.circular(radius > 2 ? radius - 2 : 0),
               child: CachedNetworkImage(
                 imageUrl: song.coverImageUrl!,
                 fit: BoxFit.cover,
                 cacheManager: AppCacheManager.instance,
-                // Fixed (P5-7): cap decoded bitmap size in memory. Without
-                // this, a large source image (e.g. a 3000x3000 cover) gets
-                // decoded at full resolution just to be shown at 230x230,
-                // wasting memory per song as the user scrolls/plays.
                 memCacheWidth: 512,
                 memCacheHeight: 512,
                 placeholder: (context, url) =>
