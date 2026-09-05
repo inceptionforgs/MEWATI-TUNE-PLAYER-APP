@@ -30,9 +30,6 @@ extension on _FeedbackCategory {
   }
 }
 
-/// F1: lightweight in-app feedback channel. Opens either from the drawer
-/// (File 19, no song context) or from a song's long-press context menu
-/// (File 21, auto-filled song).
 class FeedbackScreen extends StatefulWidget {
   final Song? song;
 
@@ -67,6 +64,8 @@ class _FeedbackScreenState extends State<FeedbackScreen> {
       _errorMessage = null;
     });
 
+    final messenger = ScaffoldMessenger.of(context);
+
     try {
       await _feedbackService.submitFeedback(
         message: message,
@@ -75,7 +74,7 @@ class _FeedbackScreenState extends State<FeedbackScreen> {
       );
       if (!mounted) return;
       Navigator.of(context).pop();
-      ScaffoldMessenger.of(context).showSnackBar(
+      messenger.showSnackBar(
         const SnackBar(content: Text("Thanks! We'll look into it.")),
       );
     } catch (e) {
@@ -90,6 +89,10 @@ class _FeedbackScreenState extends State<FeedbackScreen> {
   @override
   Widget build(BuildContext context) {
     final t = context.watch<ThemeProvider>().theme;
+    final onAccent =
+        ThemeData.estimateBrightnessForColor(t.accent) == Brightness.dark
+            ? Colors.white
+            : Colors.black87;
 
     return Scaffold(
       backgroundColor: t.background,
@@ -98,6 +101,8 @@ class _FeedbackScreenState extends State<FeedbackScreen> {
         elevation: 0,
         title: Text(
           'Feedback / Suggest a Song',
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
           style: TextStyle(color: t.textPrimary, fontWeight: FontWeight.w800, fontSize: 16),
         ),
         iconTheme: IconThemeData(color: t.textPrimary),
@@ -145,6 +150,7 @@ class _FeedbackScreenState extends State<FeedbackScreen> {
                   return ChoiceChip(
                     label: Text(cat.label),
                     selected: selected,
+                    showCheckmark: false,
                     onSelected: (_) {
                       setState(() {
                         _selectedCategory = selected ? null : cat;
@@ -199,14 +205,14 @@ class _FeedbackScreenState extends State<FeedbackScreen> {
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                   ),
                   child: _isSubmitting
-                      ? const SizedBox(
+                      ? SizedBox(
                           width: 20,
                           height: 20,
-                          child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                          child: CircularProgressIndicator(strokeWidth: 2, color: onAccent),
                         )
-                      : const Text(
+                      : Text(
                           'Submit',
-                          style: TextStyle(fontWeight: FontWeight.w800, color: Colors.white),
+                          style: TextStyle(fontWeight: FontWeight.w800, color: onAccent),
                         ),
                 ),
               ),
