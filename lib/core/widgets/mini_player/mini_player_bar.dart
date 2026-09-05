@@ -77,3 +77,4 @@ class MiniPlayerBar extends StatelessWidget {
     }
   }
 }
+
