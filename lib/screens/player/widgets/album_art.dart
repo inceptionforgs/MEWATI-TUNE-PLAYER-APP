@@ -1,12 +1,18 @@
 // File: lib/screens/player/widgets/album_art.dart
 //
-// Added per-theme corner radius to match the prototype's --thumb-radius
-// token (Walkman Orange: 12, Deep Black/cyber: 0 — sharp square, Apple
-// Green/silver-chrome: 8). Everything else (gradient, border, shadow,
-// cached image loading) is unchanged.
+// Per-theme corner radius matching the prototype's --thumb-radius token
+// (Walkman Orange: 12, Deep Black/cyber: 0 — sharp square, Apple
+// Green/silver-chrome: 8).
+//
+// FIXED (Batch 3 audit): was a hardcoded 230x230 regardless of screen
+// size — the single biggest contributor to Now Playing's small-screen
+// overflow. AppDimensions.albumArtSize now acts as a *maximum*; on
+// screens narrower than that it shrinks to fit instead of forcing the
+// fixed size no matter what.
 
 import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import '../../../core/constants/app_dimensions.dart';
 import '../../../core/constants/app_themes.dart';
 import '../../../core/constants/themes/app_theme_id.dart';
 import '../../../models/song.dart';
@@ -33,9 +39,19 @@ class AlbumArt extends StatelessWidget {
   Widget build(BuildContext context) {
     final radius = _radius(t.id);
 
+    // FIXED: responsive size instead of a hardcoded 230. Caps at
+    // AppDimensions.albumArtSize on normal/large screens, but shrinks on
+    // narrow ones (small Android phones, iPhone SE) so it — plus the
+    // horizontal margins around it — never forces the Now Playing column
+    // past the available height.
+    final screenWidth = MediaQuery.of(context).size.width;
+    final size = screenWidth < AppDimensions.albumArtSize + 90
+        ? screenWidth - 90
+        : AppDimensions.albumArtSize;
+
     return Container(
-      width: 230,
-      height: 230,
+      width: size,
+      height: size,
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(radius),
         // Theme-derived gradient (fixed in File 42) instead of a hardcoded
