@@ -54,8 +54,10 @@ class AppRouter {
           settings: settings,
         );
       case RouteNames.advanceSettings:
+        final args = settings.arguments;
+        final tab = args is int ? args : AdvanceSettingsScreen.equalizerTab;
         return MaterialPageRoute(
-          builder: (_) => const AdvanceSettingsScreen(),
+          builder: (_) => AdvanceSettingsScreen(initialTabIndex: tab),
           settings: settings,
         );
       case RouteNames.driveMode:
