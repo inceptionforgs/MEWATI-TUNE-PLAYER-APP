@@ -1,10 +1,9 @@
-// File: lib/screens/home/home_screen.dart
-
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../core/widgets/ad_banner_widget.dart';
 import '../../core/widgets/connectivity_banner.dart';
 import '../../core/widgets/app_drawer.dart';
+import '../../routes/route_names.dart';
 import '../songs/songs_screen.dart';
 import '../singers/singers_screen.dart';
 import '../trending/trending_screen.dart';
@@ -26,13 +25,6 @@ class _HomeScreenState extends State<HomeScreen> {
   int _currentIndex = 0;
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
 
-  // Fixed (P5-4): only tab 0 (Songs) is "visited" at startup. The other 4
-  // tabs' screens are not built at all until the user actually taps them —
-  // previously IndexedStack built all 5 screens immediately on launch,
-  // firing 5 simultaneous data fetches (Downloads also separately called
-  // loadSongs, doubling one of them). Once a tab is built here, IndexedStack
-  // keeps it mounted (just hidden) when switching away, so this also gives
-  // "keep alive" behavior for free — no re-fetch on returning to a tab.
   final Set<int> _visitedTabs = {0};
 
   static final List<Widget Function()> _screenBuilders = [
@@ -42,14 +34,6 @@ class _HomeScreenState extends State<HomeScreen> {
     () => const FavoritesScreen(),
     () => const DownloadsScreen(),
   ];
-
-  @override
-  void initState() {
-    super.initState();
-    // No duplicate data loading here.
-    // Each tab screen (SongsScreen, SingersScreen, etc.) is responsible for
-    // loading its own data when it is first built.
-  }
 
   void _onTabSelected(int index) {
     setState(() {
@@ -63,6 +47,7 @@ class _HomeScreenState extends State<HomeScreen> {
       MaterialPageRoute(
         builder: (_) => const SearchScreen(),
         fullscreenDialog: true,
+        settings: const RouteSettings(name: RouteNames.search),
       ),
     );
   }
@@ -109,9 +94,6 @@ class _HomeScreenState extends State<HomeScreen> {
                   }),
                 ),
               ),
-              // MiniPlayerBar is now provided globally via MaterialApp.builder overlay
-              // (see lib/app.dart). Removing it here prevents duplicate control decks
-              // and ensures it appears on all pushed routes.
               const AdBannerWidget(),
             ],
           ),
