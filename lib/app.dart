@@ -176,7 +176,13 @@ class _MewatiTunePlayerAppState extends State<MewatiTunePlayerApp>
                   );
                   final isNowPlaying = routeName == RouteNames.nowPlaying;
                   final isSplash = routeName == RouteNames.splash;
-                  final showMiniPlayer = hasSong && !isNowPlaying && !isSplash;
+                  // FIXED: Drive Mode has its own XXL prev/play/next + seek
+                  // controls, so the global mini-player must hide here too
+                  // (previously only nowPlaying/splash were excluded, so
+                  // Drive Mode showed two overlapping control decks).
+                  final isDriveMode = routeName == RouteNames.driveMode;
+                  final showMiniPlayer =
+                      hasSong && !isNowPlaying && !isSplash && !isDriveMode;
 
                   debugPrint('🎯 Route: $routeName | hasSong: $hasSong | isNowPlaying: $isNowPlaying | showMiniPlayer: $showMiniPlayer');
 
