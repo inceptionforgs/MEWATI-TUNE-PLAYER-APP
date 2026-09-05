@@ -77,7 +77,6 @@ class MewatiTunePlayerApp extends StatefulWidget {
 
 class _MewatiTunePlayerAppState extends State<MewatiTunePlayerApp>
     with WidgetsBindingObserver {
-  final GlobalKey<NavigatorState> _navigatorKey = GlobalKey<NavigatorState>();
   final ValueNotifier<String?> _currentRouteName = ValueNotifier<String?>(null);
   late final _MiniPlayerRouteObserver _routeObserver;
 
@@ -147,7 +146,7 @@ class _MewatiTunePlayerAppState extends State<MewatiTunePlayerApp>
             debugShowCheckedModeBanner: false,
             theme: AppTheme.fromAppTheme(themeProvider.theme),
             onGenerateRoute: AppRouter.generateRoute,
-            navigatorKey: _navigatorKey,
+            navigatorKey: AppRouter.navigatorKey,
             navigatorObservers: [_routeObserver],
             initialRoute: RouteNames.splash,
             builder: (context, child) {
