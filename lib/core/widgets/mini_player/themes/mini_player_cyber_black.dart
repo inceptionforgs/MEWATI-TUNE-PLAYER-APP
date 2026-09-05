@@ -1,7 +1,3 @@
-// File: lib/core/widgets/mini_player/themes/mini_player_cyber_black.dart
-// Unchanged — already has Drive Mode (not Shuffle) and matches the
-// prototype's Cyber Black palette/layout.
-
 import 'package:flutter/material.dart';
 import 'package:just_audio/just_audio.dart';
 
@@ -279,6 +275,11 @@ class _CyberBlackSliderState extends State<_CyberBlackSlider> {
     setState(() => _dragValue = null);
   }
 
+  void _cancelDrag() {
+    if (_dragValue == null) return;
+    setState(() => _dragValue = null);
+  }
+
   @override
   Widget build(BuildContext context) {
     final playerProvider = context.read<PlayerProvider>();
@@ -304,9 +305,11 @@ class _CyberBlackSliderState extends State<_CyberBlackSlider> {
                     return GestureDetector(
                       onTapDown: (d) => _updateDrag(d.localPosition.dx, width),
                       onTapUp: (_) => _commitDrag(duration),
+                      onTapCancel: _cancelDrag,
                       onHorizontalDragUpdate: (d) =>
                           _updateDrag(d.localPosition.dx, width),
                       onHorizontalDragEnd: (_) => _commitDrag(duration),
+                      onHorizontalDragCancel: _cancelDrag,
                       child: Container(
                         height: 12,
                         clipBehavior: Clip.antiAlias,
