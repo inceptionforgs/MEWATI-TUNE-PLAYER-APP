@@ -1,15 +1,14 @@
+// File: lib/screens/player/widgets/player_controls/silver_chrome_player_controls.dart
+//
+// UPDATED: same Shuffle -> Drive Mode swap as the other two variants.
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:just_audio/just_audio.dart';
 import '../../../../providers/player_provider.dart';
 import '../../../../providers/theme_provider.dart';
+import '../../../../routes/route_names.dart';
 
-/// Player controls (shuffle / prev / play-pause / next / repeat) used
-/// for the Apple Green theme (internal id: silverChrome).
-///
-/// Content is currently identical to WalkmanOrangePlayerControls — this
-/// is a pure file-separation step so Apple Green's buttons can get their
-/// own look later without touching the other themes.
 class SilverChromePlayerControls extends StatelessWidget {
   const SilverChromePlayerControls({Key? key}) : super(key: key);
 
@@ -36,16 +35,15 @@ class SilverChromePlayerControls extends StatelessWidget {
       children: [
         Semantics(
           button: true,
-          label: 'Shuffle',
+          label: 'Drive Mode',
           child: IconButton(
             icon: Icon(
-              Icons.shuffle,
-              color: playerProvider.shuffleMode
-                  ? t.accent
-                  : t.textPrimary.withOpacity(0.85),
+              Icons.drive_eta,
+              color: t.textPrimary.withOpacity(0.85),
               size: 22,
             ),
-            onPressed: () => playerProvider.toggleShuffle(),
+            tooltip: 'Drive Mode',
+            onPressed: () => Navigator.of(context).pushNamed(RouteNames.driveMode),
           ),
         ),
         const SizedBox(width: 10),
